@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/user2/user2_screen.dart';
 
 void main() {
   runApp(const FitTrackApp());
@@ -39,12 +40,15 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User
+
+            // ---------------- USER ----------------
+
             const Text(
               'User 1',
               style: TextStyle(
@@ -55,7 +59,8 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Main Effort Card
+            // ---------------- EFFORT ----------------
+
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -67,13 +72,15 @@ class HomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Today\'s Effort',
+                    "Today's Effort",
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white70,
                     ),
                   ),
+
                   SizedBox(height: 8),
+
                   Text(
                     '82%',
                     style: TextStyle(
@@ -87,7 +94,8 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Metrics
+            // ---------------- METRICS ROW 1 ----------------
+
             Row(
               children: [
                 Expanded(
@@ -97,7 +105,9 @@ class HomeScreen extends StatelessWidget {
                     Icons.battery_charging_full,
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: _metricCard(
                     'Steps',
@@ -110,6 +120,8 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
+            // ---------------- METRICS ROW 2 ----------------
+
             Row(
               children: [
                 Expanded(
@@ -119,7 +131,9 @@ class HomeScreen extends StatelessWidget {
                     Icons.local_fire_department,
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: _metricCard(
                     'Sleep',
@@ -131,6 +145,8 @@ class HomeScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 24),
+
+            // ---------------- PROGRESS ----------------
 
             const Text(
               'Progress',
@@ -161,6 +177,8 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
+            // ---------------- QUICK ACTIONS ----------------
+
             const Text(
               'Quick Actions',
               style: TextStyle(
@@ -179,7 +197,9 @@ class HomeScreen extends StatelessWidget {
                     Icons.fitness_center,
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: _actionButton(
                     'Diet',
@@ -201,6 +221,8 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
+            // ---------------- USERS ----------------
+
             const Text(
               'Users',
               style: TextStyle(
@@ -215,43 +237,54 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _userCard(
+                    context,
                     'User 1',
                     'Full Tracking',
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: _userCard(
+                    context,
                     'User 2',
                     'Exercise',
                   ),
                 ),
               ],
             ),
+
+            const SizedBox(height: 20),
           ],
         ),
       ),
 
-      // Bottom navigation
+      // ---------------- BOTTOM NAVIGATION ----------------
+
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF15171D),
         selectedIndex: 0,
+
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.fitness_center_outlined),
             selectedIcon: Icon(Icons.fitness_center),
             label: 'Workout',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
@@ -262,6 +295,10 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  // ==================================================
+  // METRIC CARD
+  // ==================================================
+
   static Widget _metricCard(
     String title,
     String value,
@@ -269,22 +306,32 @@ class HomeScreen extends StatelessWidget {
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
+
       decoration: BoxDecoration(
         color: const Color(0xFF1A1D24),
         borderRadius: BorderRadius.circular(18),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 22, color: Colors.white70),
+          Icon(
+            icon,
+            size: 22,
+            color: Colors.white70,
+          ),
+
           const SizedBox(height: 12),
+
           Text(
             title,
             style: const TextStyle(
               color: Colors.white60,
             ),
           ),
+
           const SizedBox(height: 4),
+
           Text(
             value,
             style: const TextStyle(
@@ -297,6 +344,10 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  // ==================================================
+  // QUICK ACTION BUTTON
+  // ==================================================
+
   static Widget _actionButton(
     String title,
     IconData icon,
@@ -306,14 +357,18 @@ class HomeScreen extends StatelessWidget {
         horizontal: 16,
         vertical: 18,
       ),
+
       decoration: BoxDecoration(
         color: const Color(0xFF1A1D24),
         borderRadius: BorderRadius.circular(18),
       ),
+
       child: Row(
         children: [
           Icon(icon),
+
           const SizedBox(width: 12),
+
           Text(
             title,
             style: const TextStyle(
@@ -326,37 +381,63 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  // ==================================================
+  // USER CARD
+  // ==================================================
+
   static Widget _userCard(
+    BuildContext context,
     String name,
     String subtitle,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.person_outline),
-          const SizedBox(height: 10),
-          Text(
-            name,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+
+      onTap: () {
+        if (name == 'User 2') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const User2Screen(),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 13,
+          );
+        }
+      },
+
+      child: Container(
+        padding: const EdgeInsets.all(16),
+
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1D24),
+          borderRadius: BorderRadius.circular(18),
+        ),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.person_outline),
+
+            const SizedBox(height: 10),
+
+            Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 4),
+
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Colors.white60,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
