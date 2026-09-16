@@ -506,7 +506,7 @@ class $DailyDataTable extends DailyData
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(2500),
   );
   static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
   @override
@@ -528,7 +528,7 @@ class $DailyDataTable extends DailyData
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(10000),
   );
   static const VerificationMeta _sleepHoursMeta = const VerificationMeta(
     'sleepHours',
@@ -1206,8 +1206,7 @@ class $DietEntriesTable extends DietEntries
     aliasedName,
     false,
     type: DriftSqlType.double,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    requiredDuringInsert: true,
   );
   static const VerificationMeta _quantityUnitMeta = const VerificationMeta(
     'quantityUnit',
@@ -1218,8 +1217,7 @@ class $DietEntriesTable extends DietEntries
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
+    requiredDuringInsert: true,
   );
   static const VerificationMeta _plannedCaloriesMeta = const VerificationMeta(
     'plannedCalories',
@@ -1230,8 +1228,7 @@ class $DietEntriesTable extends DietEntries
     aliasedName,
     false,
     type: DriftSqlType.double,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    requiredDuringInsert: true,
   );
   static const VerificationMeta _actualQuantityMeta = const VerificationMeta(
     'actualQuantity',
@@ -1363,6 +1360,8 @@ class $DietEntriesTable extends DietEntries
           _plannedQuantityMeta,
         ),
       );
+    } else if (isInserting) {
+      context.missing(_plannedQuantityMeta);
     }
     if (data.containsKey('quantity_unit')) {
       context.handle(
@@ -1372,6 +1371,8 @@ class $DietEntriesTable extends DietEntries
           _quantityUnitMeta,
         ),
       );
+    } else if (isInserting) {
+      context.missing(_quantityUnitMeta);
     }
     if (data.containsKey('planned_calories')) {
       context.handle(
@@ -1381,6 +1382,8 @@ class $DietEntriesTable extends DietEntries
           _plannedCaloriesMeta,
         ),
       );
+    } else if (isInserting) {
+      context.missing(_plannedCaloriesMeta);
     }
     if (data.containsKey('actual_quantity')) {
       context.handle(
@@ -1746,9 +1749,9 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
     required DateTime date,
     required String meal,
     required String foodName,
-    this.plannedQuantity = const Value.absent(),
-    this.quantityUnit = const Value.absent(),
-    this.plannedCalories = const Value.absent(),
+    required double plannedQuantity,
+    required String quantityUnit,
+    required double plannedCalories,
     this.actualQuantity = const Value.absent(),
     this.actualCalories = const Value.absent(),
     this.eaten = const Value.absent(),
@@ -1758,6 +1761,9 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
        date = Value(date),
        meal = Value(meal),
        foodName = Value(foodName),
+       plannedQuantity = Value(plannedQuantity),
+       quantityUnit = Value(quantityUnit),
+       plannedCalories = Value(plannedCalories),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<DietEntry> custom({
@@ -2907,9 +2913,9 @@ typedef $$DietEntriesTableCreateCompanionBuilder =
       required DateTime date,
       required String meal,
       required String foodName,
-      Value<double> plannedQuantity,
-      Value<String> quantityUnit,
-      Value<double> plannedCalories,
+      required double plannedQuantity,
+      required String quantityUnit,
+      required double plannedCalories,
       Value<double> actualQuantity,
       Value<double> actualCalories,
       Value<bool> eaten,
@@ -3208,9 +3214,9 @@ class $$DietEntriesTableTableManager
                 required DateTime date,
                 required String meal,
                 required String foodName,
-                Value<double> plannedQuantity = const Value.absent(),
-                Value<String> quantityUnit = const Value.absent(),
-                Value<double> plannedCalories = const Value.absent(),
+                required double plannedQuantity,
+                required String quantityUnit,
+                required double plannedCalories,
                 Value<double> actualQuantity = const Value.absent(),
                 Value<double> actualCalories = const Value.absent(),
                 Value<bool> eaten = const Value.absent(),
