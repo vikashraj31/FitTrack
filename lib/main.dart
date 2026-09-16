@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+
 import 'screens/user2/user2_screen.dart';
+import 'screens/diet/diet_screen.dart';
+import 'screens/home/daily_metrics_screen.dart';
+import 'services/database_service.dart';
 
 void main() {
   runApp(const FitTrackApp());
 }
+
+// ============================================================
+// APP
+// ============================================================
 
 class FitTrackApp extends StatelessWidget {
   const FitTrackApp({super.key});
@@ -23,8 +31,171 @@ class FitTrackApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+// ============================================================
+// HOME SCREEN
+// ============================================================
+
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final AppDatabase _database = AppDatabase();
+
+  // IMPORTANT:
+  // Drift returns DailyDataData, not DailyData.
+  DailyDataData? _dailyData;
+
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDailyData();
+  }
+
+  // ============================================================
+  // LOAD TODAY'S DAILY DATA
+  // ============================================================
+
+  Future<void> _loadDailyData() async {
+    try {
+      final data = await _database.getDailyData(
+        userId: 'user1',
+        date: DateTime.now(),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _dailyData = data;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading daily data: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  // ============================================================
+  // FORMAT STEPS
+  // ============================================================
+
+  String _stepsValue() {
+    if (_loading || _dailyData == null) {
+      return '—';
+    }
+
+    return _dailyData!.steps.toString();
+  }
+
+  // ============================================================
+  // FORMAT CALORIES
+  // ============================================================
+
+  String _caloriesValue() {
+    if (_loading || _dailyData == null) {
+      return '—';
+    }
+
+    return _dailyData!.calories.round().toString();
+  }
+
+  // ============================================================
+  // FORMAT SLEEP
+  // ============================================================
+
+  String _sleepValue() {
+    if (_loading || _dailyData == null) {
+      return '—';
+    }
+
+    final double hours = _dailyData!.sleepHours;
+
+    final int wholeHours = hours.floor();
+
+    final int minutes = ((hours - wholeHours) * 60).round();
+
+    if (minutes == 60) {
+      return '${wholeHours + 1}h 0m';
+    }
+
+    return '${wholeHours}h ${minutes}m';
+  }
+
+  // ============================================================
+  // EFFORT
+  // ============================================================
+
+  String _effortValue() {
+    if (_loading || _dailyData == null) {
+      return '—';
+    }
+
+    final double score = _dailyData!.effortScore;
+
+    if (score <= 0) {
+      return '—';
+    }
+
+    return '${score.round()}%';
+  }
+
+  // ============================================================
+  // RECOVERY
+  // ============================================================
+
+  String _recoveryValue() {
+    if (_loading || _dailyData == null) {
+      return '—';
+    }
+
+    final double score = _dailyData!.recoveryScore;
+
+    if (score <= 0) {
+      return '—';
+    }
+
+    return '${score.round()}%';
+  }
+
+  // ============================================================
+  // OPEN DAILY METRICS
+  // ============================================================
+
+  Future<void> _openDailyMetrics() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DailyMetricsScreen(),
+      ),
+    );
+
+    // Refresh Home after returning.
+    await _loadDailyData();
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    _database.close();
+    super.dispose();
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -41,13 +212,19 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
 
+      // ========================================================
+      // BODY
+      // ========================================================
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // ---------------- USER ----------------
+            // ==================================================
+            // USER
+            // ==================================================
 
             const Text(
               'User 1',
@@ -59,7 +236,9 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // ---------------- EFFORT ----------------
+            // ==================================================
+            // EFFORT
+            // ==================================================
 
             Container(
               width: double.infinity,
@@ -68,10 +247,10 @@ class HomeScreen extends StatelessWidget {
                 color: const Color(0xFF1A1D24),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     "Today's Effort",
                     style: TextStyle(
                       fontSize: 16,
@@ -79,11 +258,11 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
 
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
 
                   Text(
-                    '82%',
-                    style: TextStyle(
+                    _effortValue(),
+                    style: const TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.bold,
                     ),
@@ -94,14 +273,16 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // ---------------- METRICS ROW 1 ----------------
+            // ==================================================
+            // METRICS ROW 1
+            // ==================================================
 
             Row(
               children: [
                 Expanded(
                   child: _metricCard(
                     'Recovery',
-                    '78%',
+                    _recoveryValue(),
                     Icons.battery_charging_full,
                   ),
                 ),
@@ -111,7 +292,7 @@ class HomeScreen extends StatelessWidget {
                 Expanded(
                   child: _metricCard(
                     'Steps',
-                    '7,842',
+                    _stepsValue(),
                     Icons.directions_walk,
                   ),
                 ),
@@ -120,14 +301,16 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // ---------------- METRICS ROW 2 ----------------
+            // ==================================================
+            // METRICS ROW 2
+            // ==================================================
 
             Row(
               children: [
                 Expanded(
                   child: _metricCard(
                     'Calories',
-                    '2,350',
+                    _caloriesValue(),
                     Icons.local_fire_department,
                   ),
                 ),
@@ -137,7 +320,7 @@ class HomeScreen extends StatelessWidget {
                 Expanded(
                   child: _metricCard(
                     'Sleep',
-                    '7h 20m',
+                    _sleepValue(),
                     Icons.bedtime,
                   ),
                 ),
@@ -146,7 +329,9 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // ---------------- PROGRESS ----------------
+            // ==================================================
+            // PROGRESS
+            // ==================================================
 
             const Text(
               'Progress',
@@ -177,7 +362,9 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // ---------------- QUICK ACTIONS ----------------
+            // ==================================================
+            // QUICK ACTIONS
+            // ==================================================
 
             const Text(
               'Quick Actions',
@@ -188,6 +375,10 @@ class HomeScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 12),
+
+            // --------------------------------------------------
+            // EXERCISES + DIET
+            // --------------------------------------------------
 
             Row(
               children: [
@@ -211,6 +402,59 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
+            // --------------------------------------------------
+            // DAILY METRICS
+            // --------------------------------------------------
+
+            SizedBox(
+              width: double.infinity,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: _openDailyMetrics,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1D24),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.analytics_outlined,
+                        color: Colors.white70,
+                      ),
+
+                      SizedBox(width: 12),
+
+                      Expanded(
+                        child: Text(
+                          'Daily Metrics',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                      Icon(
+                        Icons.chevron_right,
+                        color: Colors.white54,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // --------------------------------------------------
+            // STATS
+            // --------------------------------------------------
+
             SizedBox(
               width: double.infinity,
               child: _actionButton(
@@ -221,7 +465,9 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // ---------------- USERS ----------------
+            // ==================================================
+            // USERS
+            // ==================================================
 
             const Text(
               'Users',
@@ -237,7 +483,6 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _userCard(
-                    context,
                     'User 1',
                     'Full Tracking',
                   ),
@@ -247,7 +492,6 @@ class HomeScreen extends StatelessWidget {
 
                 Expanded(
                   child: _userCard(
-                    context,
                     'User 2',
                     'Exercise',
                   ),
@@ -260,12 +504,13 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
 
-      // ---------------- BOTTOM NAVIGATION ----------------
+      // ========================================================
+      // BOTTOM NAVIGATION
+      // ========================================================
 
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF15171D),
         selectedIndex: 0,
-
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -295,23 +540,21 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ==================================================
+  // ============================================================
   // METRIC CARD
-  // ==================================================
+  // ============================================================
 
-  static Widget _metricCard(
+  Widget _metricCard(
     String title,
     String value,
     IconData icon,
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
-
       decoration: BoxDecoration(
         color: const Color(0xFF1A1D24),
         borderRadius: BorderRadius.circular(18),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -344,49 +587,73 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ==================================================
+  // ============================================================
   // QUICK ACTION BUTTON
-  // ==================================================
+  // ============================================================
 
-  static Widget _actionButton(
+  Widget _actionButton(
     String title,
     IconData icon,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 18,
-      ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
 
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(18),
-      ),
+      onTap: title == 'Diet'
+          ? () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DietScreen(),
+                ),
+              );
 
-      child: Row(
-        children: [
-          Icon(icon),
+              await _loadDailyData();
+            }
+          : null,
 
-          const SizedBox(width: 12),
-
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1D24),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: Colors.white70,
             ),
-          ),
-        ],
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+
+            const Icon(
+              Icons.chevron_right,
+              color: Colors.white54,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ==================================================
+  // ============================================================
   // USER CARD
-  // ==================================================
+  // ============================================================
 
-  static Widget _userCard(
-    BuildContext context,
+  Widget _userCard(
     String name,
     String subtitle,
   ) {
@@ -398,7 +665,7 @@ class HomeScreen extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const User2Screen(),
+              builder: (_) => const User2Screen(),
             ),
           );
         }
@@ -406,16 +673,16 @@ class HomeScreen extends StatelessWidget {
 
       child: Container(
         padding: const EdgeInsets.all(16),
-
         decoration: BoxDecoration(
           color: const Color(0xFF1A1D24),
           borderRadius: BorderRadius.circular(18),
         ),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.person_outline),
+            const Icon(
+              Icons.person_outline,
+            ),
 
             const SizedBox(height: 10),
 
