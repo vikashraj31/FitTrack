@@ -233,6 +233,24 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ==========================================================
+  // WORKOUT - DELETE ALL SETS FOR DATE
+  // ==========================================================
+
+  Future<void> deleteAllSetsByDate({
+    required String userId,
+    required DateTime date,
+  }) async {
+    final sets = await getSetsByDate(
+      userId: userId,
+      date: date,
+    );
+
+    for (final set in sets) {
+      await deleteSet(set.id);
+    }
+  }
+
+  // ==========================================================
   // WORKOUT - GET SETS FOR DATE
   // ==========================================================
 

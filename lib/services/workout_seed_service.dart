@@ -4,12 +4,15 @@ class WorkoutSeedService {
   static Future<void> seedFitNotesWorkouts(
     AppDatabase database,
   ) async {
-    const userId = 'user1';
+    // ==========================================================
+    // FITNOTES WORKOUT DATA
+    // ==========================================================
 
     final workouts = <DateTime, List<Map<String, dynamic>>>{
       // ==========================================================
       // MONDAY — 7 SEP 2026
       // ==========================================================
+
       DateTime(2026, 9, 7): [
         {
           'exercise': 'Lat Pulldown',
@@ -73,6 +76,7 @@ class WorkoutSeedService {
       // ==========================================================
       // TUESDAY — 8 SEP 2026
       // ==========================================================
+
       DateTime(2026, 9, 8): [
         {
           'exercise': 'Incline Smith Machine Press',
@@ -145,6 +149,7 @@ class WorkoutSeedService {
       // ==========================================================
       // WEDNESDAY — 9 SEP 2026
       // ==========================================================
+
       DateTime(2026, 9, 9): [
         {
           'exercise': 'Hack Squat',
@@ -215,6 +220,7 @@ class WorkoutSeedService {
       // ==========================================================
       // THURSDAY — 10 SEP 2026
       // ==========================================================
+
       DateTime(2026, 9, 10): [
         {
           'exercise': 'Preacher Curl',
@@ -285,6 +291,7 @@ class WorkoutSeedService {
       // ==========================================================
       // FRIDAY — 11 SEP 2026
       // ==========================================================
+
       DateTime(2026, 9, 11): [
         {
           'exercise': 'Incline Smith Machine Press',
@@ -333,6 +340,7 @@ class WorkoutSeedService {
       // ==========================================================
       // SATURDAY — 12 SEP 2026
       // ==========================================================
+
       DateTime(2026, 9, 12): [
         {
           'exercise': 'Machine Shoulder Press',
@@ -394,32 +402,42 @@ class WorkoutSeedService {
       ],
     };
 
-    for (final entry in workouts.entries) {
-      final date = entry.key;
-      final workout = entry.value;
+    // ==========================================================
+    // SEED FOR BOTH USERS
+    // ==========================================================
 
-      // Do not duplicate a date that already has workout data.
-      final existingSets = await database.getSetsByDate(
-        userId: userId,
-        date: date,
-      );
+    for (final userId in ['user1', 'user2']) {
+      for (final entry in workouts.entries) {
+        final date = entry.key;
+        final workout = entry.value;
 
-      if (existingSets.isNotEmpty) {
-        continue;
-      }
+        // Don't duplicate existing workout data.
+        final existingSets = await database.getSetsByDate(
+          userId: userId,
+          date: date,
+        );
 
-      for (final exercise in workout) {
-        final exerciseName = exercise['exercise'] as String;
-        final sets = exercise['sets'] as List<List<dynamic>>;
+        if (existingSets.isNotEmpty) {
+          continue;
+        }
 
-        for (final set in sets) {
-          await database.saveSet(
-            userId: userId,
-            exerciseName: exerciseName,
-            weight: (set[0] as num).toDouble(),
-            reps: set[1] as int,
-            date: date,
-          );
+        // Save every exercise and every set.
+        for (final exercise in workout) {
+          final exerciseName =
+              exercise['exercise'] as String;
+
+          final sets =
+              exercise['sets'] as List<List<dynamic>>;
+
+          for (final set in sets) {
+            await database.saveSet(
+              userId: userId,
+              exerciseName: exerciseName,
+              weight: (set[0] as num).toDouble(),
+              reps: set[1] as int,
+              date: date,
+            );
+          }
         }
       }
     }
