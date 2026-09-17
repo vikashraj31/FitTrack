@@ -1,21 +1,22 @@
 import 'dart:math' as math;
+import 'screens/calendar/user1_calendar_screen.dart';
 import 'screens/user2/user2_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/exercise/exercise_screen.dart';
 import 'screens/diet/diet_screen.dart';
 import 'screens/home/daily_metrics_screen.dart';
 import 'services/database_service.dart';
 import 'services/workout_seed_service.dart';
+import 'screens/stats/stats_screen.dart';
+import 'screens/exercise/exercise_screen.dart';
+import 'screens/settings/settings_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final database = AppDatabase();
 
-  await WorkoutSeedService.seedFitNotesWorkouts(
-    database,
-  );
+  await WorkoutSeedService.seedFitNotesWorkouts(database);
 
   runApp(const FitTrackApp());
 }
@@ -102,9 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openUser1() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const User1Screen(),
-      ),
+      MaterialPageRoute(builder: (_) => const User1Screen()),
     );
 
     await _loadDailyData();
@@ -117,9 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openUser2() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const User2Screen(),
-      ),
+      MaterialPageRoute(builder: (_) => const User2Screen()),
     );
   }
 
@@ -130,9 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openDailyMetrics() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const DailyMetricsScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const DailyMetricsScreen()),
     );
 
     await _loadDailyData();
@@ -145,9 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openDiet() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const DietScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const DietScreen()),
     );
 
     await _loadDailyData();
@@ -168,9 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return 0;
     }
 
-    return _clamp(
-      (_dailyData!.steps / target) * 100,
-    );
+    return _clamp((_dailyData!.steps / target) * 100);
   }
 
   // ==========================================================
@@ -182,9 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return 0;
     }
 
-    return _clamp(
-      _dailyData!.recoveryScore,
-    );
+    return _clamp(_dailyData!.recoveryScore);
   }
 
   // ==========================================================
@@ -196,9 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return 0;
     }
 
-    return _clamp(
-      _dailyData!.effortScore,
-    );
+    return _clamp(_dailyData!.effortScore);
   }
 
   // ==========================================================
@@ -214,11 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return 0;
     }
 
-    return _clamp(
-      (_dailyData!.calories /
-              _dailyData!.calorieTarget) *
-          100,
-    );
+    return _clamp((_dailyData!.calories / _dailyData!.calorieTarget) * 100);
   }
 
   // ==========================================================
@@ -230,9 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return 0;
     }
 
-    return _clamp(
-      _dailyData!.sleepHours * 10,
-    );
+    return _clamp(_dailyData!.sleepHours * 10);
   }
 
   // ==========================================================
@@ -297,8 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final wholeHours = hours.floor();
 
-    final minutes =
-        ((hours - wholeHours) * 60).round();
+    final minutes = ((hours - wholeHours) * 60).round();
 
     if (minutes == 60) {
       return '${wholeHours + 1}h 0m';
@@ -328,8 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         systemNavigationBarColor: Color(0xFF050B18),
-        systemNavigationBarIconBrightness:
-            Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
 
@@ -339,57 +318,39 @@ class _HomeScreenState extends State<HomeScreen> {
       // ======================================================
       // BODY
       // ======================================================
-
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF08285C),
-              Color(0xFF061A3B),
-              Color(0xFF050B18),
-            ],
-            stops: [
-              0.0,
-              0.38,
-              1.0,
-            ],
+            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+            stops: [0.0, 0.38, 1.0],
           ),
         ),
 
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              18,
-              14,
-              18,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
 
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
                 // =================================================
                 // HEADER
                 // =================================================
-
                 Row(
                   children: [
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'FitTrack',
                             style: TextStyle(
                               fontSize: 27,
-                              fontWeight:
-                                  FontWeight.w700,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 0.2,
                             ),
                           ),
@@ -411,16 +372,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color:
-                            Colors.white.withValues(
-                          alpha: 0.08,
-                        ),
+                        color: Colors.white.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color:
-                              Colors.white.withValues(
-                            alpha: 0.08,
-                          ),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                       ),
                       child: const Icon(
@@ -437,13 +392,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // TODAY
                 // =================================================
-
                 const Text(
                   'Today',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 18),
@@ -451,21 +402,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // MAIN THREE RINGS
                 // =================================================
-
                 Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: _metricRing(
                         value: _stepsPercent(),
                         label: 'Steps',
-                        displayValue:
-                            _dailyData == null
-                                ? '—'
-                                : '${_stepsPercent().round()}',
-                        color:
-                            const Color(0xFFB66CFF),
+                        displayValue: _dailyData == null
+                            ? '—'
+                            : '${_stepsPercent().round()}',
+                        color: const Color(0xFFB66CFF),
                       ),
                     ),
 
@@ -474,14 +421,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         value: _recoveryPercent(),
                         label: 'Recovery',
                         displayValue:
-                            _dailyData == null ||
-                                    _dailyData!
-                                            .recoveryScore <=
-                                        0
-                                ? '—'
-                                : '${_recoveryPercent().round()}',
-                        color:
-                            const Color(0xFF39D98A),
+                            _dailyData == null || _dailyData!.recoveryScore <= 0
+                            ? '—'
+                            : '${_recoveryPercent().round()}',
+                        color: const Color(0xFF39D98A),
                       ),
                     ),
 
@@ -490,14 +433,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         value: _effortPercent(),
                         label: 'Effort',
                         displayValue:
-                            _dailyData == null ||
-                                    _dailyData!
-                                            .effortScore <=
-                                        0
-                                ? '—'
-                                : '${_effortPercent().round()}',
-                        color:
-                            const Color(0xFFFF7A21),
+                            _dailyData == null || _dailyData!.effortScore <= 0
+                            ? '—'
+                            : '${_effortPercent().round()}',
+                        color: const Color(0xFFFF7A21),
                       ),
                     ),
                   ],
@@ -508,13 +447,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // DAILY DATA
                 // =================================================
-
                 const Text(
                   'Daily Data',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 14),
@@ -523,15 +458,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: _infoCard(
-                        icon:
-                            Icons.local_fire_department,
+                        icon: Icons.local_fire_department,
                         title: 'Calories',
-                        value:
-                            _dailyData == null
-                                ? '—'
-                                : '${_dailyData!.calories.round()} kcal',
-                        color:
-                            const Color(0xFFFFB52E),
+                        value: _dailyData == null
+                            ? '—'
+                            : '${_dailyData!.calories.round()} kcal',
+                        color: const Color(0xFFFFB52E),
                       ),
                     ),
 
@@ -539,12 +471,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     Expanded(
                       child: _infoCard(
-                        icon:
-                            Icons.bedtime_outlined,
+                        icon: Icons.bedtime_outlined,
                         title: 'Sleep',
                         value: _sleepText(),
-                        color:
-                            const Color(0xFF9B6CFF),
+                        color: const Color(0xFF9B6CFF),
                       ),
                     ),
                   ],
@@ -555,19 +485,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // CALORIE PROGRESS
                 // =================================================
-
                 _wideProgressCard(
-                  icon:
-                      Icons.local_fire_department_outlined,
+                  icon: Icons.local_fire_department_outlined,
                   title: 'Calories',
-                  value:
-                      _dailyData == null
-                          ? '—'
-                          : '${_dailyData!.calories.round()} / '
-                              '${_dailyData!.calorieTarget.round()} kcal',
+                  value: _dailyData == null
+                      ? '—'
+                      : '${_dailyData!.calories.round()} / '
+                            '${_dailyData!.calorieTarget.round()} kcal',
                   percent: _caloriePercent(),
-                  color:
-                      const Color(0xFFFFB52E),
+                  color: const Color(0xFFFFB52E),
                 ),
 
                 const SizedBox(height: 12),
@@ -575,17 +501,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // SLEEP PROGRESS
                 // =================================================
-
                 _wideProgressCard(
                   icon: Icons.bedtime_outlined,
                   title: 'Sleep',
-                  value:
-                      _dailyData == null
-                          ? '—'
-                          : _sleepText(),
+                  value: _dailyData == null ? '—' : _sleepText(),
                   percent: _sleepPercent(),
-                  color:
-                      const Color(0xFF9B6CFF),
+                  color: const Color(0xFF9B6CFF),
                 ),
 
                 const SizedBox(height: 30),
@@ -593,13 +514,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // QUICK ACTIONS
                 // =================================================
-
                 const Text(
                   'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 14),
@@ -633,7 +550,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // DAILY METRICS
                 // =================================================
-
                 _wideActionCard(
                   icon: Icons.analytics_outlined,
                   title: 'Daily Metrics',
@@ -646,12 +562,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // STATS
                 // =================================================
-
                 _wideActionCard(
                   icon: Icons.bar_chart,
                   title: 'Stats',
                   subtitle: 'View your progress',
-                  onTap: _openUser1,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const StatsScreen()),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 30),
@@ -659,13 +579,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 // =================================================
                 // USERS
                 // =================================================
-
                 const Text(
                   'Users',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 14),
@@ -704,56 +620,62 @@ class _HomeScreenState extends State<HomeScreen> {
       // ========================================================
       // BOTTOM NAVIGATION
       // ========================================================
-
       bottomNavigationBar: NavigationBar(
-        backgroundColor:
-            const Color(0xFF071329),
-
-        indicatorColor:
-            const Color(0xFF8F5CFF).withValues(
-          alpha: 0.30,
-        ),
+        backgroundColor: const Color(0xFF071329),
+        indicatorColor: const Color(0xFF8F5CFF).withValues(alpha: 0.30),
 
         selectedIndex: 0,
 
+        onDestinationSelected: (index) {
+          switch (index) {
+            case 0:
+              // Already on Home
+              break;
+
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const User1CalendarScreen()),
+              );
+              break;
+
+            case 2:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ExerciseScreen(userId: 'user1'),
+                ),
+              );
+              break;
+
+            case 3:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+              break;
+          }
+        },
+
         destinations: const [
           NavigationDestination(
-            icon: Icon(
-              Icons.home_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.home,
-            ),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
-
           NavigationDestination(
-            icon: Icon(
-              Icons.calendar_month_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.calendar_month,
-            ),
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar',
           ),
-
           NavigationDestination(
-            icon: Icon(
-              Icons.fitness_center_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.fitness_center,
-            ),
+            icon: Icon(Icons.fitness_center_outlined),
+            selectedIcon: Icon(Icons.fitness_center),
             label: 'Workout',
           ),
-
           NavigationDestination(
-            icon: Icon(
-              Icons.settings_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.settings,
-            ),
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
             label: 'Settings',
           ),
         ],
@@ -777,14 +699,10 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 108,
           height: 108,
           child: CustomPaint(
-            painter: _RingPainter(
-              progress: value / 100,
-              color: color,
-            ),
+            painter: _RingPainter(progress: value / 100, color: color),
             child: Center(
               child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     displayValue,
@@ -799,10 +717,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   Text(
                     label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.white70),
                   ),
                 ],
               ),
@@ -837,45 +752,27 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.055,
-        ),
-        borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(
-            alpha: 0.06,
-          ),
-        ),
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 22,
-          ),
+          Icon(icon, color: color, size: 22),
 
           const SizedBox(height: 14),
 
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.white60,
-            ),
+            style: const TextStyle(fontSize: 13, color: Colors.white60),
           ),
 
           const SizedBox(height: 5),
 
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -896,36 +793,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.055,
-        ),
-        borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(
-            alpha: 0.06,
-          ),
-        ),
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: 21,
-              ),
+              Icon(icon, color: color, size: 21),
 
               const SizedBox(width: 10),
 
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
                 ),
               ),
 
@@ -942,19 +825,12 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
 
           ClipRRect(
-            borderRadius:
-                BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: percent / 100,
               minHeight: 6,
-              backgroundColor:
-                  Colors.white.withValues(
-                alpha: 0.08,
-              ),
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(
-                color,
-              ),
+              backgroundColor: Colors.white.withValues(alpha: 0.08),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
         ],
@@ -974,43 +850,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius:
-          BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(
-            alpha: 0.055,
-          ),
-          borderRadius:
-              BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(
-              alpha: 0.06,
-            ),
-          ),
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: Colors.white70,
-              size: 23,
-            ),
+            Icon(icon, color: Colors.white70, size: 23),
 
             const SizedBox(width: 10),
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight:
-                          FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
 
@@ -1020,21 +882,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 11,
-                      color:
-                          Colors.white.withValues(
-                        alpha: 0.50,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.50),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: Colors.white54,
-            ),
+            const Icon(Icons.chevron_right, size: 20, color: Colors.white54),
           ],
         ),
       ),
@@ -1053,47 +908,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius:
-          BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 17,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(
-            alpha: 0.055,
-          ),
-          borderRadius:
-              BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(
-              alpha: 0.06,
-            ),
-          ),
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: Colors.white70,
-              size: 23,
-            ),
+            Icon(icon, color: Colors.white70, size: 23),
 
             const SizedBox(width: 13),
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
                       fontSize: 15,
-                      fontWeight:
-                          FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
 
@@ -1103,20 +940,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 11,
-                      color:
-                          Colors.white.withValues(
-                        alpha: 0.50,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.50),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.white54,
-            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
           ],
         ),
       ),
@@ -1135,41 +966,24 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return InkWell(
       onTap: onTap,
-      borderRadius:
-          BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(
-            alpha: 0.055,
-          ),
-          borderRadius:
-              BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(
-              alpha: 0.06,
-            ),
-          ),
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              size: 25,
-              color: Colors.white70,
-            ),
+            Icon(icon, size: 25, color: Colors.white70),
 
             const SizedBox(height: 15),
 
             Text(
               name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight:
-                    FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 4),
@@ -1178,10 +992,7 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle,
               style: TextStyle(
                 fontSize: 12,
-                color:
-                    Colors.white.withValues(
-                  alpha: 0.50,
-                ),
+                color: Colors.white.withValues(alpha: 0.50),
               ),
             ),
           ],
@@ -1204,26 +1015,20 @@ class User1Screen extends StatelessWidget {
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor:
-            Color(0xFF050B18),
-        systemNavigationBarIconBrightness:
-            Brightness.light,
+        systemNavigationBarColor: Color(0xFF050B18),
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
 
     return Scaffold(
-      backgroundColor:
-          const Color(0xFF050B18),
+      backgroundColor: const Color(0xFF050B18),
 
       appBar: AppBar(
-        backgroundColor:
-            const Color(0xFF071329),
+        backgroundColor: const Color(0xFF071329),
         elevation: 0,
         title: const Text(
           'User 1',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -1232,64 +1037,42 @@ class User1Screen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF08285C),
-              Color(0xFF061A3B),
-              Color(0xFF050B18),
-            ],
-            stops: [
-              0.0,
-              0.38,
-              1.0,
-            ],
+            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+            stops: [0.0, 0.38, 1.0],
           ),
         ),
 
         child: SafeArea(
           child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(18),
 
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Full Tracking',
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight:
-                        FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
                 ),
 
                 const SizedBox(height: 6),
 
                 const Text(
                   'Manage your complete fitness data',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white60,
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.white60),
                 ),
 
                 const SizedBox(height: 28),
 
                 _user1MenuCard(
                   context,
-                  icon:
-                      Icons.fitness_center,
+                  icon: Icons.fitness_center,
                   title: 'Exercise',
-                  subtitle:
-                      'Track workouts and exercise history',
+                  subtitle: 'Track workouts and exercise history',
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            const ExerciseScreen(
-                              userId: 'user1',
-                            ),
+                        builder: (_) => const ExerciseScreen(userId: 'user1'),
                       ),
                     );
                   },
@@ -1299,18 +1082,13 @@ class User1Screen extends StatelessWidget {
 
                 _user1MenuCard(
                   context,
-                  icon:
-                      Icons.restaurant_menu,
+                  icon: Icons.restaurant_menu,
                   title: 'Diet',
-                  subtitle:
-                      'Track meals and calories',
+                  subtitle: 'Track meals and calories',
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const DietScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const DietScreen()),
                     );
                   },
                 ),
@@ -1319,17 +1097,14 @@ class User1Screen extends StatelessWidget {
 
                 _user1MenuCard(
                   context,
-                  icon:
-                      Icons.analytics_outlined,
+                  icon: Icons.analytics_outlined,
                   title: 'Daily Metrics',
-                  subtitle:
-                      'Steps, sleep, effort and recovery',
+                  subtitle: 'Steps, sleep, effort and recovery',
                   onTap: () async {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            const DailyMetricsScreen(),
+                        builder: (_) => const DailyMetricsScreen(),
                       ),
                     );
                   },
@@ -1339,18 +1114,14 @@ class User1Screen extends StatelessWidget {
 
                 _user1MenuCard(
                   context,
-                  icon:
-                      Icons.calendar_month_outlined,
+                  icon: Icons.calendar_month_outlined,
                   title: 'Calendar',
-                  subtitle:
-                      'View your activity by date',
+                  subtitle: 'View your activity by date',
                   onTap: () {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'User 1 Calendar coming next.',
-                        ),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const User1CalendarScreen(),
                       ),
                     );
                   },
@@ -1362,16 +1133,11 @@ class User1Screen extends StatelessWidget {
                   context,
                   icon: Icons.bar_chart,
                   title: 'Stats',
-                  subtitle:
-                      'View long-term progress',
+                  subtitle: 'View long-term progress',
                   onTap: () {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'User 1 Stats coming next.',
-                        ),
-                      ),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const StatsScreen()),
                     );
                   },
                 ),
@@ -1380,19 +1146,13 @@ class User1Screen extends StatelessWidget {
 
                 _user1MenuCard(
                   context,
-                  icon:
-                      Icons.settings_outlined,
+                  icon: Icons.settings_outlined,
                   title: 'Settings',
-                  subtitle:
-                      'Manage FitTrack settings',
+                  subtitle: 'Manage FitTrack settings',
                   onTap: () {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Settings coming next.',
-                        ),
-                      ),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
                     );
                   },
                 ),
@@ -1413,26 +1173,14 @@ class User1Screen extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius:
-          BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         width: double.infinity,
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 18,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(
-            alpha: 0.055,
-          ),
-          borderRadius:
-              BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(
-              alpha: 0.06,
-            ),
-          ),
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Row(
           children: [
@@ -1440,32 +1188,23 @@ class User1Screen extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color:
-                    Colors.white.withValues(
-                  alpha: 0.07,
-                ),
+                color: Colors.white.withValues(alpha: 0.07),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                color: Colors.white70,
-                size: 22,
-              ),
+              child: Icon(icon, color: Colors.white70, size: 22),
             ),
 
             const SizedBox(width: 14),
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight:
-                          FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
 
@@ -1475,20 +1214,14 @@ class User1Screen extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color:
-                          Colors.white.withValues(
-                        alpha: 0.50,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.50),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.white54,
-            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
           ],
         ),
       ),
@@ -1504,23 +1237,13 @@ class _RingPainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  _RingPainter({
-    required this.progress,
-    required this.color,
-  });
+  _RingPainter({required this.progress, required this.color});
 
   @override
-  void paint(
-    Canvas canvas,
-    Size size,
-  ) {
-    final center = Offset(
-      size.width / 2,
-      size.height / 2,
-    );
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
 
-    final radius =
-        size.width / 2 - 8;
+    final radius = size.width / 2 - 8;
 
     // --------------------------------------------------------
     // BACKGROUND ARC
@@ -1530,15 +1253,10 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 7
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(
-        alpha: 0.10,
-      );
+      ..color = Colors.white.withValues(alpha: 0.10);
 
     canvas.drawArc(
-      Rect.fromCircle(
-        center: center,
-        radius: radius,
-      ),
+      Rect.fromCircle(center: center, radius: radius),
       -math.pi / 2,
       math.pi * 2,
       false,
@@ -1557,17 +1275,9 @@ class _RingPainter extends CustomPainter {
         ..color = color;
 
       canvas.drawArc(
-        Rect.fromCircle(
-          center: center,
-          radius: radius,
-        ),
+        Rect.fromCircle(center: center, radius: radius),
         -math.pi / 2,
-        math.pi *
-            2 *
-            progress.clamp(
-              0.0,
-              1.0,
-            ),
+        math.pi * 2 * progress.clamp(0.0, 1.0),
         false,
         progressPaint,
       );
@@ -1581,11 +1291,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..color = const Color(0xFF07101E);
 
-    canvas.drawCircle(
-      center,
-      radius - 11,
-      innerPaint,
-    );
+    canvas.drawCircle(center, radius - 11, innerPaint);
 
     // --------------------------------------------------------
     // INNER BORDER
@@ -1594,23 +1300,13 @@ class _RingPainter extends CustomPainter {
     final borderPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = Colors.white.withValues(
-        alpha: 0.18,
-      );
+      ..color = Colors.white.withValues(alpha: 0.18);
 
-    canvas.drawCircle(
-      center,
-      radius - 11,
-      borderPaint,
-    );
+    canvas.drawCircle(center, radius - 11, borderPaint);
   }
 
   @override
-  bool shouldRepaint(
-    covariant _RingPainter oldDelegate,
-  ) {
-    return oldDelegate.progress !=
-            progress ||
-        oldDelegate.color != color;
+  bool shouldRepaint(covariant _RingPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }
