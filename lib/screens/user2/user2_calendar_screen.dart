@@ -121,7 +121,6 @@ class _User2CalendarScreenState
         builder: (_) => ExerciseDetailScreen(
           exerciseName: exerciseName,
           target: '',
-          initialDate: date,
         ),
       ),
     );

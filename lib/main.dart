@@ -528,7 +528,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: Icons.fitness_center,
                         title: 'Exercises',
                         subtitle: 'Workout',
-                        onTap: _openUser1,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const ExerciseScreen(userId: 'user1'),
+                            ),
+                          );
+                        },
                       ),
                     ),
 
