@@ -189,34 +189,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ==========================================================
-  // CALORIES %
-  // ==========================================================
-
-  double _caloriePercent() {
-    if (_dailyData == null) {
-      return 0;
-    }
-
-    if (_dailyData!.calorieTarget <= 0) {
-      return 0;
-    }
-
-    return _clamp((_dailyData!.calories / _dailyData!.calorieTarget) * 100);
-  }
-
-  // ==========================================================
-  // SLEEP %
-  // ==========================================================
-
-  double _sleepPercent() {
-    if (_dailyData == null) {
-      return 0;
-    }
-
-    return _clamp(_dailyData!.sleepHours * 10);
-  }
-
-  // ==========================================================
   // CLAMP
   // ==========================================================
 
@@ -482,43 +454,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 12),
 
-                // =================================================
-                // CALORIE PROGRESS
-                // =================================================
-                _wideProgressCard(
-                  icon: Icons.local_fire_department_outlined,
-                  title: 'Calories',
-                  value: _dailyData == null
-                      ? '—'
-                      : '${_dailyData!.calories.round()} / '
-                            '${_dailyData!.calorieTarget.round()} kcal',
-                  percent: _caloriePercent(),
-                  color: const Color(0xFFFFB52E),
-                ),
-
-                const SizedBox(height: 12),
-
-                // =================================================
-                // SLEEP PROGRESS
-                // =================================================
-                _wideProgressCard(
-                  icon: Icons.bedtime_outlined,
-                  title: 'Sleep',
-                  value: _dailyData == null ? '—' : _sleepText(),
-                  percent: _sleepPercent(),
-                  color: const Color(0xFF9B6CFF),
-                ),
-
-                const SizedBox(height: 30),
-
-                // =================================================
-                // QUICK ACTIONS
-                // =================================================
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-
                 const SizedBox(height: 14),
 
                 Row(
@@ -781,65 +716,6 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             value,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // WIDE PROGRESS CARD
-  // ============================================================
-
-  Widget _wideProgressCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required double percent,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 21),
-
-              const SizedBox(width: 10),
-
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontSize: 14, color: Colors.white70),
-                ),
-              ),
-
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: percent / 100,
-              minHeight: 6,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
           ),
         ],
       ),
