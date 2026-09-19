@@ -7,6 +7,7 @@ import 'screens/diet/diet_screen.dart';
 import 'screens/home/daily_metrics_screen.dart';
 import 'services/database_service.dart';
 import 'services/workout_seed_service.dart';
+import 'services/health_sync_service.dart';
 import 'screens/stats/stats_screen.dart';
 import 'screens/exercise/exercise_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -58,15 +59,92 @@ class HomeScreen extends StatefulWidget {
 // HOME STATE
 // ============================================================
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
 
   DailyDataData? _dailyData;
 
+  bool _healthSyncInProgress = false;
+
   @override
   void initState() {
     super.initState();
-    _loadDailyData();
+
+    WidgetsBinding.instance.addObserver(this);
+
+    _syncHealthAndLoadData();
+  }
+
+  // ==========================================================
+  // SYNC HEALTH DATA
+  // ==========================================================
+
+  Future<void> _syncHealthAndLoadData() async {
+    if (_healthSyncInProgress) {
+      return;
+    }
+
+    _healthSyncInProgress = true;
+
+    try {
+      final healthData = await HealthSyncService.syncUser1Health();
+
+      if (healthData != null) {
+        final existing = await _database.getDailyData(
+          userId: 'user1',
+          date: DateTime.now(),
+        );
+
+        final targets = await _database.getDailyTargets(userId: 'user1');
+
+        final steps = (healthData['steps'] as num?)?.toInt() ?? 0;
+
+        final sleepHours = (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
+
+        // ==========================================================
+        // CALORIE TARGET = TODAY'S PLANNED DIET CALORIES
+        // ==========================================================
+
+        final plannedCalories = await _database.getPlannedCalories(
+          userId: 'user1',
+          date: DateTime.now(),
+        );
+
+        final calorieTarget = plannedCalories > 0
+            ? plannedCalories
+            : (existing?.calorieTarget ?? 0);
+
+        // ==========================================================
+        // STEP TARGET
+        // ==========================================================
+
+        final stepTarget = targets?.stepTarget ?? existing?.stepTarget ?? 10000;
+
+        await _database.saveDailyData(
+          userId: 'user1',
+          date: DateTime.now(),
+          calories: existing?.calories ?? 0,
+          calorieTarget: calorieTarget,
+          steps: steps,
+          stepTarget: stepTarget,
+          sleepHours: sleepHours,
+          recoveryScore: existing?.recoveryScore ?? 0,
+          effortScore: existing?.effortScore ?? 0,
+        );
+      }
+    } catch (e) {
+      debugPrint('Home health sync error: $e');
+    } finally {
+      _healthSyncInProgress = false;
+    }
+
+    await _loadDailyData();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Do not automatically sync every time the activity resumes.
+    // Health Connect itself can trigger activity/focus changes.
   }
 
   // ==========================================================
@@ -118,19 +196,6 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => const User2Screen()),
     );
-  }
-
-  // ==========================================================
-  // OPEN DAILY METRICS
-  // ==========================================================
-
-  Future<void> _openDailyMetrics() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DailyMetricsScreen()),
-    );
-
-    await _loadDailyData();
   }
 
   // ==========================================================
@@ -265,6 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _database.close();
     super.dispose();
   }
@@ -489,35 +555,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 const SizedBox(height: 12),
-
-                // =================================================
-                // DAILY METRICS
-                // =================================================
-                _wideActionCard(
-                  icon: Icons.analytics_outlined,
-                  title: 'Daily Metrics',
-                  subtitle: 'Update today\'s data',
-                  onTap: _openDailyMetrics,
-                ),
-
-                const SizedBox(height: 12),
-
-                // =================================================
-                // STATS
-                // =================================================
-                _wideActionCard(
-                  icon: Icons.bar_chart,
-                  title: 'Stats',
-                  subtitle: 'View your progress',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const StatsScreen()),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 30),
 
                 // =================================================
                 // USERS
@@ -774,64 +811,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             const Icon(Icons.chevron_right, size: 20, color: Colors.white54),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // WIDE ACTION CARD
-  // ============================================================
-
-  Widget _wideActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.055),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white70, size: 23),
-
-            const SizedBox(width: 13),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 3),
-
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.50),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Icon(Icons.chevron_right, color: Colors.white54),
           ],
         ),
       ),

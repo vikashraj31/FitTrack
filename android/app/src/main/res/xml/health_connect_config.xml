@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<health-connect-imported-data-types>
+    <data-type>Steps</data-type>
+    <data-type>SleepSession</data-type>
+</health-connect-imported-data-types>

@@ -2297,6 +2297,464 @@ class ExtraCaloriesEntriesCompanion
   }
 }
 
+class $DailyTargetsTable extends DailyTargets
+    with TableInfo<$DailyTargetsTable, DailyTarget> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyTargetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _calorieTargetMeta = const VerificationMeta(
+    'calorieTarget',
+  );
+  @override
+  late final GeneratedColumn<double> calorieTarget = GeneratedColumn<double>(
+    'calorie_target',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(2500),
+  );
+  static const VerificationMeta _stepTargetMeta = const VerificationMeta(
+    'stepTarget',
+  );
+  @override
+  late final GeneratedColumn<int> stepTarget = GeneratedColumn<int>(
+    'step_target',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(10000),
+  );
+  static const VerificationMeta _sleepTargetMeta = const VerificationMeta(
+    'sleepTarget',
+  );
+  @override
+  late final GeneratedColumn<double> sleepTarget = GeneratedColumn<double>(
+    'sleep_target',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(8),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    calorieTarget,
+    stepTarget,
+    sleepTarget,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_targets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyTarget> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('calorie_target')) {
+      context.handle(
+        _calorieTargetMeta,
+        calorieTarget.isAcceptableOrUnknown(
+          data['calorie_target']!,
+          _calorieTargetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('step_target')) {
+      context.handle(
+        _stepTargetMeta,
+        stepTarget.isAcceptableOrUnknown(data['step_target']!, _stepTargetMeta),
+      );
+    }
+    if (data.containsKey('sleep_target')) {
+      context.handle(
+        _sleepTargetMeta,
+        sleepTarget.isAcceptableOrUnknown(
+          data['sleep_target']!,
+          _sleepTargetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DailyTarget map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyTarget(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      calorieTarget: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}calorie_target'],
+      )!,
+      stepTarget: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}step_target'],
+      )!,
+      sleepTarget: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}sleep_target'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DailyTargetsTable createAlias(String alias) {
+    return $DailyTargetsTable(attachedDatabase, alias);
+  }
+}
+
+class DailyTarget extends DataClass implements Insertable<DailyTarget> {
+  final int id;
+  final String userId;
+  final double calorieTarget;
+  final int stepTarget;
+  final double sleepTarget;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const DailyTarget({
+    required this.id,
+    required this.userId,
+    required this.calorieTarget,
+    required this.stepTarget,
+    required this.sleepTarget,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['calorie_target'] = Variable<double>(calorieTarget);
+    map['step_target'] = Variable<int>(stepTarget);
+    map['sleep_target'] = Variable<double>(sleepTarget);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DailyTargetsCompanion toCompanion(bool nullToAbsent) {
+    return DailyTargetsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      calorieTarget: Value(calorieTarget),
+      stepTarget: Value(stepTarget),
+      sleepTarget: Value(sleepTarget),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DailyTarget.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyTarget(
+      id: serializer.fromJson<int>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      calorieTarget: serializer.fromJson<double>(json['calorieTarget']),
+      stepTarget: serializer.fromJson<int>(json['stepTarget']),
+      sleepTarget: serializer.fromJson<double>(json['sleepTarget']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'userId': serializer.toJson<String>(userId),
+      'calorieTarget': serializer.toJson<double>(calorieTarget),
+      'stepTarget': serializer.toJson<int>(stepTarget),
+      'sleepTarget': serializer.toJson<double>(sleepTarget),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  DailyTarget copyWith({
+    int? id,
+    String? userId,
+    double? calorieTarget,
+    int? stepTarget,
+    double? sleepTarget,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => DailyTarget(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    calorieTarget: calorieTarget ?? this.calorieTarget,
+    stepTarget: stepTarget ?? this.stepTarget,
+    sleepTarget: sleepTarget ?? this.sleepTarget,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  DailyTarget copyWithCompanion(DailyTargetsCompanion data) {
+    return DailyTarget(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      calorieTarget: data.calorieTarget.present
+          ? data.calorieTarget.value
+          : this.calorieTarget,
+      stepTarget: data.stepTarget.present
+          ? data.stepTarget.value
+          : this.stepTarget,
+      sleepTarget: data.sleepTarget.present
+          ? data.sleepTarget.value
+          : this.sleepTarget,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyTarget(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('calorieTarget: $calorieTarget, ')
+          ..write('stepTarget: $stepTarget, ')
+          ..write('sleepTarget: $sleepTarget, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    calorieTarget,
+    stepTarget,
+    sleepTarget,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyTarget &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.calorieTarget == this.calorieTarget &&
+          other.stepTarget == this.stepTarget &&
+          other.sleepTarget == this.sleepTarget &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DailyTargetsCompanion extends UpdateCompanion<DailyTarget> {
+  final Value<int> id;
+  final Value<String> userId;
+  final Value<double> calorieTarget;
+  final Value<int> stepTarget;
+  final Value<double> sleepTarget;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const DailyTargetsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.calorieTarget = const Value.absent(),
+    this.stepTarget = const Value.absent(),
+    this.sleepTarget = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  DailyTargetsCompanion.insert({
+    this.id = const Value.absent(),
+    required String userId,
+    this.calorieTarget = const Value.absent(),
+    this.stepTarget = const Value.absent(),
+    this.sleepTarget = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) : userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DailyTarget> custom({
+    Expression<int>? id,
+    Expression<String>? userId,
+    Expression<double>? calorieTarget,
+    Expression<int>? stepTarget,
+    Expression<double>? sleepTarget,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (calorieTarget != null) 'calorie_target': calorieTarget,
+      if (stepTarget != null) 'step_target': stepTarget,
+      if (sleepTarget != null) 'sleep_target': sleepTarget,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  DailyTargetsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? userId,
+    Value<double>? calorieTarget,
+    Value<int>? stepTarget,
+    Value<double>? sleepTarget,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return DailyTargetsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      calorieTarget: calorieTarget ?? this.calorieTarget,
+      stepTarget: stepTarget ?? this.stepTarget,
+      sleepTarget: sleepTarget ?? this.sleepTarget,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (calorieTarget.present) {
+      map['calorie_target'] = Variable<double>(calorieTarget.value);
+    }
+    if (stepTarget.present) {
+      map['step_target'] = Variable<int>(stepTarget.value);
+    }
+    if (sleepTarget.present) {
+      map['sleep_target'] = Variable<double>(sleepTarget.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyTargetsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('calorieTarget: $calorieTarget, ')
+          ..write('stepTarget: $stepTarget, ')
+          ..write('sleepTarget: $sleepTarget, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2305,6 +2763,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DietEntriesTable dietEntries = $DietEntriesTable(this);
   late final $ExtraCaloriesEntriesTable extraCaloriesEntries =
       $ExtraCaloriesEntriesTable(this);
+  late final $DailyTargetsTable dailyTargets = $DailyTargetsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2314,6 +2773,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dailyData,
     dietEntries,
     extraCaloriesEntries,
+    dailyTargets,
   ];
 }
 
@@ -3510,6 +3970,253 @@ typedef $$ExtraCaloriesEntriesTableProcessedTableManager =
       ExtraCaloriesEntry,
       PrefetchHooks Function()
     >;
+typedef $$DailyTargetsTableCreateCompanionBuilder =
+    DailyTargetsCompanion Function({
+      Value<int> id,
+      required String userId,
+      Value<double> calorieTarget,
+      Value<int> stepTarget,
+      Value<double> sleepTarget,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+    });
+typedef $$DailyTargetsTableUpdateCompanionBuilder =
+    DailyTargetsCompanion Function({
+      Value<int> id,
+      Value<String> userId,
+      Value<double> calorieTarget,
+      Value<int> stepTarget,
+      Value<double> sleepTarget,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$DailyTargetsTableFilterComposer
+    extends Composer<_$AppDatabase, $DailyTargetsTable> {
+  $$DailyTargetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get calorieTarget => $composableBuilder(
+    column: $table.calorieTarget,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stepTarget => $composableBuilder(
+    column: $table.stepTarget,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get sleepTarget => $composableBuilder(
+    column: $table.sleepTarget,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyTargetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailyTargetsTable> {
+  $$DailyTargetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get calorieTarget => $composableBuilder(
+    column: $table.calorieTarget,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stepTarget => $composableBuilder(
+    column: $table.stepTarget,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get sleepTarget => $composableBuilder(
+    column: $table.sleepTarget,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyTargetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailyTargetsTable> {
+  $$DailyTargetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<double> get calorieTarget => $composableBuilder(
+    column: $table.calorieTarget,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stepTarget => $composableBuilder(
+    column: $table.stepTarget,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get sleepTarget => $composableBuilder(
+    column: $table.sleepTarget,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$DailyTargetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DailyTargetsTable,
+          DailyTarget,
+          $$DailyTargetsTableFilterComposer,
+          $$DailyTargetsTableOrderingComposer,
+          $$DailyTargetsTableAnnotationComposer,
+          $$DailyTargetsTableCreateCompanionBuilder,
+          $$DailyTargetsTableUpdateCompanionBuilder,
+          (
+            DailyTarget,
+            BaseReferences<_$AppDatabase, $DailyTargetsTable, DailyTarget>,
+          ),
+          DailyTarget,
+          PrefetchHooks Function()
+        > {
+  $$DailyTargetsTableTableManager(_$AppDatabase db, $DailyTargetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyTargetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailyTargetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailyTargetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<double> calorieTarget = const Value.absent(),
+                Value<int> stepTarget = const Value.absent(),
+                Value<double> sleepTarget = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => DailyTargetsCompanion(
+                id: id,
+                userId: userId,
+                calorieTarget: calorieTarget,
+                stepTarget: stepTarget,
+                sleepTarget: sleepTarget,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String userId,
+                Value<double> calorieTarget = const Value.absent(),
+                Value<int> stepTarget = const Value.absent(),
+                Value<double> sleepTarget = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+              }) => DailyTargetsCompanion.insert(
+                id: id,
+                userId: userId,
+                calorieTarget: calorieTarget,
+                stepTarget: stepTarget,
+                sleepTarget: sleepTarget,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DailyTargetsTable, DailyTarget>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DailyTargetsTable,
+                    DailyTarget
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyTargetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DailyTargetsTable,
+      DailyTarget,
+      $$DailyTargetsTableFilterComposer,
+      $$DailyTargetsTableOrderingComposer,
+      $$DailyTargetsTableAnnotationComposer,
+      $$DailyTargetsTableCreateCompanionBuilder,
+      $$DailyTargetsTableUpdateCompanionBuilder,
+      (
+        DailyTarget,
+        BaseReferences<_$AppDatabase, $DailyTargetsTable, DailyTarget>,
+      ),
+      DailyTarget,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3522,4 +4229,6 @@ class $AppDatabaseManager {
       $$DietEntriesTableTableManager(_db, _db.dietEntries);
   $$ExtraCaloriesEntriesTableTableManager get extraCaloriesEntries =>
       $$ExtraCaloriesEntriesTableTableManager(_db, _db.extraCaloriesEntries);
+  $$DailyTargetsTableTableManager get dailyTargets =>
+      $$DailyTargetsTableTableManager(_db, _db.dailyTargets);
 }

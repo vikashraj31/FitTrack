@@ -40,22 +40,17 @@ class DailyData extends Table {
 
   RealColumn get calories => real().withDefault(const Constant(0))();
 
-  RealColumn get calorieTarget =>
-      real().withDefault(const Constant(2500))();
+  RealColumn get calorieTarget => real().withDefault(const Constant(2500))();
 
   IntColumn get steps => integer().withDefault(const Constant(0))();
 
-  IntColumn get stepTarget =>
-      integer().withDefault(const Constant(10000))();
+  IntColumn get stepTarget => integer().withDefault(const Constant(10000))();
 
-  RealColumn get sleepHours =>
-      real().withDefault(const Constant(0))();
+  RealColumn get sleepHours => real().withDefault(const Constant(0))();
 
-  RealColumn get recoveryScore =>
-      real().withDefault(const Constant(0))();
+  RealColumn get recoveryScore => real().withDefault(const Constant(0))();
 
-  RealColumn get effortScore =>
-      real().withDefault(const Constant(0))();
+  RealColumn get effortScore => real().withDefault(const Constant(0))();
 
   DateTimeColumn get createdAt => dateTime()();
 
@@ -83,14 +78,11 @@ class DietEntries extends Table {
 
   RealColumn get plannedCalories => real()();
 
-  RealColumn get actualQuantity =>
-      real().withDefault(const Constant(0))();
+  RealColumn get actualQuantity => real().withDefault(const Constant(0))();
 
-  RealColumn get actualCalories =>
-      real().withDefault(const Constant(0))();
+  RealColumn get actualCalories => real().withDefault(const Constant(0))();
 
-  BoolColumn get eaten =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get eaten => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get createdAt => dateTime()();
 
@@ -110,10 +102,29 @@ class ExtraCaloriesEntries extends Table {
 
   RealColumn get calories => real()();
 
-  TextColumn get description =>
-      text().withDefault(const Constant(''))();
+  TextColumn get description => text().withDefault(const Constant(''))();
 
   DateTimeColumn get createdAt => dateTime()();
+}
+
+// ============================================================
+// DAILY TARGETS TABLE
+// ============================================================
+
+class DailyTargets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get userId => text()();
+
+  RealColumn get calorieTarget => real().withDefault(const Constant(2500))();
+
+  IntColumn get stepTarget => integer().withDefault(const Constant(10000))();
+
+  RealColumn get sleepTarget => real().withDefault(const Constant(8))();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
 }
 
 // ============================================================
@@ -126,6 +137,7 @@ class ExtraCaloriesEntries extends Table {
     DailyData,
     DietEntries,
     ExtraCaloriesEntries,
+    DailyTargets,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -136,40 +148,38 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (Migrator m) async {
-          await m.createAll();
-        },
-        onUpgrade: (Migrator m, int from, int to) async {
-          if (from < 2) {
-            await m.createTable(dailyData);
-            await m.createTable(dietEntries);
-            await m.createTable(extraCaloriesEntries);
-          }
-        },
-      );
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await m.createTable(dailyData);
+        await m.createTable(dietEntries);
+        await m.createTable(extraCaloriesEntries);
+      }
+
+      if (from < 3) {
+        await m.createTable(dailyTargets);
+      }
+    },
+  );
 
   // ==========================================================
   // DATE HELPERS
   // ==========================================================
 
   DateTime _dateOnly(DateTime date) {
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+    return DateTime(date.year, date.month, date.day);
   }
 
   DateTime _nextDate(DateTime date) {
     final day = _dateOnly(date);
 
-    return day.add(
-      const Duration(days: 1),
-    );
+    return day.add(const Duration(days: 1));
   }
 
   // ==========================================================
@@ -205,17 +215,14 @@ class AppDatabase extends _$AppDatabase {
     required double weight,
     required int reps,
   }) async {
-    return (update(workoutSets)
-          ..where(
-            (tbl) => tbl.id.equals(id),
-          ))
+    return (update(workoutSets)..where((tbl) => tbl.id.equals(id)))
         .write(
-      WorkoutSetsCompanion(
-        exerciseName: Value(exerciseName),
-        weight: Value(weight),
-        reps: Value(reps),
-      ),
-    )
+          WorkoutSetsCompanion(
+            exerciseName: Value(exerciseName),
+            weight: Value(weight),
+            reps: Value(reps),
+          ),
+        )
         .then((rows) => rows > 0);
   }
 
@@ -224,12 +231,9 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   Future<bool> deleteSet(int id) async {
-    return (delete(workoutSets)
-          ..where(
-            (tbl) => tbl.id.equals(id),
-          ))
-        .go()
-        .then((rows) => rows > 0);
+    return (delete(
+      workoutSets,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
   }
 
   // ==========================================================
@@ -240,10 +244,7 @@ class AppDatabase extends _$AppDatabase {
     required String userId,
     required DateTime date,
   }) async {
-    final sets = await getSetsByDate(
-      userId: userId,
-      date: date,
-    );
+    final sets = await getSetsByDate(userId: userId, date: date);
 
     for (final set in sets) {
       await deleteSet(set.id);
@@ -254,10 +255,7 @@ class AppDatabase extends _$AppDatabase {
   // WORKOUT - GET SETS FOR DATE
   // ==========================================================
 
-  Future<List<WorkoutSet>> getTodaySets(
-    String userId,
-    DateTime date,
-  ) async {
+  Future<List<WorkoutSet>> getTodaySets(String userId, DateTime date) async {
     final selectedDate = _dateOnly(date);
     final nextDate = _nextDate(date);
 
@@ -268,9 +266,7 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(selectedDate) &
                 tbl.date.isSmallerThanValue(nextDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.createdAt),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.createdAt)]))
         .get();
   }
 
@@ -299,25 +295,19 @@ class AppDatabase extends _$AppDatabase {
   // WORKOUT - GET ALL WORKOUT DATES
   // ==========================================================
 
-  Future<List<DateTime>> getWorkoutDates(
-    String userId,
-  ) async {
-    final rows = await (select(workoutSets)
-          ..where(
-            (tbl) => tbl.userId.equals(userId),
-          )
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.date),
-          ]))
-        .get();
+  Future<List<DateTime>> getWorkoutDates(String userId) async {
+    final rows =
+        await (select(workoutSets)
+              ..where((tbl) => tbl.userId.equals(userId))
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.date)]))
+            .get();
 
     final uniqueDates = <String, DateTime>{};
 
     for (final row in rows) {
       final date = _dateOnly(row.date);
 
-      final key =
-          '${date.year}-${date.month}-${date.day}';
+      final key = '${date.year}-${date.month}-${date.day}';
 
       uniqueDates[key] = date;
     }
@@ -333,12 +323,57 @@ class AppDatabase extends _$AppDatabase {
     required String userId,
     required DateTime date,
   }) async {
-    return getTodaySets(
-      userId,
-      date,
-    );
+    return getTodaySets(userId, date);
+  }
+  // ============================================================
+  // DAILY TARGETS - GET
+  // ============================================================
+
+  Future<DailyTarget?> getDailyTargets({required String userId}) async {
+    return (select(dailyTargets)
+          ..where((tbl) => tbl.userId.equals(userId))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
+  // ============================================================
+  // DAILY TARGETS - SAVE / UPDATE
+  // ============================================================
+
+  Future<void> saveDailyTargets({
+    required String userId,
+    required double calorieTarget,
+    required int stepTarget,
+    required double sleepTarget,
+  }) async {
+    final existing = await getDailyTargets(userId: userId);
+
+    final now = DateTime.now();
+
+    if (existing == null) {
+      await into(dailyTargets).insert(
+        DailyTargetsCompanion.insert(
+          userId: userId,
+          calorieTarget: Value(calorieTarget),
+          stepTarget: Value(stepTarget),
+          sleepTarget: Value(sleepTarget),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    } else {
+      await (update(
+        dailyTargets,
+      )..where((tbl) => tbl.id.equals(existing.id))).write(
+        DailyTargetsCompanion(
+          calorieTarget: Value(calorieTarget),
+          stepTarget: Value(stepTarget),
+          sleepTarget: Value(sleepTarget),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+  }
   // ============================================================
   // DAILY DATA - GET
   // ============================================================
@@ -379,10 +414,7 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     final selectedDate = _dateOnly(date);
 
-    final existing = await getDailyData(
-      userId: userId,
-      date: selectedDate,
-    );
+    final existing = await getDailyData(userId: userId, date: selectedDate);
 
     if (existing == null) {
       await into(dailyData).insert(
@@ -401,11 +433,9 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
     } else {
-      await (update(dailyData)
-            ..where(
-              (tbl) => tbl.id.equals(existing.id),
-            ))
-          .write(
+      await (update(
+        dailyData,
+      )..where((tbl) => tbl.id.equals(existing.id))).write(
         DailyDataCompanion(
           calories: Value(calories),
           calorieTarget: Value(calorieTarget),
@@ -430,13 +460,9 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     final today = _dateOnly(DateTime.now());
 
-    final startDate = today.subtract(
-      Duration(days: days - 1),
-    );
+    final startDate = today.subtract(Duration(days: days - 1));
 
-    final endDate = today.add(
-      const Duration(days: 1),
-    );
+    final endDate = today.add(const Duration(days: 1));
 
     return (select(dailyData)
           ..where(
@@ -445,9 +471,7 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(startDate) &
                 tbl.date.isSmallerThanValue(endDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.date),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.date)]))
         .get();
   }
 
@@ -469,9 +493,7 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(selectedDate) &
                 tbl.date.isSmallerThanValue(nextDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.id),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
         .get();
   }
 
@@ -520,33 +542,30 @@ class AppDatabase extends _$AppDatabase {
     required double actualQuantity,
     required double actualCalories,
     required bool eaten,
+    double? plannedCalories,
   }) async {
-    return (update(dietEntries)
-          ..where(
-            (tbl) => tbl.id.equals(id),
-          ))
+    return (update(dietEntries)..where((tbl) => tbl.id.equals(id)))
         .write(
-      DietEntriesCompanion(
-        actualQuantity: Value(actualQuantity),
-        actualCalories: Value(actualCalories),
-        eaten: Value(eaten),
-        updatedAt: Value(DateTime.now()),
-      ),
-    )
+          DietEntriesCompanion(
+            plannedCalories: plannedCalories == null
+                ? const Value.absent()
+                : Value(plannedCalories),
+            actualQuantity: Value(actualQuantity),
+            actualCalories: Value(actualCalories),
+            eaten: Value(eaten),
+            updatedAt: Value(DateTime.now()),
+          ),
+        )
         .then((rows) => rows > 0);
   }
-
   // ============================================================
   // DIET - DELETE ENTRY
   // ============================================================
 
   Future<bool> deleteDietEntry(int id) async {
-    return (delete(dietEntries)
-          ..where(
-            (tbl) => tbl.id.equals(id),
-          ))
-        .go()
-        .then((rows) => rows > 0);
+    return (delete(
+      dietEntries,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
   }
 
   // ============================================================
@@ -567,9 +586,7 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(selectedDate) &
                 tbl.date.isSmallerThanValue(nextDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.id),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
         .get();
   }
 
@@ -599,12 +616,9 @@ class AppDatabase extends _$AppDatabase {
   // ============================================================
 
   Future<bool> deleteExtraCalories(int id) async {
-    return (delete(extraCaloriesEntries)
-          ..where(
-            (tbl) => tbl.id.equals(id),
-          ))
-        .go()
-        .then((rows) => rows > 0);
+    return (delete(
+      extraCaloriesEntries,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
   }
 
   // ============================================================
@@ -615,15 +629,9 @@ class AppDatabase extends _$AppDatabase {
     required String userId,
     required DateTime date,
   }) async {
-    final dietRows = await getDietEntries(
-      userId: userId,
-      date: date,
-    );
+    final dietRows = await getDietEntries(userId: userId, date: date);
 
-    final extraRows = await getExtraCalories(
-      userId: userId,
-      date: date,
-    );
+    final extraRows = await getExtraCalories(userId: userId, date: date);
 
     double total = 0;
 
@@ -639,6 +647,25 @@ class AppDatabase extends _$AppDatabase {
 
     return total;
   }
+
+  // ============================================================
+  // DIET - PLANNED CALORIES TOTAL
+  // ============================================================
+
+  Future<double> getPlannedCalories({
+    required String userId,
+    required DateTime date,
+  }) async {
+    final dietRows = await getDietEntries(userId: userId, date: date);
+
+    double total = 0;
+
+    for (final entry in dietRows) {
+      total += entry.plannedCalories;
+    }
+
+    return total;
+  }
 }
 
 // ============================================================
@@ -647,15 +674,9 @@ class AppDatabase extends _$AppDatabase {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    final directory =
-        await getApplicationDocumentsDirectory();
+    final directory = await getApplicationDocumentsDirectory();
 
-    final file = File(
-      p.join(
-        directory.path,
-        'fittrack.sqlite',
-      ),
-    );
+    final file = File(p.join(directory.path, 'fittrack.sqlite'));
 
     return NativeDatabase.createInBackground(file);
   });

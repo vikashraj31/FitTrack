@@ -1,286 +1,280 @@
 import 'package:flutter/material.dart';
+import 'package:health/health.dart';
 
 import '../../services/database_service.dart';
-import '../../services/fitness_calculation_service.dart';
+import '../../services/health_sync_service.dart';
 
 class DailyMetricsScreen extends StatefulWidget {
   const DailyMetricsScreen({super.key});
 
   @override
-  State<DailyMetricsScreen> createState() =>
-      _DailyMetricsScreenState();
+  State<DailyMetricsScreen> createState() => _DailyMetricsScreenState();
 }
 
-class _DailyMetricsScreenState
-    extends State<DailyMetricsScreen> {
+class _DailyMetricsScreenState extends State<DailyMetricsScreen>
+    with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
+  final Health _health = Health();
 
-  DateTime _selectedDate = DateTime.now();
+  bool _healthConnected = false;
+  bool _healthConnecting = false;
 
-  final TextEditingController _caloriesController =
-      TextEditingController();
+  final TextEditingController _stepTargetController = TextEditingController();
 
-  final TextEditingController _calorieTargetController =
-      TextEditingController(text: '2500');
-
-  final TextEditingController _stepsController =
-      TextEditingController();
-
-  final TextEditingController _stepTargetController =
-      TextEditingController(text: '10000');
-
-  final TextEditingController _sleepController =
-      TextEditingController();
+  final TextEditingController _sleepTargetController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
-
-  // Calculated values shown before saving.
-  double _effortScore = 0;
-  double _recoveryScore = 0;
-  double _trainingLoad = 0;
+  double _plannedCalories = 0;
 
   @override
   void initState() {
     super.initState();
 
-    _loadData();
+    WidgetsBinding.instance.addObserver(this);
+
+    _loadTargets();
+    _checkHealthConnection();
   }
 
   // ==========================================================
-  // LOAD DAILY DATA
+  // APP LIFECYCLE
   // ==========================================================
 
-  Future<void> _loadData() async {
-    if (mounted) {
-      setState(() {
-        _loading = true;
-      });
-    }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Do not automatically check/sync Health Connect on app resume.
+    // Health Connect can itself trigger lifecycle changes and cause a loop.
+  }
 
+  // ==========================================================
+  // CHECK HEALTH CONNECTION
+  // ==========================================================
+
+  Future<void> _checkHealthConnection() async {
     try {
-      final data = await _database.getDailyData(
-        userId: 'user1',
-        date: _selectedDate,
+      await _health.configure();
+
+      final types = <HealthDataType>[
+        HealthDataType.STEPS,
+        HealthDataType.SLEEP_ASLEEP,
+      ];
+
+      final permissions = <HealthDataAccess>[
+        HealthDataAccess.READ,
+        HealthDataAccess.READ,
+      ];
+
+      final hasPermissions = await _health.hasPermissions(
+        types,
+        permissions: permissions,
       );
 
       if (!mounted) return;
 
-      if (data == null) {
-        _caloriesController.clear();
-        _calorieTargetController.text = '2500';
+      setState(() {
+        _healthConnected = hasPermissions ?? false;
+      });
 
-        _stepsController.clear();
-        _stepTargetController.text = '10000';
-
-        _sleepController.clear();
-
-        _effortScore = 0;
-        _recoveryScore = 0;
-        _trainingLoad = 0;
-      } else {
-        _caloriesController.text =
-            data.calories.toString();
-
-        _calorieTargetController.text =
-            data.calorieTarget.toString();
-
-        _stepsController.text =
-            data.steps.toString();
-
-        _stepTargetController.text =
-            data.stepTarget.toString();
-
-        _sleepController.text =
-            data.sleepHours.toString();
-
-        _effortScore = data.effortScore;
-        _recoveryScore = data.recoveryScore;
+      if (_healthConnected) {
+        await _syncHealthData();
       }
-
-      await _calculatePreview();
+    } catch (e) {
+      debugPrint('Health permission check failed: $e');
 
       if (!mounted) return;
+
+      setState(() {
+        _healthConnected = false;
+      });
+    }
+  }
+
+  // ==========================================================
+  // AUTOMATIC HEALTH SYNC
+  // ==========================================================
+
+  Future<void> _syncHealthData() async {
+    try {
+      final healthData = await HealthSyncService.syncUser1Health();
+
+      if (healthData == null) {
+        debugPrint('Health authorization not available.');
+        return;
+      }
+
+      final steps = healthData['steps'] as int? ?? 0;
+
+      final sleepHours = (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
+
+      final now = DateTime.now();
+
+      final targets = await _database.getDailyTargets(userId: 'user1');
+
+      if (targets == null) {
+        debugPrint(
+          'Daily targets not found. '
+          'Health data not saved.',
+        );
+        return;
+      }
+
+      final existing = await _database.getDailyData(userId: 'user1', date: now);
+
+      await _database.saveDailyData(
+        userId: 'user1',
+        date: now,
+        calories: existing?.calories ?? 0,
+        calorieTarget: targets.calorieTarget,
+        steps: steps,
+        stepTarget: targets.stepTarget,
+        sleepHours: sleepHours,
+        recoveryScore: existing?.recoveryScore ?? 0,
+        effortScore: existing?.effortScore ?? 0,
+      );
+
+      debugPrint(
+        'Automatic health sync complete: '
+        '$steps steps, '
+        '${sleepHours.toStringAsFixed(1)}h sleep',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _healthConnected = true;
+      });
+    } catch (e) {
+      debugPrint('Automatic health sync failed: $e');
+    }
+  }
+
+  // ==========================================================
+  // CONNECT HEALTH DATA
+  // ==========================================================
+
+  Future<void> _connectHealthData() async {
+    if (_healthConnecting) {
+      return;
+    }
+
+    setState(() {
+      _healthConnecting = true;
+    });
+
+    try {
+      await _health.configure();
+
+      final types = <HealthDataType>[
+        HealthDataType.STEPS,
+        HealthDataType.SLEEP_ASLEEP,
+      ];
+
+      final permissions = <HealthDataAccess>[
+        HealthDataAccess.READ,
+        HealthDataAccess.READ,
+      ];
+
+      final authorized = await _health.requestAuthorization(
+        types,
+        permissions: permissions,
+      );
+
+      if (!authorized) {
+        if (!mounted) return;
+
+        setState(() {
+          _healthConnected = false;
+          _healthConnecting = false;
+        });
+
+        _showMessage('Health permission was not granted.');
+
+        return;
+      }
+
+      // Sync immediately after permission is granted.
+      final healthData = await HealthSyncService.syncUser1Health();
+
+      final steps = healthData?['steps'] as int? ?? 0;
+
+      final sleepHours = (healthData?['sleepHours'] as num?)?.toDouble() ?? 0;
+
+      if (!mounted) return;
+
+      setState(() {
+        _healthConnected = true;
+        _healthConnecting = false;
+      });
+
+      _showMessage(
+        'Health connected: $steps steps • '
+        '${sleepHours.toStringAsFixed(1)}h sleep',
+      );
+    } catch (e) {
+      debugPrint('Health connection error: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _healthConnected = false;
+        _healthConnecting = false;
+      });
+
+      _showMessage('Could not connect Health data.');
+    }
+  }
+
+  // ==========================================================
+  // LOAD TARGETS
+  // ==========================================================
+
+  Future<void> _loadTargets() async {
+    try {
+      final targets = await _database.getDailyTargets(userId: 'user1');
+
+      final plannedCalories = await _database.getPlannedCalories(
+        userId: 'user1',
+        date: DateTime.now(),
+      );
+
+      if (!mounted) return;
+
+      if (targets == null) {
+        _stepTargetController.text = '10000';
+        _sleepTargetController.text = '8';
+      } else {
+        _stepTargetController.text = targets.stepTarget.toString();
+
+        _sleepTargetController.text = targets.sleepTarget.toStringAsFixed(1);
+      }
+
+      _plannedCalories = plannedCalories;
 
       setState(() {
         _loading = false;
       });
     } catch (e) {
-      debugPrint(
-        'Error loading daily metrics: $e',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
+      // keep your existing catch block
     }
   }
 
   // ==========================================================
-  // DATE SELECTOR
+  // SAVE TARGETS
   // ==========================================================
 
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2025, 1, 1),
-      lastDate: DateTime(2035, 12, 31),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.cyan,
-              surface: Color(0xFF1A1D24),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
+  Future<void> _saveTargets() async {
+    final stepTarget = int.tryParse(_stepTargetController.text.trim());
 
-    if (picked == null) return;
+    final sleepTarget = double.tryParse(_sleepTargetController.text.trim());
 
-    setState(() {
-      _selectedDate = picked;
-    });
-
-    await _loadData();
-  }
-
-  // ==========================================================
-  // CALCULATE PREVIEW
-  // ==========================================================
-
-  Future<void> _calculatePreview() async {
-    final steps =
-        int.tryParse(
-          _stepsController.text.trim(),
-        ) ??
-        0;
-
-    final stepTarget =
-        int.tryParse(
-          _stepTargetController.text.trim(),
-        ) ??
-        10000;
-
-    final sleepHours =
-        double.tryParse(
-          _sleepController.text.trim(),
-        ) ??
-        0;
-
-    if (stepTarget <= 0) {
-      _trainingLoad = 0;
-      _effortScore = 0;
-      _recoveryScore = 0;
+    if (stepTarget == null || sleepTarget == null) {
+      _showMessage('Please enter valid target values.');
       return;
     }
 
-    // --------------------------------------------------------
-    // GET WORKOUT DATA
-    // --------------------------------------------------------
-
-    final workoutSets =
-        await _database.getTodaySets(
-      'user1',
-      _selectedDate,
-    );
-
-    // --------------------------------------------------------
-    // CONVERT WORKOUT DATA
-    // --------------------------------------------------------
-
-    final workoutData =
-        workoutSets.map((set) {
-      return <String, dynamic>{
-        'weight': set.weight,
-        'reps': set.reps,
-      };
-    }).toList();
-
-    // --------------------------------------------------------
-    // TRAINING LOAD
-    // --------------------------------------------------------
-
-    _trainingLoad =
-        FitnessCalculationService
-            .calculateTrainingLoad(
-      workoutData,
-    );
-
-    // --------------------------------------------------------
-    // EFFORT
-    // --------------------------------------------------------
-
-    _effortScore =
-        FitnessCalculationService.calculateEffort(
-      steps: steps.toDouble(),
-      stepTarget: stepTarget.toDouble(),
-      trainingLoad: _trainingLoad,
-    );
-
-    // --------------------------------------------------------
-    // RECOVERY
-    // --------------------------------------------------------
-
-    _recoveryScore =
-        FitnessCalculationService.calculateRecovery(
-      sleepHours: sleepHours,
-      steps: steps.toDouble(),
-      stepTarget: stepTarget.toDouble(),
-      trainingLoad: _trainingLoad,
-    );
-  }
-
-  // ==========================================================
-  // SAVE
-  // ==========================================================
-
-  Future<void> _save() async {
-    final calories = double.tryParse(
-      _caloriesController.text.trim(),
-    );
-
-    final calorieTarget = double.tryParse(
-      _calorieTargetController.text.trim(),
-    );
-
-    final steps = int.tryParse(
-      _stepsController.text.trim(),
-    );
-
-    final stepTarget = int.tryParse(
-      _stepTargetController.text.trim(),
-    );
-
-    final sleepHours = double.tryParse(
-      _sleepController.text.trim(),
-    );
-
-    if (calories == null ||
-        calorieTarget == null ||
-        steps == null ||
-        stepTarget == null ||
-        sleepHours == null) {
-      _showMessage(
-        'Please enter valid values.',
-      );
-      return;
-    }
-
-    if (calories < 0 ||
-        calorieTarget <= 0 ||
-        steps < 0 ||
-        stepTarget <= 0 ||
-        sleepHours < 0 ||
-        sleepHours > 24) {
-      _showMessage(
-        'Please enter realistic values.',
-      );
+    if (stepTarget <= 0 || sleepTarget <= 0 || sleepTarget > 24) {
+      _showMessage('Please enter realistic target values.');
       return;
     }
 
@@ -289,27 +283,13 @@ class _DailyMetricsScreenState
     });
 
     try {
-      // ------------------------------------------------------
-      // CALCULATE FRESH SCORES
-      // ------------------------------------------------------
-
-      await _calculatePreview();
-
-      // ------------------------------------------------------
-      // SAVE EVERYTHING
-      // ------------------------------------------------------
-
-      await _database.saveDailyData(
+      await _database.saveDailyTargets(
         userId: 'user1',
-        date: _selectedDate,
-        calories: calories,
-        calorieTarget: calorieTarget,
-        steps: steps,
+        calorieTarget: _plannedCalories,
         stepTarget: stepTarget,
-        sleepHours: sleepHours,
-        recoveryScore: _recoveryScore,
-        effortScore: _effortScore,
+        sleepTarget: sleepTarget,
       );
+      await _syncHealthData();
 
       if (!mounted) return;
 
@@ -317,15 +297,11 @@ class _DailyMetricsScreenState
         _saving = false;
       });
 
-      _showMessage(
-        'Daily metrics saved.',
-      );
+      _showMessage('Daily targets saved.');
 
       Navigator.pop(context, true);
     } catch (e) {
-      debugPrint(
-        'Error saving daily metrics: $e',
-      );
+      debugPrint('Error saving daily targets: $e');
 
       if (!mounted) return;
 
@@ -333,9 +309,7 @@ class _DailyMetricsScreenState
         _saving = false;
       });
 
-      _showMessage(
-        'Could not save daily metrics.',
-      );
+      _showMessage('Could not save targets.');
     }
   }
 
@@ -344,37 +318,9 @@ class _DailyMetricsScreenState
   // ==========================================================
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
-  }
-
-  // ==========================================================
-  // DATE FORMAT
-  // ==========================================================
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-
-    return '${date.day} '
-        '${months[date.month - 1]} '
-        '${date.year}';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   // ==========================================================
@@ -383,11 +329,10 @@ class _DailyMetricsScreenState
 
   @override
   void dispose() {
-    _caloriesController.dispose();
-    _calorieTargetController.dispose();
-    _stepsController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+
     _stepTargetController.dispose();
-    _sleepController.dispose();
+    _sleepTargetController.dispose();
 
     _database.close();
 
@@ -401,262 +346,260 @@ class _DailyMetricsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFF0F1115),
-
+      backgroundColor: const Color(0xFF0F1115),
       appBar: AppBar(
-        backgroundColor:
-            const Color(0xFF0F1115),
+        backgroundColor: const Color(0xFF0F1115),
         elevation: 0,
         title: const Text(
-          'Daily Metrics',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          'Daily Targets',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-
       body: _loading
-          ? const Center(
-              child:
-                  CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding:
-                  const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ==================================================
-                  // DATE
+                  // HEADER
                   // ==================================================
 
                   const Text(
-                    'Selected Date',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
+                    'Set Your Daily Targets',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 8),
 
-                  InkWell(
-                    borderRadius:
-                        BorderRadius.circular(18),
-                    onTap: _selectDate,
-                    child: Container(
-                      width: double.infinity,
-                      padding:
-                          const EdgeInsets.all(18),
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            const Color(0xFF1A1D24),
-                        borderRadius:
-                            BorderRadius.circular(
-                          18,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_month,
-                            color: Colors.cyan,
-                          ),
-
-                          const SizedBox(
-                            width: 14,
-                          ),
-
-                          Expanded(
-                            child: Text(
-                              _formatDate(
-                                _selectedDate,
-                              ),
-                              style:
-                                  const TextStyle(
-                                fontSize: 17,
-                                fontWeight:
-                                    FontWeight.w600,
-                              ),
-                            ),
-                          ),
-
-                          const Icon(
-                            Icons.chevron_right,
-                            color:
-                                Colors.white54,
-                          ),
-                        ],
-                      ),
+                  const Text(
+                    'Set your targets once. FitTrack will use '
+                    'them for your daily tracking and calculations.',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 14,
+                      height: 1.5,
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
 
                   // ==================================================
                   // CALORIES
                   // ==================================================
-
-                  const Text(
-                    'Calories',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1D24),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Colors.cyan.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: const Icon(
+                            Icons.local_fire_department,
+                            color: Colors.cyan,
+                            size: 23,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Calories Target',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              const Text(
+                                'Automatically calculated from today\'s planned diet',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${_plannedCalories.toStringAsFixed(0)} kcal',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  const SizedBox(height: 12),
-
-                  _inputCard(
-                    icon:
-                        Icons.local_fire_department,
-                    title:
-                        'Calories Consumed',
-                    controller:
-                        _caloriesController,
-                    hint: 'Example: 2350',
-                    suffix: 'kcal',
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _inputCard(
-                    icon: Icons.flag_outlined,
-                    title: 'Calorie Target',
-                    controller:
-                        _calorieTargetController,
-                    hint: 'Example: 2500',
-                    suffix: 'kcal',
-                  ),
-
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
 
                   // ==================================================
                   // STEPS
                   // ==================================================
-
-                  const Text(
-                    'Steps',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _inputCard(
-                    icon:
-                        Icons.directions_walk,
-                    title:
-                        'Steps Completed',
-                    controller:
-                        _stepsController,
-                    hint: 'Example: 7842',
-                    suffix: 'steps',
-                    decimal: false,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _inputCard(
-                    icon: Icons.flag_outlined,
+                  _targetCard(
+                    icon: Icons.directions_walk,
                     title: 'Steps Target',
-                    controller:
-                        _stepTargetController,
-                    hint: 'Example: 10000',
+                    subtitle: 'Your daily step target',
+                    controller: _stepTargetController,
+                    hint: '10000',
                     suffix: 'steps',
                     decimal: false,
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
 
                   // ==================================================
                   // SLEEP
                   // ==================================================
+                  _targetCard(
+                    icon: Icons.bedtime,
+                    title: 'Sleep Target',
+                    subtitle: 'Your target sleep duration',
+                    controller: _sleepTargetController,
+                    hint: '8',
+                    suffix: 'hours',
+                    decimal: true,
+                  ),
 
-                  const Text(
-                    'Sleep',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 28),
+
+                  // ==================================================
+                  // INFORMATION
+                  // ==================================================
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1D24),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.cyan.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.cyan, size: 22),
+
+                        SizedBox(width: 12),
+
+                        Expanded(
+                          child: Text(
+                            'Steps and sleep will be tracked '
+                            'automatically when phone health '
+                            'data is connected. Calories will '
+                            'come from your Diet entries.',
+                            style: TextStyle(
+                              color: Colors.white60,
+                              fontSize: 13,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 18),
 
-                  _inputCard(
-                    icon: Icons.bedtime,
-                    title:
-                        'Sleep Duration',
-                    controller:
-                        _sleepController,
-                    hint: 'Example: 7.5',
-                    suffix: 'hours',
+                  // ==================================================
+                  // CONNECT HEALTH DATA
+                  // ==================================================
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: OutlinedButton.icon(
+                      onPressed: _healthConnecting ? null : _connectHealthData,
+
+                      icon: _healthConnecting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              _healthConnected
+                                  ? Icons.check_circle_outline
+                                  : Icons.favorite_outline,
+                            ),
+
+                      label: Text(
+                        _healthConnecting
+                            ? 'Connecting...'
+                            : _healthConnected
+                            ? 'Health Data Connected'
+                            : 'Connect Health Data',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _healthConnected
+                            ? Colors.greenAccent
+                            : Colors.cyan,
+
+                        side: BorderSide(
+                          color: _healthConnected
+                              ? Colors.greenAccent
+                              : Colors.cyan,
+                        ),
+
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
                   ),
 
-                  const SizedBox(height: 24),
-
-                  // ==================================================
-                  // CALCULATED SCORES
-                  // ==================================================
-
-                  _buildCalculatedScores(),
-
-                  const SizedBox(height: 24),
-
-                  // ==================================================
-                  // SUMMARY
-                  // ==================================================
-
-                  _buildSummary(),
-
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
 
                   // ==================================================
                   // SAVE
                   // ==================================================
-
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: FilledButton(
-                      onPressed:
-                          _saving ? null : _save,
-                      style:
-                          FilledButton.styleFrom(
-                        backgroundColor:
-                            Colors.cyan,
-                        foregroundColor:
-                            Colors.black,
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            16,
-                          ),
+                      onPressed: _saving ? null : _saveTargets,
+
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.cyan,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
+
                       child: _saving
                           ? const SizedBox(
                               width: 22,
                               height: 22,
-                              child:
-                                  CircularProgressIndicator(
+                              child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color:
-                                    Colors.black,
+                                color: Colors.black,
                               ),
                             )
                           : const Text(
-                              'Save Daily Metrics',
+                              'Save Targets',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight:
-                                    FontWeight.bold,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                     ),
@@ -670,244 +613,75 @@ class _DailyMetricsScreenState
   }
 
   // ==========================================================
-  // CALCULATED SCORES CARD
+  // TARGET CARD
   // ==========================================================
 
-  Widget _buildCalculatedScores() {
+  Widget _targetCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required TextEditingController controller,
+    required String hint,
+    required String suffix,
+    required bool decimal,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1D24),
-        borderRadius:
-            BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Calculated Scores',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          Row(
-            children: [
-              Expanded(
-                child: _scoreItem(
-                  icon: Icons.bolt,
-                  title: 'Effort',
-                  value:
-                      '${_effortScore.round()}',
-                  color:
-                      const Color(0xFFFF7A21),
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: _scoreItem(
-                  icon:
-                      Icons.favorite_outline,
-                  title: 'Recovery',
-                  value:
-                      '${_recoveryScore.round()}%',
-                  color:
-                      const Color(0xFF39D98A),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          Row(
-            children: [
-              const Icon(
-                Icons.fitness_center,
-                size: 18,
-                color: Colors.white54,
-              ),
-
-              const SizedBox(width: 8),
-
-              const Text(
-                'Training Load',
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: 13,
-                ),
-              ),
-
-              const Spacer(),
-
-              Text(
-                _trainingLoad
-                    .toStringAsFixed(0),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // SCORE ITEM
-  // ==========================================================
-
-  Widget _scoreItem({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding:
-          const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(
-          alpha: 0.18,
-        ),
-        borderRadius:
-            BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 22,
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // INPUT CARD
-  // ==========================================================
-
-  Widget _inputCard({
-    required IconData icon,
-    required String title,
-    required TextEditingController controller,
-    required String hint,
-    required String suffix,
-    bool decimal = true,
-  }) {
-    return Container(
-      padding:
-          const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-              color:
-                  Colors.cyan.withValues(
-                alpha: 0.12,
-              ),
-              borderRadius:
-                  BorderRadius.circular(12),
+              color: Colors.cyan.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(
-              icon,
-              color: Colors.cyan,
-            ),
+            child: Icon(icon, color: Colors.cyan, size: 23),
           ),
 
           const SizedBox(width: 14),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style:
-                      const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
 
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
+
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+
+                const SizedBox(height: 8),
 
                 TextField(
                   controller: controller,
-
-                  onChanged: (_) {
-                    _calculatePreview()
-                        .then((_) {
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    });
-                  },
-
                   keyboardType: decimal
-                      ? const TextInputType
-                          .numberWithOptions(
-                          decimal: true,
-                        )
+                      ? const TextInputType.numberWithOptions(decimal: true)
                       : TextInputType.number,
-
-                  decoration:
-                      InputDecoration(
+                  decoration: InputDecoration(
                     hintText: hint,
                     suffixText: suffix,
-                    border:
-                        InputBorder.none,
+                    border: InputBorder.none,
                     isDense: true,
-                    contentPadding:
-                        EdgeInsets.zero,
+                    contentPadding: EdgeInsets.zero,
                   ),
-
-                  style:
-                      const TextStyle(
-                    fontSize: 18,
-                    fontWeight:
-                        FontWeight.w600,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
@@ -915,174 +689,6 @@ class _DailyMetricsScreenState
           ),
         ],
       ),
-    );
-  }
-
-  // ==========================================================
-  // SUMMARY
-  // ==========================================================
-
-  Widget _buildSummary() {
-    final calories =
-        double.tryParse(
-              _caloriesController.text,
-            ) ??
-            0;
-
-    final calorieTarget =
-        double.tryParse(
-              _calorieTargetController.text,
-            ) ??
-            0;
-
-    final steps =
-        int.tryParse(
-              _stepsController.text,
-            ) ??
-            0;
-
-    final stepTarget =
-        int.tryParse(
-              _stepTargetController.text,
-            ) ??
-            0;
-
-    final sleep =
-        double.tryParse(
-              _sleepController.text,
-            ) ??
-            0;
-
-    final caloriePercent =
-        calorieTarget > 0
-            ? (calories /
-                    calorieTarget) *
-                100
-            : 0;
-
-    final stepPercent =
-        stepTarget > 0
-            ? (steps /
-                    stepTarget) *
-                100
-            : 0;
-
-    return Container(
-      width: double.infinity,
-      padding:
-          const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius:
-            BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Today Summary',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          _summaryRow(
-            'Calories',
-            '${calories.toStringAsFixed(0)} / '
-                '${calorieTarget.toStringAsFixed(0)} kcal',
-            '${caloriePercent.toStringAsFixed(0)}%',
-          ),
-
-          const SizedBox(height: 12),
-
-          _summaryRow(
-            'Steps',
-            '$steps / $stepTarget',
-            '${stepPercent.toStringAsFixed(0)}%',
-          ),
-
-          const SizedBox(height: 12),
-
-          _summaryRow(
-            'Sleep',
-            '${sleep.toStringAsFixed(1)} hours',
-            '',
-          ),
-
-          const SizedBox(height: 12),
-
-          _summaryRow(
-            'Effort',
-            '${_effortScore.round()} / 100',
-            '',
-          ),
-
-          const SizedBox(height: 12),
-
-          _summaryRow(
-            'Recovery',
-            '${_recoveryScore.round()} / 100',
-            '',
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // SUMMARY ROW
-  // ==========================================================
-
-  Widget _summaryRow(
-    String title,
-    String value,
-    String percentage,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style:
-                    const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
-              ),
-
-              const SizedBox(height: 3),
-
-              Text(
-                value,
-                style:
-                    const TextStyle(
-                  fontWeight:
-                      FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        if (percentage.isNotEmpty)
-          Text(
-            percentage,
-            style:
-                const TextStyle(
-              color: Colors.cyan,
-              fontWeight:
-                  FontWeight.bold,
-            ),
-          ),
-      ],
     );
   }
 }

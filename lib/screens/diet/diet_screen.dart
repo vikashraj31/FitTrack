@@ -92,9 +92,7 @@ class _DietScreenState extends State<DietScreen> {
           DietPlanItem('Soyabean Aloo', '1 serving'),
           DietPlanItem('Salad', '1 serving'),
         ],
-        'Evening': [
-          DietPlanItem('Whey', '1 scoop'),
-        ],
+        'Evening': [DietPlanItem('Whey', '1 scoop')],
         'Dinner': [
           DietPlanItem('Fried Rice', '250 g'),
           DietPlanItem('Chowmein', '1 serving'),
@@ -120,9 +118,7 @@ class _DietScreenState extends State<DietScreen> {
           DietPlanItem('Fish Curry', '2 large pieces'),
           DietPlanItem('Salad', '1 serving'),
         ],
-        'Evening': [
-          DietPlanItem('Whey', '1 scoop'),
-        ],
+        'Evening': [DietPlanItem('Whey', '1 scoop')],
         'Dinner': [
           DietPlanItem('Jeera Rice', '200 g cooked'),
           DietPlanItem('Roti', '2'),
@@ -148,9 +144,7 @@ class _DietScreenState extends State<DietScreen> {
           DietPlanItem('Aloo Curry', '1 serving'),
           DietPlanItem('Veg', '1 serving'),
         ],
-        'Evening': [
-          DietPlanItem('Whey', '1 scoop'),
-        ],
+        'Evening': [DietPlanItem('Whey', '1 scoop')],
         'Dinner': [
           DietPlanItem('Rice', '200 g cooked'),
           DietPlanItem('Roti', '2'),
@@ -178,9 +172,7 @@ class _DietScreenState extends State<DietScreen> {
           DietPlanItem('Fish Besar', '2 large pieces'),
           DietPlanItem('Veg', '1 serving'),
         ],
-        'Evening': [
-          DietPlanItem('Whey', '1 scoop'),
-        ],
+        'Evening': [DietPlanItem('Whey', '1 scoop')],
         'Dinner': [
           DietPlanItem('Chicken Biryani', '1 full serving'),
           DietPlanItem('Raita', '1 serving'),
@@ -205,9 +197,7 @@ class _DietScreenState extends State<DietScreen> {
           DietPlanItem('Dal', '2 karchul'),
           DietPlanItem('Veg', '1 serving'),
         ],
-        'Evening': [
-          DietPlanItem('Whey', '1 scoop'),
-        ],
+        'Evening': [DietPlanItem('Whey', '1 scoop')],
         'Dinner': [
           DietPlanItem('Rice', '200 g cooked'),
           DietPlanItem('Roti', '1'),
@@ -230,9 +220,7 @@ class _DietScreenState extends State<DietScreen> {
           DietPlanItem('Chicken Butter Masala', '4 pieces'),
           DietPlanItem('Salad', '1 serving'),
         ],
-        'Evening': [
-          DietPlanItem('Whey', '1 scoop'),
-        ],
+        'Evening': [DietPlanItem('Whey', '1 scoop')],
         'Dinner': [
           DietPlanItem('Rice', '200 g cooked'),
           DietPlanItem('Roti', '2'),
@@ -247,6 +235,43 @@ class _DietScreenState extends State<DietScreen> {
   DietDayPlan get _todayPlan =>
       _weeklyPlan[_selectedDate.weekday] ?? _weeklyPlan[DateTime.monday]!;
 
+
+Future<void> _repairExistingPlanCalories() async {
+  final plan = _todayPlan;
+
+  final totalFoodItems = plan.meals.values
+      .expand((items) => items)
+      .length;
+
+  if (totalFoodItems == 0) return;
+
+  final caloriesPerItem = _targetMidpoint / totalFoodItems;
+
+  final existing = await _database.getDietEntries(
+    userId: 'user1',
+    date: _selectedDate,
+  );
+
+  final plannedNames = <String>{
+    for (final items in plan.meals.values)
+      for (final item in items) item.name,
+  };
+
+  for (final entry in existing) {
+    if (entry.foodName == _seedMarker) continue;
+
+    if (entry.plannedCalories == 0 &&
+        plannedNames.contains(entry.foodName)) {
+      await _database.updateDietEntry(
+        id: entry.id,
+        plannedCalories: caloriesPerItem,
+        actualQuantity: entry.actualQuantity,
+        actualCalories: entry.eaten ? caloriesPerItem : 0,
+        eaten: entry.eaten,
+      );
+    }
+  }
+}
   // ==========================================================
   // LOAD + SEED
   // ==========================================================
@@ -259,6 +284,7 @@ class _DietScreenState extends State<DietScreen> {
     }
 
     await _ensurePlanSeeded();
+    await _repairExistingPlanCalories();
 
     final entries = await _database.getDietEntries(
       userId: 'user1',
@@ -292,12 +318,19 @@ class _DietScreenState extends State<DietScreen> {
         date: _selectedDate,
       );
 
-      final alreadySeeded =
-          existing.any((entry) => entry.foodName == _seedMarker);
+      final alreadySeeded = existing.any(
+        (entry) => entry.foodName == _seedMarker,
+      );
 
       if (alreadySeeded) return;
 
       final plan = _todayPlan;
+
+      final totalFoodItems = plan.meals.values.expand((items) => items).length;
+
+      final caloriesPerItem = totalFoodItems > 0
+          ? _targetMidpoint / totalFoodItems
+          : 0.0;
 
       for (final meal in _meals) {
         final items = plan.meals[meal] ?? [];
@@ -310,7 +343,7 @@ class _DietScreenState extends State<DietScreen> {
             foodName: item.name,
             plannedQuantity: 1,
             quantityUnit: item.quantity,
-            plannedCalories: 0,
+            plannedCalories: caloriesPerItem,
             actualQuantity: 0,
             actualCalories: 0,
             eaten: false,
@@ -353,7 +386,7 @@ class _DietScreenState extends State<DietScreen> {
             colorScheme: const ColorScheme.dark(
               primary: Colors.cyan,
               surface: Color(0xFF1A1D24),
-          ),
+            ),
           ),
           child: child!,
         );
@@ -396,10 +429,7 @@ class _DietScreenState extends State<DietScreen> {
   Future<void> _editDietEntry(DietEntry entry) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (_) => EditDietDialog(
-        entry: entry,
-        database: _database,
-      ),
+      builder: (_) => EditDietDialog(entry: entry, database: _database),
     );
 
     if (result == true) {
@@ -440,10 +470,8 @@ class _DietScreenState extends State<DietScreen> {
   Future<void> _addExtraCalories() async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (_) => AddExtraCaloriesDialog(
-        database: _database,
-        date: _selectedDate,
-      ),
+      builder: (_) =>
+          AddExtraCaloriesDialog(database: _database, date: _selectedDate),
     );
 
     if (result == true) {
@@ -451,9 +479,7 @@ class _DietScreenState extends State<DietScreen> {
     }
   }
 
-  Future<void> _deleteExtraCalories(
-    ExtraCaloriesEntry entry,
-  ) async {
+  Future<void> _deleteExtraCalories(ExtraCaloriesEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -589,10 +615,7 @@ class _DietScreenState extends State<DietScreen> {
                 children: [
                   const Text(
                     'Selected Date',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -605,10 +628,7 @@ class _DietScreenState extends State<DietScreen> {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.white54,
-            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
           ],
         ),
       ),
@@ -624,10 +644,7 @@ class _DietScreenState extends State<DietScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF19242D),
-            Color(0xFF172027),
-          ],
+          colors: [Color(0xFF19242D), Color(0xFF172027)],
         ),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.cyan.withValues(alpha: 0.18)),
@@ -641,10 +658,7 @@ class _DietScreenState extends State<DietScreen> {
               color: Colors.cyan.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.restaurant_menu,
-              color: Colors.cyan,
-            ),
+            child: const Icon(Icons.restaurant_menu, color: Colors.cyan),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -661,17 +675,11 @@ class _DietScreenState extends State<DietScreen> {
                 const SizedBox(height: 4),
                 Text(
                   _todayPlan.calorieRange,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 Text(
                   _todayPlan.proteinRange,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -700,10 +708,7 @@ class _DietScreenState extends State<DietScreen> {
         children: [
           const Text(
             'Calories',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white70,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.white70),
           ),
           const SizedBox(height: 10),
           Row(
@@ -719,10 +724,7 @@ class _DietScreenState extends State<DietScreen> {
               const SizedBox(width: 6),
               const Padding(
                 padding: EdgeInsets.only(bottom: 5),
-                child: Text(
-                  'kcal',
-                  style: TextStyle(color: Colors.white54),
-                ),
+                child: Text('kcal', style: TextStyle(color: Colors.white54)),
               ),
               const Spacer(),
               Text(
@@ -738,18 +740,12 @@ class _DietScreenState extends State<DietScreen> {
           const SizedBox(height: 8),
           Text(
             'Plan range: ${_todayPlan.calorieRange}',
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
           ),
           const SizedBox(height: 4),
           Text(
             'Percentage uses the midpoint of the plan range.',
-            style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
           const SizedBox(height: 14),
           ClipRRect(
@@ -771,13 +767,10 @@ class _DietScreenState extends State<DietScreen> {
   // ==========================================================
 
   Widget _buildMealSection(String meal) {
-    final entries = _entries
-        .where((entry) => entry.meal == meal)
-        .toList();
+    final entries = _entries.where((entry) => entry.meal == meal).toList();
 
     final isSundaySkip =
-        _selectedDate.weekday == DateTime.sunday &&
-        meal == 'Breakfast';
+        _selectedDate.weekday == DateTime.sunday && meal == 'Breakfast';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -933,11 +926,8 @@ class _DietScreenState extends State<DietScreen> {
   Future<void> _addCustomFood(String meal) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (_) => AddDietDialog(
-        meal: meal,
-        database: _database,
-        date: _selectedDate,
-      ),
+      builder: (_) =>
+          AddDietDialog(meal: meal, database: _database, date: _selectedDate),
     );
 
     if (result == true) {
@@ -969,10 +959,7 @@ class _DietScreenState extends State<DietScreen> {
               const Expanded(
                 child: Text(
                   'Extra Calories',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
               IconButton(
@@ -997,15 +984,10 @@ class _DietScreenState extends State<DietScreen> {
                     ? 'Extra calories'
                     : entry.description,
               ),
-              subtitle: Text(
-                '${entry.calories.toStringAsFixed(0)} kcal',
-              ),
+              subtitle: Text('${entry.calories.toStringAsFixed(0)} kcal'),
               trailing: IconButton(
                 onPressed: () => _deleteExtraCalories(entry),
-                icon: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.white54,
-                ),
+                icon: const Icon(Icons.delete_outline, color: Colors.white54),
               ),
             ),
           ),
@@ -1050,10 +1032,7 @@ class _DietScreenState extends State<DietScreen> {
         children: [
           const Text(
             'Daily Total',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Row(
@@ -1078,19 +1057,14 @@ class _DietScreenState extends State<DietScreen> {
                 ? '${difference.toStringAsFixed(0)} kcal above midpoint'
                 : '${difference.abs().toStringAsFixed(0)} kcal remaining to midpoint',
             style: TextStyle(
-              color: difference > 0
-                  ? Colors.orange
-                  : Colors.white54,
+              color: difference > 0 ? Colors.orange : Colors.white54,
               fontSize: 13,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Plan: ${_todayPlan.calorieRange} • ${_todayPlan.proteinRange}',
-            style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
         ],
       ),
@@ -1103,18 +1077,12 @@ class _DietScreenState extends State<DietScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 12,
-          ),
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -1223,19 +1191,13 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
   Future<void> _save() async {
     final food = _foodController.text.trim();
-    final quantity = double.tryParse(
-      _quantityController.text.trim(),
-    );
+    final quantity = double.tryParse(_quantityController.text.trim());
     final unit = _unitController.text.trim();
-    final calories = double.tryParse(
-      _caloriesController.text.trim(),
-    );
+    final calories = double.tryParse(_caloriesController.text.trim());
 
     if (food.isEmpty || quantity == null || quantity <= 0 || unit.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter food, quantity and unit'),
-        ),
+        const SnackBar(content: Text('Enter food, quantity and unit')),
       );
       return;
     }
@@ -1397,12 +1359,8 @@ class _EditDietDialogState extends State<EditDietDialog> {
     final quantityText = _quantityController.text.trim();
     final caloriesText = _caloriesController.text.trim();
 
-    final quantity = quantityText.isEmpty
-        ? 0.0
-        : double.tryParse(quantityText);
-    final calories = caloriesText.isEmpty
-        ? 0.0
-        : double.tryParse(caloriesText);
+    final quantity = quantityText.isEmpty ? 0.0 : double.tryParse(quantityText);
+    final calories = caloriesText.isEmpty ? 0.0 : double.tryParse(caloriesText);
 
     if (quantity == null || calories == null || quantity < 0 || calories < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1439,10 +1397,7 @@ class _EditDietDialogState extends State<EditDietDialog> {
           children: [
             Text(
               'Planned: ${widget.entry.quantityUnit}',
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -1480,10 +1435,7 @@ class _EditDietDialogState extends State<EditDietDialog> {
             const SizedBox(height: 4),
             const Text(
               'You can edit this later even if the meal was eaten hours later.',
-              style: TextStyle(
-                color: Colors.white38,
-                fontSize: 11,
-              ),
+              style: TextStyle(color: Colors.white38, fontSize: 11),
             ),
           ],
         ),
@@ -1523,8 +1475,7 @@ class AddExtraCaloriesDialog extends StatefulWidget {
   });
 
   @override
-  State<AddExtraCaloriesDialog> createState() =>
-      _AddExtraCaloriesDialogState();
+  State<AddExtraCaloriesDialog> createState() => _AddExtraCaloriesDialogState();
 }
 
 class _AddExtraCaloriesDialogState extends State<AddExtraCaloriesDialog> {
@@ -1540,14 +1491,12 @@ class _AddExtraCaloriesDialogState extends State<AddExtraCaloriesDialog> {
   }
 
   Future<void> _save() async {
-    final calories = double.tryParse(
-      _caloriesController.text.trim(),
-    );
+    final calories = double.tryParse(_caloriesController.text.trim());
 
     if (calories == null || calories <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter valid calories')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter valid calories')));
       return;
     }
 
@@ -1576,9 +1525,7 @@ class _AddExtraCaloriesDialogState extends State<AddExtraCaloriesDialog> {
         children: [
           TextField(
             controller: _caloriesController,
-            keyboardType: const TextInputType.numberWithOptions(
-              decimal: true,
-            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
               labelText: 'Calories',
               hintText: 'Example: 200',
@@ -1613,4 +1560,3 @@ class _AddExtraCaloriesDialogState extends State<AddExtraCaloriesDialog> {
     );
   }
 }
-
