@@ -6,8 +6,13 @@ import '../../services/database_service.dart';
 
 class ExerciseScreen extends StatefulWidget {
   final String userId;
+  final bool homeMode;
 
-  const ExerciseScreen({super.key, this.userId = 'user1'});
+  const ExerciseScreen({
+    super.key,
+    this.userId = 'user1',
+    this.homeMode = false,
+  });
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
@@ -16,6 +21,7 @@ class ExerciseScreen extends StatefulWidget {
 class _ExerciseScreenState extends State<ExerciseScreen> {
   final AppDatabase _database = AppDatabase();
   List<WorkoutSet> _todaySets = [];
+  List<ExerciseLibraryData> _exerciseLibrary = [];
   bool _loading = true;
 
   // User 1 Today shows only exercises that have been
@@ -33,9 +39,15 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         userId: widget.userId,
         date: DateTime.now(),
       );
+
+      final library = await _database.getExerciseLibrary(
+        userId: widget.userId,
+      );
+
       if (!mounted) return;
       setState(() {
         _todaySets = sets;
+        _exerciseLibrary = library;
         _loading = false;
       });
     } catch (e) {
@@ -69,6 +81,87 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       ),
     );
     await _loadTodayWorkout();
+  }
+
+  Future<void> _addNewExercise() async {
+    // Use a normal page instead of showDialog here. This avoids the
+    // Flutter overlay/inherited-element deactivation assertion that was
+    // happening when the dialog closed after adding an exercise.
+    final exerciseName = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AddExerciseScreen(),
+      ),
+    );
+
+    if (!mounted || exerciseName == null) return;
+
+    final normalized = exerciseName.trim();
+    if (normalized.isEmpty) return;
+
+    final alreadyExists = _exerciseLibrary.any(
+      (item) =>
+          item.exerciseName.trim().toLowerCase() ==
+          normalized.toLowerCase(),
+    );
+
+    if (alreadyExists) {
+      return;
+    }
+
+    try {
+      await _database.saveExerciseLibraryItem(
+        userId: widget.userId,
+        exerciseName: normalized,
+      );
+
+      await _loadTodayWorkout();
+    } catch (e) {
+      debugPrint('Error adding exercise: $e');
+    }
+  }
+
+  Future<void> _deleteTodayExercise(String exerciseName) async {
+    final exerciseSets = _todaySets
+        .where((set) => set.exerciseName == exerciseName)
+        .toList();
+
+    if (exerciseSets.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF101C32),
+        title: const Text('Delete Exercise?'),
+        content: Text(
+          'Delete $exerciseName and its ${exerciseSets.length} set${exerciseSets.length == 1 ? '' : 's'} from today? Previous workout dates will not be affected.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      for (final set in exerciseSets) {
+        await _database.deleteSet(set.id);
+      }
+
+      await _loadTodayWorkout();
+      _showMessage('$exerciseName deleted from today.');
+    } catch (e) {
+      debugPrint('Error deleting exercise: $e');
+      _showMessage('Could not delete $exerciseName.');
+    }
   }
 
   Future<void> _deleteAllTodayExercises() async {
@@ -189,9 +282,31 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                       ...exercises.map((exercise) => _exerciseCard(exercise)),
                     const SizedBox(height: 14),
                     _copyCard(),
-                    if (exercises.isNotEmpty) ...[
+                    if (!widget.homeMode && exercises.isNotEmpty) ...[
                       const SizedBox(height: 10),
                       _deleteTodayCard(),
+                    ],
+                    if (!widget.homeMode) ...[
+                      const SizedBox(height: 10),
+                      _addExerciseCard(),
+                      const SizedBox(height: 10),
+                      _createRoutineCard(),
+                      const SizedBox(height: 10),
+                      _myRoutinesCard(),
+                      if (_exerciseLibrary.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        const Text(
+                          'EXERCISE LIBRARY',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.7,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ..._exerciseLibrary.map(_libraryExerciseCard),
+                      ],
                     ],
                   ],
                 ),
@@ -216,7 +331,23 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           padding: const EdgeInsets.only(top: 4),
           child: Text('$count ${count == 1 ? 'set' : 'sets'}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+        trailing: widget.homeMode
+            ? const Icon(Icons.chevron_right, color: Colors.white54)
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Delete today',
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                      size: 20,
+                    ),
+                    onPressed: () => _deleteTodayExercise(exerciseName),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white54),
+                ],
+              ),
         onTap: () => _openExercise(exerciseName),
       ),
     );
@@ -270,6 +401,204 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     );
   }
 
+  Widget _addExerciseCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.06),
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 7,
+        ),
+        leading: const Icon(
+          Icons.add_circle_outline,
+          color: Colors.cyanAccent,
+        ),
+        title: const Text(
+          'ADD NEW EXERCISE',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Text(
+            'Add an exercise to your library',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: Colors.white54,
+        ),
+        onTap: _addNewExercise,
+      ),
+    );
+  }
+
+  Widget _createRoutineCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        leading: const Icon(Icons.event_note_outlined, color: Colors.orangeAccent),
+        title: const Text('CREATE NEW ROUTINE', style: TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Text('Build a complete workout for any date', style: TextStyle(color: Colors.white54, fontSize: 12)),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CreateRoutineScreen(
+                userId: widget.userId,
+                database: _database,
+              ),
+            ),
+          );
+          await _loadTodayWorkout();
+        },
+      ),
+    );
+  }
+
+  Widget _myRoutinesCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        leading: const Icon(Icons.calendar_month_outlined, color: Colors.cyanAccent),
+        title: const Text('MY ROUTINES', style: TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Text('View your date-wise workout routines', style: TextStyle(color: Colors.white54, fontSize: 12)),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MyRoutinesScreen(
+                userId: widget.userId,
+                database: _database,
+              ),
+            ),
+          );
+          await _loadTodayWorkout();
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteLibraryExercise(ExerciseLibraryData exercise) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF101C32),
+        title: const Text('Delete Exercise?'),
+        content: Text(
+          'Remove ${exercise.exerciseName} from your Exercise Library?\n\n'
+          'This will not delete any workout sets already recorded for this exercise.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _database.deleteExerciseLibraryItem(id: exercise.id);
+      await _loadTodayWorkout();
+    } catch (e) {
+      debugPrint('Error deleting exercise library item: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not delete exercise.')),
+        );
+      }
+    }
+  }
+
+  Widget _libraryExerciseCard(ExerciseLibraryData exercise) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.06),
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 5,
+        ),
+        title: Text(
+          exercise.exerciseName,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: const Padding(
+          padding: EdgeInsets.only(top: 3),
+          child: Text(
+            'Tap to record today',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Delete from library',
+              icon: const Icon(
+                Icons.delete_outline,
+                color: Colors.redAccent,
+                size: 21,
+              ),
+              onPressed: () => _deleteLibraryExercise(exercise),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              color: Colors.white54,
+            ),
+          ],
+        ),
+        onTap: () => _openExercise(exercise.exerciseName),
+      ),
+    );
+  }
+
   Widget _emptyCard() => Container(
     padding: const EdgeInsets.all(22),
     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(18)),
@@ -281,6 +610,603 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 // USER 1 EXERCISE DETAIL
 // LAST WORKOUT = REFERENCE ONLY; TODAY = SEPARATE DATA
 // ============================================================
+// ============================================================
+// CREATE ROUTINE
+// ============================================================
+
+class _RoutineSetDraft {
+  final TextEditingController weightController;
+  final TextEditingController repsController;
+
+  _RoutineSetDraft({String weight = '', String reps = ''})
+      : weightController = TextEditingController(text: weight),
+        repsController = TextEditingController(text: reps);
+
+  void dispose() {
+    weightController.dispose();
+    repsController.dispose();
+  }
+}
+
+class _RoutineExerciseDraft {
+  final String exerciseName;
+  final List<_RoutineSetDraft> sets;
+
+  _RoutineExerciseDraft({required this.exerciseName})
+      : sets = [_RoutineSetDraft()];
+
+  void dispose() {
+    for (final set in sets) {
+      set.dispose();
+    }
+  }
+}
+
+class CreateRoutineScreen extends StatefulWidget {
+  final String userId;
+  final AppDatabase database;
+
+  const CreateRoutineScreen({
+    super.key,
+    required this.userId,
+    required this.database,
+  });
+
+  @override
+  State<CreateRoutineScreen> createState() => _CreateRoutineScreenState();
+}
+
+class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+  List<ExerciseLibraryData> _library = [];
+  final List<_RoutineExerciseDraft> _exercises = [];
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLibrary();
+  }
+
+  Future<void> _loadLibrary() async {
+    final library = await widget.database.getExerciseLibrary(userId: widget.userId);
+    if (!mounted) return;
+    setState(() {
+      _library = library;
+      _loading = false;
+    });
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF39D98A),
+            surface: Color(0xFF101C32),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  void _addExercise(String name) {
+    if (_exercises.any((e) => e.exerciseName == name)) {
+      _showMessage('$name is already in this routine.');
+      return;
+    }
+    setState(() {
+      _exercises.add(_RoutineExerciseDraft(exerciseName: name));
+    });
+  }
+
+  Future<void> _chooseExercise() async {
+    if (_library.isEmpty) {
+      _showMessage('Add an exercise to your Exercise Library first.');
+      return;
+    }
+
+    final available = _library
+        .where((item) => !_exercises.any((e) => e.exerciseName == item.exerciseName))
+        .toList();
+
+    if (available.isEmpty) {
+      _showMessage('All library exercises are already in this routine.');
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF101C32),
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(18, 10, 18, 12),
+              child: Text('ADD EXERCISE', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+            ...available.map(
+              (item) => ListTile(
+                title: Text(item.exerciseName),
+                trailing: const Icon(Icons.add),
+                onTap: () => Navigator.pop(ctx, item.exerciseName),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (selected != null) _addExercise(selected);
+  }
+
+  void _removeExercise(int index) {
+    final exercise = _exercises.removeAt(index);
+    exercise.dispose();
+    setState(() {});
+  }
+
+  void _addSet(int exerciseIndex) {
+    setState(() {
+      _exercises[exerciseIndex].sets.add(_RoutineSetDraft());
+    });
+  }
+
+  void _removeSet(int exerciseIndex, int setIndex) {
+    if (_exercises[exerciseIndex].sets.length == 1) return;
+    final set = _exercises[exerciseIndex].sets.removeAt(setIndex);
+    set.dispose();
+    setState(() {});
+  }
+
+  Future<void> _saveRoutine() async {
+    if (_saving) return;
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      _showMessage('Enter a routine name.');
+      return;
+    }
+    if (_exercises.isEmpty) {
+      _showMessage('Add at least one exercise.');
+      return;
+    }
+
+    for (final exercise in _exercises) {
+      for (var i = 0; i < exercise.sets.length; i++) {
+        final set = exercise.sets[i];
+        final weightText = set.weightController.text.trim();
+        final repsText = set.repsController.text.trim();
+        final weight = double.tryParse(weightText);
+        final reps = int.tryParse(repsText);
+        if (weightText.isEmpty && repsText.isEmpty) continue;
+        if (weight == null || weight < 0 || reps == null || reps <= 0) {
+          _showMessage('Enter valid weight and reps for ${exercise.exerciseName}, Set ${i + 1}.');
+          return;
+        }
+      }
+    }
+
+    setState(() => _saving = true);
+    try {
+      final routineId = await widget.database.saveWorkoutRoutine(
+        userId: widget.userId,
+        date: _selectedDate,
+        routineName: name,
+      );
+
+      for (final exercise in _exercises) {
+        var setNumber = 1;
+        for (final draft in exercise.sets) {
+          final weightText = draft.weightController.text.trim();
+          final repsText = draft.repsController.text.trim();
+          if (weightText.isEmpty && repsText.isEmpty) continue;
+
+          await widget.database.saveRoutineSet(
+            routineId: routineId,
+            exerciseName: exercise.exerciseName,
+            setNumber: setNumber,
+            weight: double.parse(weightText),
+            reps: int.parse(repsText),
+          );
+          setNumber++;
+        }
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Routine saved for ${_formatDate(_selectedDate)}.')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Error saving routine: $e');
+      if (mounted) {
+        setState(() => _saving = false);
+        _showMessage('Could not save routine.');
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _formatDate(DateTime date) {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    for (final exercise in _exercises) {
+      exercise.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF050B18),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF071329),
+        elevation: 0,
+        title: const Text('Create Routine'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+                ),
+              ),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
+                children: [
+                  const Text('NEW ROUTINE', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Routine name',
+                      hintText: 'e.g. Chest + Triceps',
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    tileColor: Colors.white.withValues(alpha: 0.055),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    leading: const Icon(Icons.calendar_today_outlined, color: Colors.cyanAccent),
+                    title: const Text('Workout date'),
+                    subtitle: Text(_formatDate(_selectedDate), style: const TextStyle(color: Colors.white70)),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                    onTap: _pickDate,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Expanded(child: Text('EXERCISES', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.7))),
+                      TextButton.icon(onPressed: _chooseExercise, icon: const Icon(Icons.add, size: 18), label: const Text('ADD EXERCISE')),
+                    ],
+                  ),
+                  if (_exercises.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(16)),
+                      child: const Text('No exercises added. Tap ADD EXERCISE to build your routine.', style: TextStyle(color: Colors.white54)),
+                    )
+                  else
+                    ..._exercises.asMap().entries.map((entry) => _exerciseEditor(entry.key, entry.value)),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _saveRoutine,
+                      child: _saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE ROUTINE'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _exerciseEditor(int exerciseIndex, _RoutineExerciseDraft exercise) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(exercise.exerciseName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+              IconButton(onPressed: () => _removeExercise(exerciseIndex), icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20)),
+            ],
+          ),
+          ...exercise.sets.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  SizedBox(width: 45, child: Text('Set ${entry.key + 1}', style: const TextStyle(color: Colors.white60, fontSize: 12))),
+                  Expanded(child: TextField(controller: entry.value.weightController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Weight kg', filled: true))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: entry.value.repsController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Reps', filled: true))),
+                  IconButton(onPressed: () => _removeSet(exerciseIndex, entry.key), icon: const Icon(Icons.remove_circle_outline, color: Colors.white54, size: 19)),
+                ],
+              ),
+            ),
+          ),
+          TextButton.icon(onPressed: () => _addSet(exerciseIndex), icon: const Icon(Icons.add, size: 17), label: const Text('ADD SET')),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// MY ROUTINES
+// ============================================================
+
+class MyRoutinesScreen extends StatefulWidget {
+  final String userId;
+  final AppDatabase database;
+
+  const MyRoutinesScreen({
+    super.key,
+    required this.userId,
+    required this.database,
+  });
+
+  @override
+  State<MyRoutinesScreen> createState() => _MyRoutinesScreenState();
+}
+
+class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
+  List<WorkoutRoutine> _routines = [];
+  bool _loading = true;
+  final Set<int> _expanded = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final routines = await widget.database.getWorkoutRoutines(userId: widget.userId);
+    if (!mounted) return;
+    setState(() {
+      _routines = routines;
+      _loading = false;
+    });
+  }
+
+  String _formatDate(DateTime date) {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Future<void> _deleteRoutine(WorkoutRoutine routine) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF101C32),
+        title: const Text('Delete Routine?'),
+        content: Text('Delete ${routine.routineName} for ${_formatDate(routine.date)}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('DELETE')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.database.deleteWorkoutRoutine(id: routine.id);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF050B18),
+      appBar: AppBar(backgroundColor: const Color(0xFF071329), elevation: 0, title: const Text('My Routines')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+                ),
+              ),
+              child: _routines.isEmpty
+                  ? const Center(child: Text('No routines created yet.', style: TextStyle(color: Colors.white54)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
+                      itemCount: _routines.length,
+                      itemBuilder: (_, index) => _routineCard(_routines[index]),
+                    ),
+            ),
+    );
+  }
+
+  Widget _routineCard(WorkoutRoutine routine) {
+    final isExpanded = _expanded.contains(routine.id);
+    return FutureBuilder<List<RoutineSet>>(
+      future: widget.database.getRoutineSets(routineId: routine.id),
+      builder: (context, snapshot) {
+        final sets = snapshot.data ?? const <RoutineSet>[];
+        final exercises = <String>[];
+        for (final set in sets) {
+          if (!exercises.contains(set.exerciseName)) exercises.add(set.exerciseName);
+        }
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(18)),
+          child: Column(
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                leading: const Icon(Icons.fitness_center, color: Colors.orangeAccent),
+                title: Text(routine.routineName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text('${_formatDate(routine.date)} • ${exercises.length} exercise${exercises.length == 1 ? '' : 's'}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(onPressed: () => _deleteRoutine(routine), icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20)),
+                    Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: Colors.white54),
+                  ],
+                ),
+                onTap: () => setState(() => isExpanded ? _expanded.remove(routine.id) : _expanded.add(routine.id)),
+              ),
+              if (isExpanded)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: Column(
+                    children: sets.isEmpty
+                        ? [const Align(alignment: Alignment.centerLeft, child: Text('No sets added.', style: TextStyle(color: Colors.white54)))]
+                        : exercises.map((name) {
+                            final exerciseSets = sets.where((set) => set.exerciseName == name).toList();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  ...exerciseSets.map((set) => Padding(padding: const EdgeInsets.only(top: 3), child: Text('Set ${set.setNumber}   ${set.weight} kg × ${set.reps}', style: const TextStyle(color: Colors.white70, fontSize: 12)))),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class AddExerciseScreen extends StatefulWidget {
+  const AddExerciseScreen({super.key});
+
+  @override
+  State<AddExerciseScreen> createState() => _AddExerciseScreenState();
+}
+
+class _AddExerciseScreenState extends State<AddExerciseScreen> {
+  final TextEditingController _controller = TextEditingController();
+
+  void _add() {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF050B18),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF071329),
+        elevation: 0,
+        title: const Text('Add New Exercise'),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF08285C),
+              Color(0xFF061A3B),
+              Color(0xFF050B18),
+            ],
+          ),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 32),
+          children: [
+            const Text(
+              'NEW EXERCISE',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add an exercise to your exercise library.',
+              style: TextStyle(
+                color: Colors.white60,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _controller,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _add(),
+              decoration: InputDecoration(
+                labelText: 'Exercise name',
+                hintText: 'e.g. Incline Dumbbell Press',
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _add,
+                icon: const Icon(Icons.add),
+                label: const Text('ADD EXERCISE'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class User1ExerciseDetailScreen extends StatefulWidget {
   final String exerciseName;
   final AppDatabase database;
@@ -601,6 +1527,7 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
   bool _loading = true;
   bool _loadingSets = false;
   bool _copying = false;
+  Set<String> _selectedExerciseNames = {};
 
   @override
   void initState() { super.initState(); _loadWorkoutDates(); }
@@ -621,44 +1548,125 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
   Future<void> _selectDate(DateTime selected, DateTime focused) async {
     setState(() { _selectedDay = selected; _focusedDay = focused; _loadingSets = true; });
     if (isSameDay(selected, DateTime.now())) {
-      setState(() { _selectedDaySets = []; _loadingSets = false; });
+      setState(() {
+        _selectedDaySets = [];
+        _selectedExerciseNames = {};
+        _loadingSets = false;
+      });
       _showMessage('Today cannot be used as a previous workout.');
       return;
     }
     if (!_hasWorkout(selected)) {
-      setState(() { _selectedDaySets = []; _loadingSets = false; });
+      setState(() {
+        _selectedDaySets = [];
+        _selectedExerciseNames = {};
+        _loadingSets = false;
+      });
       _showMessage('No workout on ${_formatDate(selected)}.');
       return;
     }
     final sets = await widget.database.getSetsByDate(userId: widget.userId, date: selected);
     if (!mounted) return;
-    setState(() { _selectedDaySets = sets; _loadingSets = false; });
+
+    final exerciseNames = <String>{
+      for (final set in sets) set.exerciseName,
+    };
+
+    setState(() {
+      _selectedDaySets = sets;
+      // Every exercise is selected by default.
+      _selectedExerciseNames = exerciseNames;
+      _loadingSets = false;
+    });
+  }
+
+  List<String> _exerciseNamesForSelectedDay() {
+    final names = <String>[];
+    for (final set in _selectedDaySets) {
+      if (!names.contains(set.exerciseName)) {
+        names.add(set.exerciseName);
+      }
+    }
+    return names;
+  }
+
+  bool get _allExercisesSelected {
+    final names = _exerciseNamesForSelectedDay();
+    return names.isNotEmpty && names.every(_selectedExerciseNames.contains);
+  }
+
+  void _toggleExercise(String exerciseName, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedExerciseNames.add(exerciseName);
+      } else {
+        _selectedExerciseNames.remove(exerciseName);
+      }
+    });
+  }
+
+  void _toggleSelectAll(bool selected) {
+    final names = _exerciseNamesForSelectedDay();
+    setState(() {
+      _selectedExerciseNames = selected ? names.toSet() : <String>{};
+    });
   }
 
   Future<void> _copyToToday() async {
-    if (_copying || _selectedDaySets.isEmpty) return;
+    if (_copying || _selectedDaySets.isEmpty || _selectedExerciseNames.isEmpty) return;
+
+    final setsToCopy = _selectedDaySets
+        .where((set) => _selectedExerciseNames.contains(set.exerciseName))
+        .toList();
+
+    if (setsToCopy.isEmpty) return;
+
+    final selectedExerciseCount = _selectedExerciseNames.length;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF101C32),
         title: const Text('Copy to Today?'),
-        content: Text('Copy ${_selectedDaySets.length} sets from ${_formatDate(_selectedDay!)} to today?'),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('COPY'))],
+        content: Text(
+          'Copy $selectedExerciseCount exercise${selectedExerciseCount == 1 ? '' : 's'} '
+          '(${setsToCopy.length} sets) from ${_formatDate(_selectedDay!)} to today?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('COPY'),
+          ),
+        ],
       ),
     );
+
     if (confirmed != true) return;
     setState(() => _copying = true);
     try {
-      for (final set in _selectedDaySets) {
-        await widget.database.saveSet(userId: widget.userId, exerciseName: set.exerciseName, weight: set.weight, reps: set.reps, date: DateTime.now());
+      for (final set in setsToCopy) {
+        await widget.database.saveSet(
+          userId: widget.userId,
+          exerciseName: set.exerciseName,
+          weight: set.weight,
+          reps: set.reps,
+          date: DateTime.now(),
+        );
       }
       if (!mounted) return;
-      _showMessage('Workout copied to today.');
+      _showMessage('Selected exercises copied to today.');
       await Future<void>.delayed(const Duration(milliseconds: 500));
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       debugPrint('Error copying workout: $e');
-      if (mounted) { setState(() => _copying = false); _showMessage('Could not copy workout.'); }
+      if (mounted) {
+        setState(() => _copying = false);
+        _showMessage('Could not copy workout.');
+      }
     }
   }
 
@@ -721,18 +1729,86 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
     for (final set in _selectedDaySets) {
       grouped.putIfAbsent(set.exerciseName, () => []).add(set);
     }
+
     return Container(
-      width: double.infinity, padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(18)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(_formatDate(_selectedDay!), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        ...grouped.entries.map((e) => Padding(padding: const EdgeInsets.only(bottom: 12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(e.key, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 5),
-          ...e.value.asMap().entries.map((x) => Text('Set ${x.key + 1}   ${x.value.weight} kg × ${x.value.reps}', style: const TextStyle(color: Colors.white70))),
-        ]))),
-      ]),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _formatDate(_selectedDay!),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Select the exercises you want to copy. All are selected by default.',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: _allExercisesSelected,
+            tristate: false,
+            title: const Text(
+              'SELECT ALL',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            subtitle: Text(
+              '${_selectedExerciseNames.length}/${grouped.length} exercises selected',
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+            onChanged: (value) => _toggleSelectAll(value ?? false),
+            activeColor: const Color(0xFF39D98A),
+            checkColor: Colors.black,
+          ),
+          const Divider(color: Colors.white12),
+          ...grouped.entries.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                children: [
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: _selectedExerciseNames.contains(e.key),
+                    title: Text(
+                      e.key,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      '${e.value.length} set${e.value.length == 1 ? '' : 's'}',
+                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                    onChanged: (value) => _toggleExercise(e.key, value ?? false),
+                    activeColor: const Color(0xFF39D98A),
+                    checkColor: Colors.black,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 48),
+                    child: Column(
+                      children: e.value.asMap().entries.map(
+                        (x) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Set ${x.key + 1}   ${x.value.weight} kg × ${x.value.reps}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ),
+                      ).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

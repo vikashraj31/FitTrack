@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../services/database_service.dart';
+import '../../services/health_sync_service.dart';
 import '../exercise/exercise_screen.dart';
 
 class User1CalendarScreen extends StatefulWidget {
@@ -11,7 +14,8 @@ class User1CalendarScreen extends StatefulWidget {
   State<User1CalendarScreen> createState() => _User1CalendarScreenState();
 }
 
-class _User1CalendarScreenState extends State<User1CalendarScreen> {
+class _User1CalendarScreenState extends State<User1CalendarScreen>
+    with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
 
   DateTime _focusedDay = DateTime.now();
@@ -24,12 +28,27 @@ class _User1CalendarScreenState extends State<User1CalendarScreen> {
 
   bool _loading = true;
   bool _loadingDay = false;
+  Timer? _stepRefreshTimer;
+  bool _stepSyncInProgress = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedDay = _dateOnly(DateTime.now());
     _loadCalendar();
+
+    _stepRefreshTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _syncTodaySteps(),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncTodaySteps();
+    }
   }
 
   DateTime _dateOnly(DateTime date) {
@@ -39,6 +58,49 @@ class _User1CalendarScreenState extends State<User1CalendarScreen> {
   String _dateKey(DateTime date) {
     final d = _dateOnly(date);
     return '${d.year}-${d.month}-${d.day}';
+  }
+
+  Future<void> _syncTodaySteps() async {
+    final today = _dateOnly(DateTime.now());
+    final selected = _selectedDay;
+
+    if (_stepSyncInProgress ||
+        !mounted ||
+        selected == null ||
+        !_dateOnly(selected).isAtSameMomentAs(today)) {
+      return;
+    }
+
+    _stepSyncInProgress = true;
+
+    try {
+      final steps = await HealthSyncService.getTodaySteps();
+
+      final existing = await _database.getDailyData(
+        userId: 'user1',
+        date: today,
+      );
+
+      final targets = await _database.getDailyTargets(userId: 'user1');
+
+      await _database.saveDailyData(
+        userId: 'user1',
+        date: today,
+        calories: existing?.calories ?? 0,
+        calorieTarget: existing?.calorieTarget ?? 0,
+        steps: steps,
+        stepTarget: targets?.stepTarget ?? existing?.stepTarget ?? 10000,
+        sleepHours: existing?.sleepHours ?? 0,
+        recoveryScore: existing?.recoveryScore ?? 0,
+        effortScore: existing?.effortScore ?? 0,
+      );
+
+      await _loadSelectedDay();
+    } catch (e) {
+      debugPrint('Calendar step refresh error: $e');
+    } finally {
+      _stepSyncInProgress = false;
+    }
   }
 
   Future<void> _loadCalendar() async {
@@ -628,6 +690,8 @@ class _User1CalendarScreenState extends State<User1CalendarScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stepRefreshTimer?.cancel();
     _database.close();
     super.dispose();
   }

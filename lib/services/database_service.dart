@@ -28,8 +28,57 @@ class WorkoutSets extends Table {
 }
 
 // ============================================================
+// EXERCISE LIBRARY TABLE
+// ============================================================
+
+class ExerciseLibrary extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get userId => text()();
+
+  TextColumn get exerciseName => text()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
+// ============================================================
 // DAILY DATA TABLE
 // ============================================================
+
+
+// ============================================================
+// WORKOUT ROUTINES TABLE
+// ============================================================
+
+class WorkoutRoutines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get userId => text()();
+
+  DateTimeColumn get date => dateTime()();
+
+  TextColumn get routineName => text()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
+class RoutineSets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  IntColumn get routineId => integer()();
+
+  TextColumn get exerciseName => text()();
+
+  IntColumn get setNumber => integer()();
+
+  RealColumn get weight => real()();
+
+  IntColumn get reps => integer()();
+}
 
 class DailyData extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -89,6 +138,25 @@ class DietEntries extends Table {
   DateTimeColumn get updatedAt => dateTime()();
 }
 
+class FoodLibrary extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get userId => text()();
+
+  TextColumn get foodName => text()();
+
+  TextColumn get defaultMeal => text()();
+
+  RealColumn get quantity => real()();
+
+  TextColumn get quantityUnit => text()();
+
+  RealColumn get calories => real()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+}
 // ============================================================
 // EXTRA CALORIES TABLE
 // ============================================================
@@ -134,10 +202,14 @@ class DailyTargets extends Table {
 @DriftDatabase(
   tables: [
     WorkoutSets,
+    ExerciseLibrary,
+    WorkoutRoutines,
+    RoutineSets,
     DailyData,
     DietEntries,
     ExtraCaloriesEntries,
     DailyTargets,
+    FoodLibrary,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -148,7 +220,7 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -162,11 +234,210 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(extraCaloriesEntries);
       }
 
-      if (from < 3) {
+      if (from < 5) {
         await m.createTable(dailyTargets);
+      }
+
+      if (from < 7) {
+        await m.createTable(foodLibrary);
+      }
+
+      if (from < 8) {
+        await m.createTable(exerciseLibrary);
+      }
+
+      if (from < 10) {
+        await m.createTable(workoutRoutines);
+        await m.createTable(routineSets);
       }
     },
   );
+
+  Future<List<FoodLibraryData>> getFoodLibrary({required String userId}) async {
+    return (select(foodLibrary)
+          ..where((tbl) => tbl.userId.equals(userId))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.foodName)]))
+        .get();
+  }
+
+  Future<int> saveFoodLibraryItem({
+    required String userId,
+    required String foodName,
+    required String defaultMeal,
+    required double quantity,
+    required String quantityUnit,
+    required double calories,
+  }) async {
+    final now = DateTime.now();
+
+    return into(foodLibrary).insert(
+      FoodLibraryCompanion.insert(
+        userId: userId,
+        foodName: foodName,
+        defaultMeal: defaultMeal,
+        quantity: quantity,
+        quantityUnit: quantityUnit,
+        calories: calories,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  Future<bool> updateFoodLibraryItem({
+    required int id,
+    required String foodName,
+    required String defaultMeal,
+    required double quantity,
+    required String quantityUnit,
+    required double calories,
+  }) async {
+    return (update(foodLibrary)..where((tbl) => tbl.id.equals(id)))
+        .write(
+          FoodLibraryCompanion(
+            foodName: Value(foodName),
+            defaultMeal: Value(defaultMeal),
+            quantity: Value(quantity),
+            quantityUnit: Value(quantityUnit),
+            calories: Value(calories),
+            updatedAt: Value(DateTime.now()),
+          ),
+        )
+        .then((rows) => rows > 0);
+  }
+
+  Future<bool> deleteFoodLibraryItem({required int id}) async {
+    return (delete(
+      foodLibrary,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+  }
+  // ==========================================================
+  // EXERCISE LIBRARY
+  // ==========================================================
+
+  Future<List<ExerciseLibraryData>> getExerciseLibrary({
+    required String userId,
+  }) async {
+    return (select(exerciseLibrary)
+          ..where((tbl) => tbl.userId.equals(userId))
+          ..orderBy([
+            (tbl) => OrderingTerm.asc(tbl.exerciseName),
+          ]))
+        .get();
+  }
+
+  Future<int> saveExerciseLibraryItem({
+    required String userId,
+    required String exerciseName,
+  }) async {
+    final now = DateTime.now();
+
+    return into(exerciseLibrary).insert(
+      ExerciseLibraryCompanion.insert(
+        userId: userId,
+        exerciseName: exerciseName,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  Future<bool> deleteExerciseLibraryItem({
+    required int id,
+  }) async {
+    return (delete(exerciseLibrary)
+          ..where((tbl) => tbl.id.equals(id)))
+        .go()
+        .then((rows) => rows > 0);
+  }
+
+  // ==========================================================
+  // WORKOUT ROUTINES
+  // ==========================================================
+
+  Future<List<WorkoutRoutine>> getWorkoutRoutines({
+    required String userId,
+  }) async {
+    return (select(workoutRoutines)
+          ..where((tbl) => tbl.userId.equals(userId))
+          ..orderBy([
+            (tbl) => OrderingTerm.desc(tbl.date),
+            (tbl) => OrderingTerm.asc(tbl.id),
+          ]))
+        .get();
+  }
+
+  Future<List<WorkoutRoutine>> getWorkoutRoutinesByDate({
+    required String userId,
+    required DateTime date,
+  }) async {
+    final selectedDate = _dateOnly(date);
+    final nextDate = _nextDate(date);
+
+    return (select(workoutRoutines)
+          ..where(
+            (tbl) =>
+                tbl.userId.equals(userId) &
+                tbl.date.isBiggerOrEqualValue(selectedDate) &
+                tbl.date.isSmallerThanValue(nextDate),
+          )
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
+        .get();
+  }
+
+  Future<int> saveWorkoutRoutine({
+    required String userId,
+    required DateTime date,
+    required String routineName,
+  }) async {
+    final now = DateTime.now();
+
+    return into(workoutRoutines).insert(
+      WorkoutRoutinesCompanion.insert(
+        userId: userId,
+        date: _dateOnly(date),
+        routineName: routineName,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  Future<int> saveRoutineSet({
+    required int routineId,
+    required String exerciseName,
+    required int setNumber,
+    required double weight,
+    required int reps,
+  }) async {
+    return into(routineSets).insert(
+      RoutineSetsCompanion.insert(
+        routineId: routineId,
+        exerciseName: exerciseName,
+        setNumber: setNumber,
+        weight: weight,
+        reps: reps,
+      ),
+    );
+  }
+
+  Future<List<RoutineSet>> getRoutineSets({
+    required int routineId,
+  }) async {
+    return (select(routineSets)
+          ..where((tbl) => tbl.routineId.equals(routineId))
+          ..orderBy([
+            (tbl) => OrderingTerm.asc(tbl.exerciseName),
+            (tbl) => OrderingTerm.asc(tbl.setNumber),
+          ]))
+        .get();
+  }
+
+  Future<bool> deleteWorkoutRoutine({required int id}) async {
+    await (delete(routineSets)..where((tbl) => tbl.routineId.equals(id))).go();
+    final rows = await (delete(workoutRoutines)..where((tbl) => tbl.id.equals(id))).go();
+    return rows > 0;
+  }
 
   // ==========================================================
   // DATE HELPERS

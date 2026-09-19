@@ -579,7 +579,16 @@ Future<void> _repairExistingPlanCalories() async {
                   _buildPlanSummary(),
                   const SizedBox(height: 16),
                   _buildCaloriesSummary(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _openFoodLibraryDialog,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Food'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   ..._meals.map(_buildMealSection),
                   const SizedBox(height: 4),
                   _buildExtraCalories(),
@@ -920,19 +929,70 @@ Future<void> _repairExistingPlanCalories() async {
   }
 
   // ==========================================================
+  // FOOD LIBRARY
+  // ==========================================================
+
+  Future<void> _openFoodLibraryDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AddFoodLibraryDialog(
+        database: _database,
+        addToDate: _selectedDate,
+      ),
+    );
+
+    if (result == true && mounted) {
+      setState(() {});
+    }
+  }
+
   // ADD CUSTOM FOOD
   // ==========================================================
 
   Future<void> _addCustomFood(String meal) async {
-    final result = await showDialog<bool>(
+    final result = await showDialog<FoodLibraryPickerResult>(
       context: context,
-      builder: (_) =>
-          AddDietDialog(meal: meal, database: _database, date: _selectedDate),
+      builder: (_) => FoodLibraryPickerDialog(
+        database: _database,
+        meal: meal,
+      ),
     );
 
-    if (result == true) {
-      await _loadData();
+    if (!mounted || result == null) return;
+
+    if (result.createManually) {
+      final manualResult = await showDialog<bool>(
+        context: context,
+        builder: (_) => AddDietDialog(
+          meal: meal,
+          database: _database,
+          date: _selectedDate,
+        ),
+      );
+
+      if (manualResult == true) {
+        await _loadData();
+      }
+      return;
     }
+
+    final food = result.food;
+    if (food == null) return;
+
+    await _database.saveDietEntry(
+      userId: 'user1',
+      date: _selectedDate,
+      meal: meal,
+      foodName: food.foodName,
+      plannedQuantity: food.quantity,
+      quantityUnit: food.quantityUnit,
+      plannedCalories: food.calories,
+      actualQuantity: 0,
+      actualCalories: 0,
+      eaten: false,
+    );
+
+    await _loadData();
   }
 
   // ==========================================================
@@ -1461,8 +1521,352 @@ class _EditDietDialogState extends State<EditDietDialog> {
 }
 
 // =================================================================
+// FOOD LIBRARY PICKER
+// =================================================================
+
+class FoodLibraryPickerResult {
+  final FoodLibraryData? food;
+  final bool createManually;
+
+  const FoodLibraryPickerResult._({
+    this.food,
+    this.createManually = false,
+  });
+
+  const FoodLibraryPickerResult.food(FoodLibraryData value)
+      : this._(food: value);
+
+  const FoodLibraryPickerResult.manual()
+      : this._(createManually: true);
+}
+
+class FoodLibraryPickerDialog extends StatefulWidget {
+  final AppDatabase database;
+  final String meal;
+
+  const FoodLibraryPickerDialog({
+    super.key,
+    required this.database,
+    required this.meal,
+  });
+
+  @override
+  State<FoodLibraryPickerDialog> createState() =>
+      _FoodLibraryPickerDialogState();
+}
+
+class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
+  List<FoodLibraryData> _foods = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFoods();
+  }
+
+  Future<void> _loadFoods() async {
+    final foods = await widget.database.getFoodLibrary(userId: 'user1');
+
+    if (!mounted) return;
+
+    setState(() {
+      _foods = foods;
+      _loading = false;
+    });
+  }
+
+  Future<void> _createNewFood() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AddFoodLibraryDialog(
+        database: widget.database,
+        initialMeal: widget.meal,
+      ),
+    );
+
+    if (result == true) {
+      await _loadFoods();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1D24),
+      title: Text('Add ${widget.meal} Food'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _loading
+            ? const SizedBox(
+                height: 120,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _foods.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Text(
+                      'No saved foods yet.',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _foods.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(color: Colors.white12),
+                    itemBuilder: (context, index) {
+                      final food = _foods[index];
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const CircleAvatar(
+                          backgroundColor: Colors.white10,
+                          child: Icon(Icons.restaurant, color: Colors.cyan),
+                        ),
+                        title: Text(
+                          food.foodName,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          '${food.quantity} ${food.quantityUnit} • '
+                          '${food.calories.toStringAsFixed(0)} kcal',
+                          style: const TextStyle(color: Colors.white54),
+                        ),
+                        trailing: const Icon(
+                          Icons.add_circle_outline,
+                          color: Colors.cyan,
+                        ),
+                        onTap: () => Navigator.pop(
+                          context,
+                          FoodLibraryPickerResult.food(food),
+                        ),
+                      );
+                    },
+                  ),
+      ),
+      actions: [
+        TextButton.icon(
+          onPressed: _createNewFood,
+          icon: const Icon(Icons.add),
+          label: const Text('Create New Food'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        if (_foods.isNotEmpty)
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(
+              context,
+              const FoodLibraryPickerResult.manual(),
+            ),
+            child: const Text('Add Manually'),
+          ),
+      ],
+    );
+  }
+}
+
+// =================================================================
 // EXTRA CALORIES DIALOG
 // =================================================================
+
+class AddFoodLibraryDialog extends StatefulWidget {
+  final AppDatabase database;
+  final String? initialMeal;
+  final DateTime? addToDate;
+
+  const AddFoodLibraryDialog({
+    super.key,
+    required this.database,
+    this.initialMeal,
+    this.addToDate,
+  });
+
+  @override
+  State<AddFoodLibraryDialog> createState() => _AddFoodLibraryDialogState();
+}
+
+class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _foodController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _caloriesController = TextEditingController();
+
+  String _meal = 'Breakfast';
+  String _unit = 'g';
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _meal = widget.initialMeal ?? 'Breakfast';
+  }
+
+  @override
+  void dispose() {
+    _foodController.dispose();
+    _quantityController.dispose();
+    _caloriesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _saving = true);
+
+    try {
+      final foodName = _foodController.text.trim();
+      final quantity = double.parse(_quantityController.text.trim());
+      final calories = double.parse(_caloriesController.text.trim());
+
+      await widget.database.saveFoodLibraryItem(
+        userId: 'user1',
+        foodName: foodName,
+        defaultMeal: _meal,
+        quantity: quantity,
+        quantityUnit: _unit,
+        calories: calories,
+      );
+
+      if (widget.addToDate != null) {
+        await widget.database.saveDietEntry(
+          userId: 'user1',
+          date: widget.addToDate!,
+          meal: _meal,
+          foodName: foodName,
+          plannedQuantity: quantity,
+          quantityUnit: _unit,
+          plannedCalories: calories,
+          actualQuantity: 0,
+          actualCalories: 0,
+          eaten: false,
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save food: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1D24),
+      title: const Text('Add Food'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _foodController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Food name',
+                  hintText: 'Example: Eggs',
+                ),
+                validator: (value) =>
+                    value == null || value.trim().isEmpty
+                        ? 'Enter food name'
+                        : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _meal,
+                decoration: const InputDecoration(labelText: 'Default meal'),
+                items: const [
+                  DropdownMenuItem(value: 'Breakfast', child: Text('Breakfast')),
+                  DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
+                  DropdownMenuItem(value: 'Evening', child: Text('Evening')),
+                  DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
+                ],
+                onChanged: _saving ? null : (value) {
+                  if (value != null) setState(() => _meal = value);
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _quantityController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Quantity',
+                        hintText: 'Example: 100',
+                      ),
+                      validator: (value) {
+                        final quantity = double.tryParse(value?.trim() ?? '');
+                        return quantity == null || quantity <= 0 ? 'Invalid' : null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _unit,
+                      decoration: const InputDecoration(labelText: 'Unit'),
+                      items: const [
+                        DropdownMenuItem(value: 'g', child: Text('g')),
+                        DropdownMenuItem(value: 'ml', child: Text('ml')),
+                        DropdownMenuItem(value: 'piece', child: Text('piece')),
+                        DropdownMenuItem(value: 'cup', child: Text('cup')),
+                        DropdownMenuItem(value: 'serving', child: Text('serving')),
+                      ],
+                      onChanged: _saving ? null : (value) {
+                        if (value != null) setState(() => _unit = value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _caloriesController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Calories',
+                  hintText: 'Example: 150',
+                  suffixText: 'kcal',
+                ),
+                validator: (value) {
+                  final calories = double.tryParse(value?.trim() ?? '');
+                  return calories == null || calories < 0 ? 'Invalid' : null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
 
 class AddExtraCaloriesDialog extends StatefulWidget {
   final AppDatabase database;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'screens/calendar/user1_calendar_screen.dart';
 import 'screens/user2/user2_screen.dart';
@@ -6,8 +7,8 @@ import 'package:flutter/services.dart';
 import 'screens/diet/diet_screen.dart';
 import 'screens/home/daily_metrics_screen.dart';
 import 'services/database_service.dart';
-import 'services/workout_seed_service.dart';
 import 'services/health_sync_service.dart';
+import 'services/workout_seed_service.dart';
 import 'screens/stats/stats_screen.dart';
 import 'screens/exercise/exercise_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -63,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
 
   DailyDataData? _dailyData;
-
+  Timer? _stepRefreshTimer;
   bool _healthSyncInProgress = false;
 
   @override
@@ -72,11 +73,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     WidgetsBinding.instance.addObserver(this);
 
+    // Load immediately from Health Connect.
     _syncHealthAndLoadData();
+
+    // Keep today's step value as fresh as Health Connect allows.
+    _stepRefreshTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _syncStepsAndLoadData(),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncHealthAndLoadData();
+    }
   }
 
   // ==========================================================
-  // SYNC HEALTH DATA
+  // AUTOMATIC HEALTH SYNC
   // ==========================================================
 
   Future<void> _syncHealthAndLoadData() async {
@@ -98,12 +113,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final targets = await _database.getDailyTargets(userId: 'user1');
 
         final steps = (healthData['steps'] as num?)?.toInt() ?? 0;
-
-        final sleepHours = (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
-
-        // ==========================================================
-        // CALORIE TARGET = TODAY'S PLANNED DIET CALORIES
-        // ==========================================================
+        final sleepHours =
+            (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
 
         final plannedCalories = await _database.getPlannedCalories(
           userId: 'user1',
@@ -114,11 +125,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ? plannedCalories
             : (existing?.calorieTarget ?? 0);
 
-        // ==========================================================
-        // STEP TARGET
-        // ==========================================================
-
-        final stepTarget = targets?.stepTarget ?? existing?.stepTarget ?? 10000;
+        final stepTarget =
+            targets?.stepTarget ?? existing?.stepTarget ?? 10000;
 
         await _database.saveDailyData(
           userId: 'user1',
@@ -141,10 +149,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await _loadDailyData();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Do not automatically sync every time the activity resumes.
-    // Health Connect itself can trigger activity/focus changes.
+  // ==========================================================
+  // FAST STEP-ONLY REFRESH
+  // ==========================================================
+
+  Future<void> _syncStepsAndLoadData() async {
+    if (_healthSyncInProgress || !mounted) {
+      return;
+    }
+
+    _healthSyncInProgress = true;
+
+    try {
+      final steps = await HealthSyncService.getTodaySteps();
+
+      final existing = await _database.getDailyData(
+        userId: 'user1',
+        date: DateTime.now(),
+      );
+
+      final targets = await _database.getDailyTargets(userId: 'user1');
+
+      await _database.saveDailyData(
+        userId: 'user1',
+        date: DateTime.now(),
+        calories: existing?.calories ?? 0,
+        calorieTarget: existing?.calorieTarget ?? 0,
+        steps: steps,
+        stepTarget: targets?.stepTarget ?? existing?.stepTarget ?? 10000,
+        sleepHours: existing?.sleepHours ?? 0,
+        recoveryScore: existing?.recoveryScore ?? 0,
+        effortScore: existing?.effortScore ?? 0,
+      );
+
+      await _loadDailyData();
+    } catch (e) {
+      debugPrint('Fast step refresh error: $e');
+    } finally {
+      _healthSyncInProgress = false;
+    }
   }
 
   // ==========================================================
@@ -331,6 +374,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _stepRefreshTimer?.cancel();
     _database.close();
     super.dispose();
   }
@@ -449,7 +493,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         label: 'Steps',
                         displayValue: _dailyData == null
                             ? '—'
-                            : '${_stepsPercent().round()}',
+                            : '${_stepsPercent().round()}%',
                         color: const Color(0xFFB66CFF),
                       ),
                     ),
@@ -461,7 +505,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         displayValue:
                             _dailyData == null || _dailyData!.recoveryScore <= 0
                             ? '—'
-                            : '${_recoveryPercent().round()}',
+                            : '${_recoveryPercent().round()}%',
                         color: const Color(0xFF39D98A),
                       ),
                     ),
@@ -473,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         displayValue:
                             _dailyData == null || _dailyData!.effortScore <= 0
                             ? '—'
-                            : '${_effortPercent().round()}',
+                            : '${_effortPercent().round()}%',
                         color: const Color(0xFFFF7A21),
                       ),
                     ),
@@ -534,7 +578,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  const ExerciseScreen(userId: 'user1'),
+                                  const ExerciseScreen(
+                                    userId: 'user1',
+                                    homeMode: true,
+                                  ),
                             ),
                           );
                         },

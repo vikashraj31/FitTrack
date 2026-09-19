@@ -4,83 +4,106 @@ import 'package:health/health.dart';
 class HealthSyncService {
   static final Health _health = Health();
 
-  /// Sync today's steps and sleep from Android Health Connect.
-  ///
-  /// Returns:
-  /// {
-  ///   'steps': int,
-  ///   'sleepHours': double,
-  /// }
-  ///
-  /// Returns null if Health Connect authorization fails.
-  static Future<Map<String, dynamic>?> syncUser1Health() async {
+  static bool _configured = false;
+  static bool _authorized = false;
+
+  static Future<void> _configure() async {
+    if (_configured) return;
+    await _health.configure();
+    _configured = true;
+  }
+
+  static Future<bool> _ensureAuthorization() async {
+    await _configure();
+
+    if (_authorized) return true;
+
+    final types = <HealthDataType>[
+      HealthDataType.STEPS,
+      HealthDataType.SLEEP_ASLEEP,
+    ];
+
+    final permissions = <HealthDataAccess>[
+      HealthDataAccess.READ,
+      HealthDataAccess.READ,
+    ];
+
     try {
-      // Configure the Health plugin.
-      await _health.configure();
+      final existingPermissions = await _health.hasPermissions(
+        types,
+        permissions: permissions,
+      );
 
-      final types = <HealthDataType>[
-        HealthDataType.STEPS,
-        HealthDataType.SLEEP_ASLEEP,
-      ];
+      if (existingPermissions == true) {
+        _authorized = true;
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Health permission check error: $e');
+    }
 
-      final permissions = <HealthDataAccess>[
-        HealthDataAccess.READ,
-        HealthDataAccess.READ,
-      ];
-
-      // Ask for Health Connect permissions.
+    try {
       final authorized = await _health.requestAuthorization(
         types,
         permissions: permissions,
       );
 
-      if (!authorized) {
+      _authorized = authorized;
+      return authorized;
+    } catch (e) {
+      debugPrint('Health authorization request error: $e');
+      return false;
+    }
+  }
+
+  /// Reads the latest available step total from Health Connect.
+  ///
+  /// Google Fit can synchronize its step data into Health Connect.
+  /// FitTrack does not count steps itself.
+  static Future<int> getTodaySteps() async {
+    try {
+      if (!await _ensureAuthorization()) {
+        return 0;
+      }
+
+      final now = DateTime.now();
+      final midnight = DateTime(now.year, now.month, now.day);
+
+      final totalSteps = await _health.getTotalStepsInInterval(
+        midnight,
+        now,
+      );
+
+      final steps = totalSteps ?? 0;
+
+      debugPrint('Health Connect / Google Fit steps: $steps');
+
+      return steps;
+    } catch (e) {
+      debugPrint('Health steps read error: $e');
+      return 0;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> syncUser1Health() async {
+    try {
+      if (!await _ensureAuthorization()) {
+        debugPrint('Health Connect authorization not available.');
         return null;
       }
 
       final now = DateTime.now();
+      final midnight = DateTime(now.year, now.month, now.day);
 
-      // Start of today.
-      final midnight = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      );
-
-      // ------------------------------------------------------------
-      // STEPS
-      // ------------------------------------------------------------
-
-      int steps = 0;
-
-      try {
-        final totalSteps = await _health.getTotalStepsInInterval(
-          midnight,
-          now,
-        );
-
-        steps = totalSteps ?? 0;
-      } catch (e) {
-        debugPrint('Health steps sync error: $e');
-      }
-
-      // ------------------------------------------------------------
-      // SLEEP
-      // ------------------------------------------------------------
+      final steps = await getTodaySteps();
 
       double sleepHours = 0;
 
       try {
-        // Sleep usually starts on the previous night, so include
-        // the previous 12 hours before today's midnight.
-        final sleepStart = midnight.subtract(
-          const Duration(hours: 12),
-        );
+        final sleepStart = midnight.subtract(const Duration(hours: 12));
 
         final sleepData = await _health.getHealthDataFromTypes(
-          types: [
-            HealthDataType.SLEEP_ASLEEP,
-          ],
+          types: [HealthDataType.SLEEP_ASLEEP],
           startTime: sleepStart,
           endTime: now,
         );
@@ -99,10 +122,6 @@ class HealthSyncService {
       } catch (e) {
         debugPrint('Health sleep sync error: $e');
       }
-
-      // ------------------------------------------------------------
-      // RESULT
-      // ------------------------------------------------------------
 
       return {
         'steps': steps,
