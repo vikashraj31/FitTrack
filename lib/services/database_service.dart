@@ -432,6 +432,20 @@ class AppDatabase extends _$AppDatabase {
           ]))
         .get();
   }
+  Future<bool> updateRoutineSet({
+  required int id,
+  required double weight,
+  required int reps,
+}) async {
+  return (update(routineSets)..where((tbl) => tbl.id.equals(id)))
+      .write(
+        RoutineSetsCompanion(
+          weight: Value(weight),
+          reps: Value(reps),
+        ),
+      )
+      .then((rows) => rows > 0);
+}
 
   Future<bool> deleteWorkoutRoutine({required int id}) async {
     await (delete(routineSets)..where((tbl) => tbl.routineId.equals(id))).go();

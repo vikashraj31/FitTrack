@@ -1087,29 +1087,409 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                   child: Column(
-                    children: sets.isEmpty
-                        ? [const Align(alignment: Alignment.centerLeft, child: Text('No sets added.', style: TextStyle(color: Colors.white54)))]
-                        : exercises.map((name) {
-                            final exerciseSets = sets.where((set) => set.exerciseName == name).toList();
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 10),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 4),
-                                  ...exerciseSets.map((set) => Padding(padding: const EdgeInsets.only(top: 3), child: Text('Set ${set.setNumber}   ${set.weight} kg × ${set.reps}', style: const TextStyle(color: Colors.white70, fontSize: 12)))),
-                                ],
-                              ),
-                            );
-                          }).toList(),
+                    children: [
+                      if (sets.isNotEmpty)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => StartRoutineWorkoutScreen(
+                                    userId: widget.userId,
+                                    database: widget.database,
+                                    routine: routine,
+                                  ),
+                                ),
+                              );
+                              await _load();
+                            },
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('START WORKOUT'),
+                          ),
+                        ),
+                      if (sets.isNotEmpty) const SizedBox(height: 8),
+                      if (sets.isEmpty)
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'No sets added.',
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        )
+                      else
+                        ...exercises.map((name) {
+                          final exerciseSets = sets.where((set) => set.exerciseName == name).toList();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                ...exerciseSets.map(
+                                  (set) => Padding(
+                                    padding: const EdgeInsets.only(top: 3),
+                                    child: Text(
+                                      'Set ${set.setNumber}   ${set.weight} kg × ${set.reps}',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                    ],
                   ),
                 ),
-            ],
+            ]
+,
           ),
         );
       },
     );
+  }
+}
+
+
+// ============================================================
+// START ROUTINE WORKOUT
+// ============================================================
+
+class _PerformedRoutineSet {
+  final int routineSetId;
+  final String exerciseName;
+  final int setNumber;
+  final TextEditingController weightController;
+  final TextEditingController repsController;
+
+  _PerformedRoutineSet({
+    required this.routineSetId,
+    required this.exerciseName,
+    required this.setNumber,
+    required double weight,
+    required int reps,
+  })  : weightController = TextEditingController(text: _formatRoutineNumber(weight)),
+        repsController = TextEditingController(text: reps.toString());
+
+  static String _formatRoutineNumber(num value) {
+    final d = value.toDouble();
+    return d == d.roundToDouble() ? d.toStringAsFixed(0) : d.toString();
+  }
+
+  void dispose() {
+    weightController.dispose();
+    repsController.dispose();
+  }
+}
+
+class StartRoutineWorkoutScreen extends StatefulWidget {
+  final String userId;
+  final AppDatabase database;
+  final WorkoutRoutine routine;
+
+  const StartRoutineWorkoutScreen({
+    super.key,
+    required this.userId,
+    required this.database,
+    required this.routine,
+  });
+
+  @override
+  State<StartRoutineWorkoutScreen> createState() => _StartRoutineWorkoutScreenState();
+}
+
+class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
+  List<_PerformedRoutineSet> _sets = [];
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoutine();
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Future<void> _loadRoutine() async {
+    try {
+      final planned = await widget.database.getRoutineSets(
+        routineId: widget.routine.id,
+      );
+
+      final drafts = planned.map(
+        (set) => _PerformedRoutineSet(
+          routineSetId: set.id,
+          exerciseName: set.exerciseName,
+          setNumber: set.setNumber,
+          weight: set.weight,
+          reps: set.reps,
+        ),
+      ).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _sets = drafts;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading routine workout: $e');
+      if (mounted) {
+        setState(() => _loading = false);
+        _showMessage('Could not load routine.');
+      }
+    }
+  }
+
+  Future<void> _saveWorkout() async {
+    if (_saving) return;
+
+    final values = <({
+      int routineSetId,
+      String exerciseName,
+      double weight,
+      int reps,
+    })>[];
+
+    for (final set in _sets) {
+      final weightText = set.weightController.text.trim();
+      final repsText = set.repsController.text.trim();
+
+      final weight = double.tryParse(weightText);
+      final reps = int.tryParse(repsText);
+
+      if (weight == null || weight < 0 || reps == null || reps <= 0) {
+        _showMessage(
+          'Enter valid weight and reps for '
+          '${set.exerciseName}, Set ${set.setNumber}.',
+        );
+        return;
+      }
+
+      values.add((
+        routineSetId: set.routineSetId,
+        exerciseName: set.exerciseName,
+        weight: weight,
+        reps: reps,
+      ));
+    }
+
+    if (values.isEmpty) {
+      _showMessage('No workout sets to save.');
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      final performedDate = DateTime.now();
+
+      for (final value in values) {
+        await widget.database.saveSet(
+          userId: widget.userId,
+          exerciseName: value.exerciseName,
+          weight: value.weight,
+          reps: value.reps,
+          date: performedDate,
+        );
+
+        await widget.database.updateRoutineSet(
+          id: value.routineSetId,
+          weight: value.weight,
+          reps: value.reps,
+        );
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Workout recorded successfully.'),
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Error saving routine workout: $e');
+      if (mounted) {
+        setState(() => _saving = false);
+        _showMessage('Could not save workout.');
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    for (final set in _sets) {
+      set.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF050B18),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF071329),
+        elevation: 0,
+        title: const Text('Start Workout'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF08285C),
+                    Color(0xFF061A3B),
+                    Color(0xFF050B18),
+                  ],
+                ),
+              ),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
+                children: [
+                  Text(
+                    widget.routine.routineName,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Planned for ${_formatDate(widget.routine.date)}',
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Edit the planned weights/reps if needed, then save the workout.',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  ..._buildExerciseSections(),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _saving ? null : _saveWorkout,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check),
+                      label: Text(_saving ? 'SAVING...' : 'SAVE WORKOUT'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  List<Widget> _buildExerciseSections() {
+    final names = <String>[];
+
+    for (final set in _sets) {
+      if (!names.contains(set.exerciseName)) {
+        names.add(set.exerciseName);
+      }
+    }
+
+    return names.map((name) {
+      final exerciseSets =
+          _sets.where((set) => set.exerciseName == name).toList();
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...exerciseSets.map(
+              (set) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 52,
+                      child: Text(
+                        'Set ${set.setNumber}',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: set.weightController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Weight (kg)',
+                          filled: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: set.repsController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Reps',
+                          filled: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
   }
 }
 

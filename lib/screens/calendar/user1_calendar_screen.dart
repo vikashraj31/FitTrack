@@ -22,7 +22,10 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
   DateTime? _selectedDay;
 
   Set<String> _workoutDates = {};
+  Set<String> _routineDates = {};
   List<WorkoutSet> _selectedDaySets = [];
+  List<WorkoutRoutine> _selectedDayRoutines = [];
+  Map<int, List<RoutineSet>> _routineSets = {};
   DailyDataData? _dailyData;
   double _actualCalories = 0;
 
@@ -110,11 +113,13 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
     try {
       final dates = await _database.getWorkoutDates('user1');
+      final routines = await _database.getWorkoutRoutines(userId: 'user1');
 
       if (!mounted) return;
 
       setState(() {
         _workoutDates = dates.map(_dateKey).toSet();
+        _routineDates = routines.map((routine) => _dateKey(routine.date)).toSet();
         _loading = false;
       });
 
@@ -148,6 +153,18 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
         date: day,
       );
 
+      final routines = await _database.getWorkoutRoutinesByDate(
+        userId: 'user1',
+        date: day,
+      );
+
+      final routineSets = <int, List<RoutineSet>>{};
+      for (final routine in routines) {
+        routineSets[routine.id] = await _database.getRoutineSets(
+          routineId: routine.id,
+        );
+      }
+
       final calories = await _database.getActualCalories(
         userId: 'user1',
         date: day,
@@ -157,6 +174,8 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
       setState(() {
         _selectedDaySets = sets;
+        _selectedDayRoutines = routines;
+        _routineSets = routineSets;
         _dailyData = dailyData;
         _actualCalories = calories;
         _loadingDay = false;
@@ -168,6 +187,8 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
       setState(() {
         _selectedDaySets = [];
+        _selectedDayRoutines = [];
+        _routineSets = {};
         _dailyData = null;
         _actualCalories = 0;
         _loadingDay = false;
@@ -180,8 +201,11 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
     if (!mounted) return;
 
+    final routines = await _database.getWorkoutRoutines(userId: 'user1');
+
     setState(() {
       _workoutDates = dates.map(_dateKey).toSet();
+      _routineDates = routines.map((routine) => _dateKey(routine.date)).toSet();
     });
 
     await _loadSelectedDay();
@@ -189,6 +213,10 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
   bool _hasWorkout(DateTime day) {
     return _workoutDates.contains(_dateKey(day));
+  }
+
+  bool _hasRoutine(DateTime day) {
+    return _routineDates.contains(_dateKey(day));
   }
 
   Map<String, List<WorkoutSet>> _groupSets() {
@@ -417,6 +445,128 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     );
   }
 
+  Widget _routineCard(WorkoutRoutine routine) {
+    final sets = _routineSets[routine.id] ?? [];
+    final grouped = <String, List<RoutineSet>>{};
+
+    for (final set in sets) {
+      grouped.putIfAbsent(set.exerciseName, () => []).add(set);
+    }
+
+    // A routine is planned for this calendar date.
+    // If workout sets also exist for this date, the routine has been performed.
+    final recorded = _selectedDaySets.isNotEmpty;
+    final statusText = recorded ? 'RECORDED' : 'PLANNED';
+    final statusColor = recorded ? Colors.cyanAccent : Colors.orangeAccent;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101C32),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.orangeAccent.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.event_note_outlined,
+                color: Colors.orangeAccent,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  routine.routineName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                statusText,
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${grouped.length} exercises • ${sets.length} sets',
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+            ),
+          ),
+          if (grouped.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            ...grouped.entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${entry.key}  •  ${entry.value.length} set${entry.value.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _plannedRoutinesSection() {
+    if (_selectedDayRoutines.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'PLANNED ROUTINE',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.7,
+                ),
+              ),
+            ),
+            Text(
+              '${_selectedDayRoutines.length}',
+              style: const TextStyle(
+                color: Colors.orangeAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ..._selectedDayRoutines.map(_routineCard),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
   Widget _selectedDayContent() {
     if (_loadingDay) {
       return const Padding(
@@ -433,6 +583,7 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _plannedRoutinesSection(),
         _dailySummary(),
         Row(
           children: [
@@ -632,7 +783,7 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                           ),
                           calendarBuilders: CalendarBuilders(
                             markerBuilder: (context, day, events) {
-                              if (!_hasWorkout(day)) {
+                              if (!_hasWorkout(day) && !_hasRoutine(day)) {
                                 return null;
                               }
 
@@ -641,8 +792,10 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                                 child: Container(
                                   width: 5,
                                   height: 5,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.cyanAccent,
+                                  decoration: BoxDecoration(
+                                    color: _hasWorkout(day)
+                                        ? Colors.cyanAccent
+                                        : Colors.orangeAccent,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -666,9 +819,13 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          _hasWorkout(selected)
-                              ? 'Workout recorded'
-                              : 'No workout recorded',
+                          _hasWorkout(selected) && _hasRoutine(selected)
+                              ? 'Workout recorded • Routine planned'
+                              : _hasWorkout(selected)
+                                  ? 'Workout recorded'
+                                  : _hasRoutine(selected)
+                                      ? 'Routine planned'
+                                      : 'No workout recorded',
                           style: TextStyle(
                             color: _hasWorkout(selected)
                                 ? Colors.cyanAccent

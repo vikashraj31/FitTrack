@@ -605,41 +605,136 @@ Future<void> _repairExistingPlanCalories() async {
   // ==========================================================
 
   Widget _buildDateCard() {
-    return InkWell(
-      onTap: _selectDate,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1D24),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_today, color: Colors.cyan),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Selected Date',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+    final current = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+
+    final monday = current.subtract(
+      Duration(days: current.weekday - DateTime.monday),
+    );
+
+    const dayNames = [
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1D24),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '7-Day Diet Plan',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_todayPlan.day} • ${_formatDate(_selectedDate)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                onPressed: _selectDate,
+                icon: const Icon(
+                  Icons.calendar_month,
+                  color: Colors.cyan,
+                ),
+                tooltip: 'Select date',
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${_todayPlan.day} • ${_formatDate(_selectedDate)}',
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 72,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: 7,
+              itemBuilder: (context, index) {
+                final date = monday.add(Duration(days: index));
+
+                final selected =
+                    date.year == _selectedDate.year &&
+                    date.month == _selectedDate.month &&
+                    date.day == _selectedDate.day;
+
+                return GestureDetector(
+                  onTap: () async {
+                    if (selected) return;
+
+                    setState(() {
+                      _selectedDate = date;
+                    });
+
+                    await _loadData();
+                  },
+                  child: Container(
+                    width: 58,
+                    margin: EdgeInsets.only(
+                      right: index == 6 ? 0 : 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Colors.cyan
+                          : const Color(0xFF22252D),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected
+                            ? Colors.cyan
+                            : Colors.white10,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          dayNames[index],
+                          style: TextStyle(
+                            color: selected
+                                ? Colors.black
+                                : Colors.white54,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${date.day}',
+                          style: TextStyle(
+                            color: selected
+                                ? Colors.black
+                                : Colors.white,
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
-            const Icon(Icons.chevron_right, color: Colors.white54),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
