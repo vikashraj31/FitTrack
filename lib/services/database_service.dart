@@ -432,7 +432,11 @@ class AppDatabase extends _$AppDatabase {
           ]))
         .get();
   }
-  Future<bool> updateRoutineSet({
+  // ==========================================================
+// WORKOUT ROUTINE - UPDATE PERFORMED SET
+// ==========================================================
+
+Future<bool> updateRoutineSet({
   required int id,
   required double weight,
   required int reps,
@@ -679,7 +683,55 @@ class AppDatabase extends _$AppDatabase {
       )
       ..limit(1);
 
-    return query.getSingleOrNull();
+    final data = await query.getSingleOrNull();
+
+    if (data == null) {
+      return null;
+    }
+
+    // Recalculate effort from the actual recorded workout sets.
+    // This keeps the Home Effort ring synchronized after
+    // adding, copying, editing, or deleting workout sets.
+    final workoutSets = await getTodaySets(userId, selectedDate);
+
+    double totalVolume = 0;
+
+    for (final set in workoutSets) {
+      totalVolume += set.weight * set.reps;
+    }
+
+    double stepPercent = 0;
+
+    if (data.stepTarget > 0) {
+      stepPercent = (data.steps / data.stepTarget) * 100;
+    }
+
+    stepPercent = stepPercent.clamp(0.0, 100.0).toDouble();
+
+    // Training load is normalized against 10,000 kg of volume.
+    final trainingPercent =
+        ((totalVolume / 10000) * 100).clamp(0.0, 100.0).toDouble();
+
+    final calculatedEffort =
+        ((stepPercent * 0.40) + (trainingPercent * 0.60))
+            .clamp(0.0, 100.0)
+            .toDouble();
+
+    if ((data.effortScore - calculatedEffort).abs() > 0.01) {
+      await (update(dailyData)..where((tbl) => tbl.id.equals(data.id))).write(
+        DailyDataCompanion(
+          effortScore: Value(calculatedEffort),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
+      return data.copyWith(
+        effortScore: calculatedEffort,
+        updatedAt: DateTime.now(),
+      );
+    }
+
+    return data;
   }
 
   // ============================================================

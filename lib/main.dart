@@ -113,8 +113,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final targets = await _database.getDailyTargets(userId: 'user1');
 
         final steps = (healthData['steps'] as num?)?.toInt() ?? 0;
-        final sleepHours =
-            (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
+        final sleepHours = (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
 
         final plannedCalories = await _database.getPlannedCalories(
           userId: 'user1',
@@ -125,8 +124,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ? plannedCalories
             : (existing?.calorieTarget ?? 0);
 
-        final stepTarget =
-            targets?.stepTarget ?? existing?.stepTarget ?? 10000;
+        final stepTarget = targets?.stepTarget ?? existing?.stepTarget ?? 10000;
 
         await _database.saveDailyData(
           userId: 'user1',
@@ -449,23 +447,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ],
                       ),
                     ),
-
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 19,
-                        color: Colors.white70,
-                      ),
-                    ),
                   ],
                 ),
 
@@ -492,8 +473,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         value: _stepsPercent(),
                         label: 'Steps',
                         displayValue: _dailyData == null
-                            ? '—'
-                            : '${_stepsPercent().round()}%',
+                            ? '0'
+                            : '${_stepsPercent().round()}',
                         color: const Color(0xFFB66CFF),
                       ),
                     ),
@@ -504,8 +485,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         label: 'Recovery',
                         displayValue:
                             _dailyData == null || _dailyData!.recoveryScore <= 0
-                            ? '—'
-                            : '${_recoveryPercent().round()}%',
+                            ? '0'
+                            : '${_recoveryPercent().round()}',
                         color: const Color(0xFF39D98A),
                       ),
                     ),
@@ -516,8 +497,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         label: 'Effort',
                         displayValue:
                             _dailyData == null || _dailyData!.effortScore <= 0
-                            ? '—'
-                            : '${_effortPercent().round()}%',
+                            ? '0'
+                            : '${_effortPercent().round()}',
                         color: const Color(0xFFFF7A21),
                       ),
                     ),
@@ -577,11 +558,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  const ExerciseScreen(
-                                    userId: 'user1',
-                                    homeMode: true,
-                                  ),
+                              builder: (_) => const ExerciseScreen(
+                                userId: 'user1',
+                                homeMode: true,
+                              ),
                             ),
                           );
                         },
@@ -734,7 +714,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Text(
                     displayValue,
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white,
                     ),
@@ -752,7 +732,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
 
         Text(
           label,
