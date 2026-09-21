@@ -40,9 +40,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         date: DateTime.now(),
       );
 
-      final library = await _database.getExerciseLibrary(
-        userId: widget.userId,
-      );
+      final library = await _database.getExerciseLibrary(userId: widget.userId);
 
       if (!mounted) return;
       setState(() {
@@ -89,9 +87,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     // happening when the dialog closed after adding an exercise.
     final exerciseName = await Navigator.push<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const AddExerciseScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const AddExerciseScreen()),
     );
 
     if (!mounted || exerciseName == null) return;
@@ -101,8 +97,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
     final alreadyExists = _exerciseLibrary.any(
       (item) =>
-          item.exerciseName.trim().toLowerCase() ==
-          normalized.toLowerCase(),
+          item.exerciseName.trim().toLowerCase() == normalized.toLowerCase(),
     );
 
     if (alreadyExists) {
@@ -225,7 +220,20 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   String _formatDate(DateTime date) {
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
@@ -237,12 +245,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF050B18),
-      systemNavigationBarIconBrightness: Brightness.light,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Color(0xFF050B18),
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
 
     final exercises = _todayExercises();
 
@@ -251,7 +261,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF071329),
         elevation: 0,
-        title: const Text('Exercise', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          'Exercise',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -270,11 +283,29 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
                   children: [
-                    const Text('TODAY', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                    const Text(
+                      'TODAY',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 6),
-                    Text(_formatDate(DateTime.now()), style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                    Text(
+                      _formatDate(DateTime.now()),
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 20),
-                    const Text("Today's Workout", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    const Text(
+                      "Today's Workout",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     if (exercises.isEmpty)
                       _emptyCard()
@@ -326,10 +357,16 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        title: Text(exerciseName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(
+          exerciseName,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text('$count ${count == 1 ? 'set' : 'sets'}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          child: Text(
+            '$count ${count == 1 ? 'set' : 'sets'}',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
         ),
         trailing: widget.homeMode
             ? const Icon(Icons.chevron_right, color: Colors.white54)
@@ -363,10 +400,16 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
         leading: const Icon(Icons.content_copy_outlined),
-        title: const Text('COPY PREVIOUS EXERCISE', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          'COPY PREVIOUS EXERCISE',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: const Padding(
           padding: EdgeInsets.only(top: 4),
-          child: Text('Choose a previous workout and copy it to today', style: TextStyle(color: Colors.white54, fontSize: 12)),
+          child: Text(
+            'Choose a previous workout and copy it to today',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.white54),
         onTap: _openCopyPreviousExercise,
@@ -386,7 +429,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
         title: const Text(
           "DELETE TODAY'S WORKOUT",
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.redAccent,
+          ),
         ),
         subtitle: const Padding(
           padding: EdgeInsets.only(top: 4),
@@ -406,19 +452,11 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.055),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 7,
-        ),
-        leading: const Icon(
-          Icons.add_circle_outline,
-          color: Colors.cyanAccent,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        leading: const Icon(Icons.add_circle_outline, color: Colors.cyanAccent),
         title: const Text(
           'ADD NEW EXERCISE',
           style: TextStyle(fontWeight: FontWeight.w600),
@@ -427,16 +465,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           padding: EdgeInsets.only(top: 4),
           child: Text(
             'Add an exercise to your library',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: Colors.white54,
-        ),
+        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
         onTap: _addNewExercise,
       ),
     );
@@ -451,11 +483,20 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        leading: const Icon(Icons.event_note_outlined, color: Colors.orangeAccent),
-        title: const Text('CREATE NEW ROUTINE', style: TextStyle(fontWeight: FontWeight.w600)),
+        leading: const Icon(
+          Icons.event_note_outlined,
+          color: Colors.orangeAccent,
+        ),
+        title: const Text(
+          'CREATE NEW ROUTINE',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: const Padding(
           padding: EdgeInsets.only(top: 4),
-          child: Text('Build a complete workout for any date', style: TextStyle(color: Colors.white54, fontSize: 12)),
+          child: Text(
+            'Build a complete workout for any date',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.white54),
         onTap: () async {
@@ -483,21 +524,28 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        leading: const Icon(Icons.calendar_month_outlined, color: Colors.cyanAccent),
-        title: const Text('MY ROUTINES', style: TextStyle(fontWeight: FontWeight.w600)),
+        leading: const Icon(
+          Icons.calendar_month_outlined,
+          color: Colors.cyanAccent,
+        ),
+        title: const Text(
+          'MY ROUTINES',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: const Padding(
           padding: EdgeInsets.only(top: 4),
-          child: Text('View your date-wise workout routines', style: TextStyle(color: Colors.white54, fontSize: 12)),
+          child: Text(
+            'View your date-wise workout routines',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.white54),
         onTap: () async {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => MyRoutinesScreen(
-                userId: widget.userId,
-                database: _database,
-              ),
+              builder: (_) =>
+                  MyRoutinesScreen(userId: widget.userId, database: _database),
             ),
           );
           await _loadTodayWorkout();
@@ -550,30 +598,19 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.055),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 5,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         title: Text(
           exercise.exerciseName,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         subtitle: const Padding(
           padding: EdgeInsets.only(top: 3),
           child: Text(
             'Tap to record today',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Colors.white54, fontSize: 11),
           ),
         ),
         trailing: Row(
@@ -588,10 +625,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               ),
               onPressed: () => _deleteLibraryExercise(exercise),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.white54,
-            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
           ],
         ),
         onTap: () => _openExercise(exercise.exerciseName),
@@ -601,8 +635,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
   Widget _emptyCard() => Container(
     padding: const EdgeInsets.all(22),
-    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(18)),
-    child: const Text('No exercises for today.', style: TextStyle(color: Colors.white60)),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.055),
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: const Text(
+      'No exercises for today.',
+      style: TextStyle(color: Colors.white60),
+    ),
   );
 }
 
@@ -619,8 +659,8 @@ class _RoutineSetDraft {
   final TextEditingController repsController;
 
   _RoutineSetDraft({String weight = '', String reps = ''})
-      : weightController = TextEditingController(text: weight),
-        repsController = TextEditingController(text: reps);
+    : weightController = TextEditingController(text: weight),
+      repsController = TextEditingController(text: reps);
 
   void dispose() {
     weightController.dispose();
@@ -632,8 +672,10 @@ class _RoutineExerciseDraft {
   final String exerciseName;
   final List<_RoutineSetDraft> sets;
 
-  _RoutineExerciseDraft({required this.exerciseName})
-      : sets = [_RoutineSetDraft()];
+  _RoutineExerciseDraft({
+    required this.exerciseName,
+    List<_RoutineSetDraft>? initialSets,
+  }) : sets = initialSets ?? [_RoutineSetDraft()];
 
   void dispose() {
     for (final set in sets) {
@@ -645,11 +687,13 @@ class _RoutineExerciseDraft {
 class CreateRoutineScreen extends StatefulWidget {
   final String userId;
   final AppDatabase database;
+  final WorkoutRoutine? routine;
 
   const CreateRoutineScreen({
     super.key,
     required this.userId,
     required this.database,
+    this.routine,
   });
 
   @override
@@ -667,12 +711,50 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLibrary();
+    _initialize();
   }
 
-  Future<void> _loadLibrary() async {
-    final library = await widget.database.getExerciseLibrary(userId: widget.userId);
+  Future<void> _initialize() async {
+    final library = await widget.database.getExerciseLibrary(
+      userId: widget.userId,
+    );
+
+    if (widget.routine != null) {
+      final routine = widget.routine!;
+      final routineSets = await widget.database.getRoutineSets(
+        routineId: routine.id,
+      );
+
+      final grouped = <String, List<RoutineSet>>{};
+
+      for (final set in routineSets) {
+        grouped.putIfAbsent(set.exerciseName, () => []).add(set);
+      }
+
+      for (final entry in grouped.entries) {
+        final initialSets = entry.value
+            .map(
+              (set) => _RoutineSetDraft(
+                weight: set.weight.toString(),
+                reps: set.reps.toString(),
+              ),
+            )
+            .toList();
+
+        _exercises.add(
+          _RoutineExerciseDraft(
+            exerciseName: entry.key,
+            initialSets: initialSets,
+          ),
+        );
+      }
+
+      _nameController.text = routine.routineName;
+      _selectedDate = routine.date;
+    }
+
     if (!mounted) return;
+
     setState(() {
       _library = library;
       _loading = false;
@@ -717,7 +799,9 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
     }
 
     final available = _library
-        .where((item) => !_exercises.any((e) => e.exerciseName == item.exerciseName))
+        .where(
+          (item) => !_exercises.any((e) => e.exerciseName == item.exerciseName),
+        )
         .toList();
 
     if (available.isEmpty) {
@@ -735,7 +819,10 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(18, 10, 18, 12),
-              child: Text('ADD EXERCISE', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              child: Text(
+                'ADD EXERCISE',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
             ),
             ...available.map(
               (item) => ListTile(
@@ -773,67 +860,126 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
 
   Future<void> _saveRoutine() async {
     if (_saving) return;
+
     final name = _nameController.text.trim();
+
     if (name.isEmpty) {
       _showMessage('Enter a routine name.');
       return;
     }
+
     if (_exercises.isEmpty) {
       _showMessage('Add at least one exercise.');
       return;
     }
 
+    final routineSets = <RoutineSet>[];
+
     for (final exercise in _exercises) {
+      var setNumber = 1;
+
       for (var i = 0; i < exercise.sets.length; i++) {
         final set = exercise.sets[i];
+
         final weightText = set.weightController.text.trim();
         final repsText = set.repsController.text.trim();
+
+        if (weightText.isEmpty && repsText.isEmpty) {
+          continue;
+        }
+
         final weight = double.tryParse(weightText);
         final reps = int.tryParse(repsText);
-        if (weightText.isEmpty && repsText.isEmpty) continue;
+
         if (weight == null || weight < 0 || reps == null || reps <= 0) {
-          _showMessage('Enter valid weight and reps for ${exercise.exerciseName}, Set ${i + 1}.');
+          _showMessage(
+            'Enter valid weight and reps for '
+            '${exercise.exerciseName}, Set ${i + 1}.',
+          );
           return;
         }
+
+        routineSets.add(
+          RoutineSet(
+            id: 0,
+            routineId: widget.routine?.id ?? 0,
+            exerciseName: exercise.exerciseName,
+            setNumber: setNumber,
+            weight: weight,
+            reps: reps,
+          ),
+        );
+
+        setNumber++;
       }
     }
 
+    if (routineSets.isEmpty) {
+      _showMessage('Add at least one filled set.');
+      return;
+    }
+
     setState(() => _saving = true);
+
     try {
-      final routineId = await widget.database.saveWorkoutRoutine(
-        userId: widget.userId,
-        date: _selectedDate,
-        routineName: name,
-      );
+      if (widget.routine == null) {
+        // CREATE MODE
+        final routineId = await widget.database.saveWorkoutRoutine(
+          userId: widget.userId,
+          date: _selectedDate,
+          routineName: name,
+        );
 
-      for (final exercise in _exercises) {
-        var setNumber = 1;
-        for (final draft in exercise.sets) {
-          final weightText = draft.weightController.text.trim();
-          final repsText = draft.repsController.text.trim();
-          if (weightText.isEmpty && repsText.isEmpty) continue;
-
+        for (final set in routineSets) {
           await widget.database.saveRoutineSet(
             routineId: routineId,
-            exerciseName: exercise.exerciseName,
-            setNumber: setNumber,
-            weight: double.parse(weightText),
-            reps: int.parse(repsText),
+            exerciseName: set.exerciseName,
+            setNumber: set.setNumber,
+            weight: set.weight,
+            reps: set.reps,
           );
-          setNumber++;
         }
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Routine saved for ${_formatDate(_selectedDate)}.'),
+          ),
+        );
+      } else {
+        // EDIT MODE
+        final success = await widget.database.updateWorkoutRoutine(
+          id: widget.routine!.id,
+          date: _selectedDate,
+          routineName: name,
+          sets: routineSets,
+        );
+
+        if (!success) {
+          throw Exception('Routine update failed');
+        }
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Routine updated successfully.')),
+        );
       }
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Routine saved for ${_formatDate(_selectedDate)}.')),
-      );
-      Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
     } catch (e) {
-      debugPrint('Error saving routine: $e');
+      debugPrint('Error saving/updating routine: $e');
+
       if (mounted) {
         setState(() => _saving = false);
-        _showMessage('Could not save routine.');
+        _showMessage(
+          widget.routine == null
+              ? 'Could not save routine.'
+              : 'Could not update routine.',
+        );
       }
     }
   }
@@ -846,7 +992,20 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
   }
 
   String _formatDate(DateTime date) {
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
@@ -866,7 +1025,7 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF071329),
         elevation: 0,
-        title: const Text('Create Routine'),
+        title: Text(widget.routine == null ? 'Create Routine' : 'Edit Routine'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -875,13 +1034,23 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+                  colors: [
+                    Color(0xFF08285C),
+                    Color(0xFF061A3B),
+                    Color(0xFF050B18),
+                  ],
                 ),
               ),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
                 children: [
-                  const Text('NEW ROUTINE', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                  Text(
+                    widget.routine == null ? 'NEW ROUTINE' : 'EDIT ROUTINE',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _nameController,
@@ -894,36 +1063,82 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
                   ),
                   const SizedBox(height: 12),
                   ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 2,
+                    ),
                     tileColor: Colors.white.withValues(alpha: 0.055),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    leading: const Icon(Icons.calendar_today_outlined, color: Colors.cyanAccent),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    leading: const Icon(
+                      Icons.calendar_today_outlined,
+                      color: Colors.cyanAccent,
+                    ),
                     title: const Text('Workout date'),
-                    subtitle: Text(_formatDate(_selectedDate), style: const TextStyle(color: Colors.white70)),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                    subtitle: Text(
+                      _formatDate(_selectedDate),
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Colors.white54,
+                    ),
                     onTap: _pickDate,
                   ),
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      const Expanded(child: Text('EXERCISES', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.7))),
-                      TextButton.icon(onPressed: _chooseExercise, icon: const Icon(Icons.add, size: 18), label: const Text('ADD EXERCISE')),
+                      const Expanded(
+                        child: Text(
+                          'EXERCISES',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.7,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _chooseExercise,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('ADD EXERCISE'),
+                      ),
                     ],
                   ),
                   if (_exercises.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(16)),
-                      child: const Text('No exercises added. Tap ADD EXERCISE to build your routine.', style: TextStyle(color: Colors.white54)),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.055),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text(
+                        'No exercises added. Tap ADD EXERCISE to build your routine.',
+                        style: TextStyle(color: Colors.white54),
+                      ),
                     )
                   else
-                    ..._exercises.asMap().entries.map((entry) => _exerciseEditor(entry.key, entry.value)),
+                    ..._exercises.asMap().entries.map(
+                      (entry) => _exerciseEditor(entry.key, entry.value),
+                    ),
                   const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _saving ? null : _saveRoutine,
-                      child: _saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE ROUTINE'),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(
+                              widget.routine == null
+                                  ? 'SAVE ROUTINE'
+                                  : 'SAVE CHANGES',
+                            ),
                     ),
                   ),
                 ],
@@ -936,14 +1151,32 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text(exercise.exerciseName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
-              IconButton(onPressed: () => _removeExercise(exerciseIndex), icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20)),
+              Expanded(
+                child: Text(
+                  exercise.exerciseName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => _removeExercise(exerciseIndex),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
+              ),
             ],
           ),
           ...exercise.sets.asMap().entries.map(
@@ -951,16 +1184,56 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  SizedBox(width: 45, child: Text('Set ${entry.key + 1}', style: const TextStyle(color: Colors.white60, fontSize: 12))),
-                  Expanded(child: TextField(controller: entry.value.weightController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Weight kg', filled: true))),
+                  SizedBox(
+                    width: 45,
+                    child: Text(
+                      'Set ${entry.key + 1}',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: entry.value.weightController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Weight kg',
+                        filled: true,
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: entry.value.repsController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Reps', filled: true))),
-                  IconButton(onPressed: () => _removeSet(exerciseIndex, entry.key), icon: const Icon(Icons.remove_circle_outline, color: Colors.white54, size: 19)),
+                  Expanded(
+                    child: TextField(
+                      controller: entry.value.repsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Reps',
+                        filled: true,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _removeSet(exerciseIndex, entry.key),
+                    icon: const Icon(
+                      Icons.remove_circle_outline,
+                      color: Colors.white54,
+                      size: 19,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          TextButton.icon(onPressed: () => _addSet(exerciseIndex), icon: const Icon(Icons.add, size: 17), label: const Text('ADD SET')),
+          TextButton.icon(
+            onPressed: () => _addSet(exerciseIndex),
+            icon: const Icon(Icons.add, size: 17),
+            label: const Text('ADD SET'),
+          ),
         ],
       ),
     );
@@ -997,7 +1270,9 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
   }
 
   Future<void> _load() async {
-    final routines = await widget.database.getWorkoutRoutines(userId: widget.userId);
+    final routines = await widget.database.getWorkoutRoutines(
+      userId: widget.userId,
+    );
     if (!mounted) return;
     setState(() {
       _routines = routines;
@@ -1006,7 +1281,20 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
   }
 
   String _formatDate(DateTime date) {
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
@@ -1016,10 +1304,18 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF101C32),
         title: const Text('Delete Routine?'),
-        content: Text('Delete ${routine.routineName} for ${_formatDate(routine.date)}?'),
+        content: Text(
+          'Delete ${routine.routineName} for ${_formatDate(routine.date)}?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('DELETE')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DELETE'),
+          ),
         ],
       ),
     );
@@ -1028,11 +1324,69 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
     await _load();
   }
 
+  Future<void> _deleteAllRoutines() async {
+    if (_routines.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF101C32),
+        title: const Text('Delete All Routines?'),
+        content: const Text(
+          'This will remove all your planned workout routines.\n\n'
+          'Your recorded workout history will NOT be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DELETE ALL'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await widget.database.deleteAllWorkoutRoutines(userId: widget.userId);
+
+      _expanded.clear();
+
+      await _load();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('All planned routines deleted.')),
+        );
+    } catch (e) {
+      debugPrint('Error deleting all routines: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Could not delete all routines.')),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF050B18),
-      appBar: AppBar(backgroundColor: const Color(0xFF071329), elevation: 0, title: const Text('My Routines')),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF071329),
+        elevation: 0,
+        title: const Text('My Routines'),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Container(
@@ -1040,15 +1394,99 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+                  colors: [
+                    Color(0xFF08285C),
+                    Color(0xFF061A3B),
+                    Color(0xFF050B18),
+                  ],
                 ),
               ),
               child: _routines.isEmpty
-                  ? const Center(child: Text('No routines created yet.', style: TextStyle(color: Colors.white54)))
-                  : ListView.builder(
+                  ? ListView(
+                      padding: const EdgeInsets.fromLTRB(18, 24, 18, 32),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(22),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.055),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.event_note_outlined,
+                                size: 42,
+                                color: Colors.white38,
+                              ),
+                              SizedBox(height: 12),
+                              Text(
+                                'No routines yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Create a new routine to build your workout schedule.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView(
                       padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
-                      itemCount: _routines.length,
-                      itemBuilder: (_, index) => _routineCard(_routines[index]),
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 7,
+                            ),
+                            leading: const Icon(
+                              Icons.delete_sweep_outlined,
+                              color: Colors.redAccent,
+                            ),
+                            title: const Text(
+                              'DELETE ALL MY ROUTINES',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                            subtitle: const Padding(
+                              padding: EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Remove all planned routines without deleting workout history',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.chevron_right,
+                              color: Colors.white54,
+                            ),
+                            onTap: _deleteAllRoutines,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        ..._routines.map(_routineCard),
+                      ],
                     ),
             ),
     );
@@ -1062,26 +1500,82 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
         final sets = snapshot.data ?? const <RoutineSet>[];
         final exercises = <String>[];
         for (final set in sets) {
-          if (!exercises.contains(set.exerciseName)) exercises.add(set.exerciseName);
+          if (!exercises.contains(set.exerciseName)) {
+            exercises.add(set.exerciseName);
+          }
         }
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(18)),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.055),
+            borderRadius: BorderRadius.circular(18),
+          ),
           child: Column(
             children: [
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                leading: const Icon(Icons.fitness_center, color: Colors.orangeAccent),
-                title: Text(routine.routineName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text('${_formatDate(routine.date)} • ${exercises.length} exercise${exercises.length == 1 ? '' : 's'}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
+                leading: const Icon(
+                  Icons.fitness_center,
+                  color: Colors.orangeAccent,
+                ),
+                title: Text(
+                  routine.routineName,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  '${_formatDate(routine.date)} • ${exercises.length} exercise${exercises.length == 1 ? '' : 's'}',
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(onPressed: () => _deleteRoutine(routine), icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20)),
-                    Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: Colors.white54),
+                    IconButton(
+                      tooltip: 'Edit routine',
+                      onPressed: () async {
+                        final updated = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CreateRoutineScreen(
+                              userId: widget.userId,
+                              database: widget.database,
+                              routine: routine,
+                            ),
+                          ),
+                        );
+
+                        if (updated == true) {
+                          await _load();
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        color: Colors.cyanAccent,
+                        size: 20,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Delete routine',
+                      onPressed: () => _deleteRoutine(routine),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.redAccent,
+                        size: 20,
+                      ),
+                    ),
+                    Icon(
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
+                      color: Colors.white54,
+                    ),
                   ],
                 ),
-                onTap: () => setState(() => isExpanded ? _expanded.remove(routine.id) : _expanded.add(routine.id)),
+                onTap: () => setState(
+                  () => isExpanded
+                      ? _expanded.remove(routine.id)
+                      : _expanded.add(routine.id),
+                ),
               ),
               if (isExpanded)
                 Padding(
@@ -1120,20 +1614,30 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
                         )
                       else
                         ...exercises.map((name) {
-                          final exerciseSets = sets.where((set) => set.exerciseName == name).toList();
+                          final exerciseSets = sets
+                              .where((set) => set.exerciseName == name)
+                              .toList();
                           return Padding(
                             padding: const EdgeInsets.only(top: 10),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
                                 ...exerciseSets.map(
                                   (set) => Padding(
                                     padding: const EdgeInsets.only(top: 3),
                                     child: Text(
                                       'Set ${set.setNumber}   ${set.weight} kg × ${set.reps}',
-                                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1144,15 +1648,13 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
                     ],
                   ),
                 ),
-            ]
-,
+            ],
           ),
         );
       },
     );
   }
 }
-
 
 // ============================================================
 // START ROUTINE WORKOUT
@@ -1171,8 +1673,10 @@ class _PerformedRoutineSet {
     required this.setNumber,
     required double weight,
     required int reps,
-  })  : weightController = TextEditingController(text: _formatRoutineNumber(weight)),
-        repsController = TextEditingController(text: reps.toString());
+  }) : weightController = TextEditingController(
+         text: _formatRoutineNumber(weight),
+       ),
+       repsController = TextEditingController(text: reps.toString());
 
   static String _formatRoutineNumber(num value) {
     final d = value.toDouble();
@@ -1198,7 +1702,8 @@ class StartRoutineWorkoutScreen extends StatefulWidget {
   });
 
   @override
-  State<StartRoutineWorkoutScreen> createState() => _StartRoutineWorkoutScreenState();
+  State<StartRoutineWorkoutScreen> createState() =>
+      _StartRoutineWorkoutScreenState();
 }
 
 class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
@@ -1214,8 +1719,18 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
 
   String _formatDate(DateTime date) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
@@ -1226,15 +1741,17 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
         routineId: widget.routine.id,
       );
 
-      final drafts = planned.map(
-        (set) => _PerformedRoutineSet(
-          routineSetId: set.id,
-          exerciseName: set.exerciseName,
-          setNumber: set.setNumber,
-          weight: set.weight,
-          reps: set.reps,
-        ),
-      ).toList();
+      final drafts = planned
+          .map(
+            (set) => _PerformedRoutineSet(
+              routineSetId: set.id,
+              exerciseName: set.exerciseName,
+              setNumber: set.setNumber,
+              weight: set.weight,
+              reps: set.reps,
+            ),
+          )
+          .toList();
 
       if (!mounted) return;
       setState(() {
@@ -1253,12 +1770,8 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
   Future<void> _saveWorkout() async {
     if (_saving) return;
 
-    final values = <({
-      int routineSetId,
-      String exerciseName,
-      double weight,
-      int reps,
-    })>[];
+    final values =
+        <({int routineSetId, String exerciseName, double weight, int reps})>[];
 
     for (final set in _sets) {
       final weightText = set.weightController.text.trim();
@@ -1312,9 +1825,7 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Workout recorded successfully.'),
-        ),
+        const SnackBar(content: Text('Workout recorded successfully.')),
       );
       Navigator.pop(context, true);
     } catch (e) {
@@ -1377,18 +1888,12 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
                   const SizedBox(height: 5),
                   Text(
                     'Planned for ${_formatDate(widget.routine.date)}',
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Edit the planned weights/reps if needed, then save the workout.',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   const SizedBox(height: 22),
                   ..._buildExerciseSections(),
@@ -1423,8 +1928,9 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
     }
 
     return names.map((name) {
-      final exerciseSets =
-          _sets.where((set) => set.exerciseName == name).toList();
+      final exerciseSets = _sets
+          .where((set) => set.exerciseName == name)
+          .toList();
 
       return Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -1438,10 +1944,7 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
           children: [
             Text(
               name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             ...exerciseSets.map(
@@ -1530,11 +2033,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF08285C),
-              Color(0xFF061A3B),
-              Color(0xFF050B18),
-            ],
+            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
           ),
         ),
         child: ListView(
@@ -1542,18 +2041,12 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
           children: [
             const Text(
               'NEW EXERCISE',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
               'Add an exercise to your exercise library.',
-              style: TextStyle(
-                color: Colors.white60,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.white60, fontSize: 13),
             ),
             const SizedBox(height: 24),
             TextField(
@@ -1591,10 +2084,15 @@ class User1ExerciseDetailScreen extends StatefulWidget {
   final String exerciseName;
   final AppDatabase database;
 
-  const User1ExerciseDetailScreen({super.key, required this.exerciseName, required this.database});
+  const User1ExerciseDetailScreen({
+    super.key,
+    required this.exerciseName,
+    required this.database,
+  });
 
   @override
-  State<User1ExerciseDetailScreen> createState() => _User1ExerciseDetailScreenState();
+  State<User1ExerciseDetailScreen> createState() =>
+      _User1ExerciseDetailScreenState();
 }
 
 class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
@@ -1619,14 +2117,33 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
   String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
   String _formatDate(DateTime d) {
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
   Future<void> _loadData() async {
     try {
-      final today = await _database.getSetsByDate(userId: 'user1', date: DateTime.now());
-      final history = await _database.getExerciseHistory(userId: 'user1', exerciseName: widget.exerciseName);
+      final today = await _database.getSetsByDate(
+        userId: 'user1',
+        date: DateTime.now(),
+      );
+      final history = await _database.getExerciseHistory(
+        userId: 'user1',
+        exerciseName: widget.exerciseName,
+      );
       final previousDates = history
           .map((s) => _dayOnly(s.date))
           .where((d) => d.isBefore(_dayOnly(DateTime.now())))
@@ -1641,7 +2158,9 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
       }
       if (!mounted) return;
       setState(() {
-        _todaySets = today.where((s) => s.exerciseName == widget.exerciseName).toList();
+        _todaySets = today
+            .where((s) => s.exerciseName == widget.exerciseName)
+            .toList();
         _history = history;
         _lastWorkout = last;
         _loading = false;
@@ -1661,12 +2180,18 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
       c.dispose();
     }
     final count = _todaySets.isEmpty ? 1 : _todaySets.length;
-    _weightControllers = List.generate(count, (i) => TextEditingController(
-      text: i < _todaySets.length ? _formatNumber(_todaySets[i].weight) : '',
-    ));
-    _repsControllers = List.generate(count, (i) => TextEditingController(
-      text: i < _todaySets.length ? _todaySets[i].reps.toString() : '',
-    ));
+    _weightControllers = List.generate(
+      count,
+      (i) => TextEditingController(
+        text: i < _todaySets.length ? _formatNumber(_todaySets[i].weight) : '',
+      ),
+    );
+    _repsControllers = List.generate(
+      count,
+      (i) => TextEditingController(
+        text: i < _todaySets.length ? _todaySets[i].reps.toString() : '',
+      ),
+    );
   }
 
   void _addSet() {
@@ -1699,8 +2224,13 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
     setState(() => _saving = true);
     try {
       // Replace ONLY today's records for this exercise. Previous dates remain untouched.
-      final currentToday = await _database.getSetsByDate(userId: 'user1', date: DateTime.now());
-      for (final set in currentToday.where((s) => s.exerciseName == widget.exerciseName)) {
+      final currentToday = await _database.getSetsByDate(
+        userId: 'user1',
+        date: DateTime.now(),
+      );
+      for (final set in currentToday.where(
+        (s) => s.exerciseName == widget.exerciseName,
+      )) {
         await _database.deleteSet(set.id);
       }
       for (final value in values) {
@@ -1733,20 +2263,44 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF101C32),
         title: const Text('Edit Set'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: weight, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Weight (kg)')),
-          const SizedBox(height: 12),
-          TextField(controller: reps, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Reps')),
-        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: weight,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Weight (kg)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reps,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Reps'),
+            ),
+          ],
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-          ElevatedButton(onPressed: () async {
-            final w = double.tryParse(weight.text.trim());
-            final r = int.tryParse(reps.text.trim());
-            if (w == null || w < 0 || r == null || r <= 0) return;
-            await _database.updateSet(id: set.id, exerciseName: set.exerciseName, weight: w, reps: r);
-            if (ctx.mounted) Navigator.pop(ctx, true);
-          }, child: const Text('SAVE')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final w = double.tryParse(weight.text.trim());
+              final r = int.tryParse(reps.text.trim());
+              if (w == null || w < 0 || r == null || r <= 0) return;
+              await _database.updateSet(
+                id: set.id,
+                exerciseName: set.exerciseName,
+                weight: w,
+                reps: r,
+              );
+              if (ctx.mounted) Navigator.pop(ctx, true);
+            },
+            child: const Text('SAVE'),
+          ),
         ],
       ),
     );
@@ -1761,10 +2315,18 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF101C32),
         title: const Text('Delete Set?'),
-        content: Text('${set.weight} kg × ${set.reps} reps on ${_formatDate(set.date)}'),
+        content: Text(
+          '${set.weight} kg × ${set.reps} reps on ${_formatDate(set.date)}',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('DELETE')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DELETE'),
+          ),
         ],
       ),
     );
@@ -1776,10 +2338,15 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _formatNumber(num value) => value.toDouble() == value.toDouble().roundToDouble() ? value.toDouble().toStringAsFixed(0) : value.toString();
+  String _formatNumber(num value) =>
+      value.toDouble() == value.toDouble().roundToDouble()
+      ? value.toDouble().toStringAsFixed(0)
+      : value.toString();
 
   @override
   void dispose() {
@@ -1796,11 +2363,25 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF050B18),
-      appBar: AppBar(backgroundColor: const Color(0xFF071329), elevation: 0, title: Text(widget.exerciseName)),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF071329),
+        elevation: 0,
+        title: Text(widget.exerciseName),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Container(
-              decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)])),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF08285C),
+                    Color(0xFF061A3B),
+                    Color(0xFF050B18),
+                  ],
+                ),
+              ),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
                 children: [
@@ -1808,19 +2389,47 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
                   if (_lastWorkout.isEmpty)
                     _mutedCard('No previous workout for this exercise.')
                   else ...[
-                    Text(_formatDate(_lastWorkout.first.date), style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                    Text(
+                      _formatDate(_lastWorkout.first.date),
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     _referenceCard(_lastWorkout),
                   ],
                   const SizedBox(height: 24),
                   _sectionTitle('TODAY'),
-                  Text(_formatDate(DateTime.now()), style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                  Text(
+                    _formatDate(DateTime.now()),
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  ),
                   const SizedBox(height: 12),
-                  ...List.generate(_weightControllers.length, (i) => _todayRow(i)),
+                  ...List.generate(
+                    _weightControllers.length,
+                    (i) => _todayRow(i),
+                  ),
                   const SizedBox(height: 8),
-                  OutlinedButton.icon(onPressed: _addSet, icon: const Icon(Icons.add), label: const Text('ADD SET')),
+                  OutlinedButton.icon(
+                    onPressed: _addSet,
+                    icon: const Icon(Icons.add),
+                    label: const Text('ADD SET'),
+                  ),
                   const SizedBox(height: 12),
-                  SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saving ? null : _saveToday, child: _saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE TODAY'))),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _saveToday,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('SAVE TODAY'),
+                    ),
+                  ),
                   const SizedBox(height: 28),
                   _sectionTitle('HISTORY'),
                   const SizedBox(height: 10),
@@ -1834,24 +2443,87 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
     );
   }
 
-  Widget _sectionTitle(String title) => Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700));
+  Widget _sectionTitle(String title) => Text(
+    title,
+    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+  );
 
-  Widget _mutedCard(String text) => Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(16)), child: Text(text, style: const TextStyle(color: Colors.white54)));
+  Widget _mutedCard(String text) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.055),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Text(text, style: const TextStyle(color: Colors.white54)),
+  );
 
   Widget _referenceCard(List<WorkoutSet> sets) => Container(
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(16)),
-    child: Column(children: sets.asMap().entries.map((e) => Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [SizedBox(width: 52, child: Text('Set ${e.key + 1}', style: const TextStyle(color: Colors.white60))), Expanded(child: Text('${_formatNumber(e.value.weight)} kg × ${e.value.reps}', style: const TextStyle(fontWeight: FontWeight.w600)))]))).toList()),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.055),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      children: sets
+          .asMap()
+          .entries
+          .map(
+            (e) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      'Set ${e.key + 1}',
+                      style: const TextStyle(color: Colors.white60),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${_formatNumber(e.value.weight)} kg × ${e.value.reps}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    ),
   );
 
   Widget _todayRow(int i) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
-    child: Row(children: [
-      SizedBox(width: 52, child: Text('Set ${i + 1}', style: const TextStyle(color: Colors.white60, fontSize: 12))),
-      Expanded(child: TextField(controller: _weightControllers[i], keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Weight (kg)', filled: true))),
-      const SizedBox(width: 10),
-      Expanded(child: TextField(controller: _repsControllers[i], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Reps', filled: true))),
-    ]),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 52,
+          child: Text(
+            'Set ${i + 1}',
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+        ),
+        Expanded(
+          child: TextField(
+            controller: _weightControllers[i],
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Weight (kg)',
+              filled: true,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: _repsControllers[i],
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Reps', filled: true),
+          ),
+        ),
+      ],
+    ),
   );
 
   List<Widget> _historyCards() {
@@ -1859,27 +2531,50 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen> {
     for (final set in _history) {
       grouped.putIfAbsent(_dateKey(set.date), () => []).add(set);
     }
-    final entries = grouped.entries.toList()..sort((a, b) => b.key.compareTo(a.key));
+    final entries = grouped.entries.toList()
+      ..sort((a, b) => b.key.compareTo(a.key));
     return entries.map((entry) {
       final sets = entry.value;
       final date = sets.first.date;
       return Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.055), borderRadius: BorderRadius.circular(16)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(_formatDate(date), style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          ...sets.asMap().entries.map((e) => ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            title: Text('Set ${e.key + 1}   ${_formatNumber(e.value.weight)} kg × ${e.value.reps}'),
-            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(onPressed: () => _editHistorySet(e.value), icon: const Icon(Icons.edit_outlined, size: 19)),
-              IconButton(onPressed: () => _deleteHistorySet(e.value), icon: const Icon(Icons.delete_outline, size: 19)),
-            ]),
-          )),
-        ]),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _formatDate(date),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            ...sets.asMap().entries.map(
+              (e) => ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Set ${e.key + 1}   ${_formatNumber(e.value.weight)} kg × ${e.value.reps}',
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () => _editHistorySet(e.value),
+                      icon: const Icon(Icons.edit_outlined, size: 19),
+                    ),
+                    IconButton(
+                      onPressed: () => _deleteHistorySet(e.value),
+                      icon: const Icon(Icons.delete_outline, size: 19),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }).toList();
   }
@@ -1893,10 +2588,16 @@ class CopyPreviousWorkoutScreen extends StatefulWidget {
   final AppDatabase database;
   final String title;
 
-  const CopyPreviousWorkoutScreen({super.key, required this.userId, required this.database, this.title = 'Copy Previous Workout'});
+  const CopyPreviousWorkoutScreen({
+    super.key,
+    required this.userId,
+    required this.database,
+    this.title = 'Copy Previous Workout',
+  });
 
   @override
-  State<CopyPreviousWorkoutScreen> createState() => _CopyPreviousWorkoutScreenState();
+  State<CopyPreviousWorkoutScreen> createState() =>
+      _CopyPreviousWorkoutScreenState();
 }
 
 class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
@@ -1908,66 +2609,126 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
   bool _loadingSets = false;
   bool _copying = false;
   Set<String> _selectedExerciseNames = {};
+  List<WorkoutRoutine> _routineDates = [];
+  List<RoutineSet> _selectedRoutineSets = [];
+
+  Set<String> _exerciseNamesForSelectedDay() {
+    return {
+      for (final set in _selectedDaySets) set.exerciseName,
+      for (final set in _selectedRoutineSets) set.exerciseName,
+    };
+  }
 
   @override
-  void initState() { super.initState(); _loadWorkoutDates(); }
+  void initState() {
+    super.initState();
+    _loadWorkoutDates();
+  }
 
   String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
-  bool _hasWorkout(DateTime d) => _workoutDates.contains(_dateKey(d));
+  bool _hasWorkout(DateTime day) {
+    final key = _dateKey(day);
+
+    if (_workoutDates.contains(key)) {
+      return true;
+    }
+
+    return _routineDates.any((routine) => _dateKey(routine.date) == key);
+  }
+
   String _formatDate(DateTime d) {
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
   Future<void> _loadWorkoutDates() async {
     final dates = await widget.database.getWorkoutDates(widget.userId);
-    if (!mounted) return;
-    setState(() { _workoutDates = dates.map(_dateKey).toSet(); _loading = false; });
-  }
+    final routines = await widget.database.getWorkoutRoutines(
+      userId: widget.userId,
+    );
 
-  Future<void> _selectDate(DateTime selected, DateTime focused) async {
-    setState(() { _selectedDay = selected; _focusedDay = focused; _loadingSets = true; });
-    if (isSameDay(selected, DateTime.now())) {
-      setState(() {
-        _selectedDaySets = [];
-        _selectedExerciseNames = {};
-        _loadingSets = false;
-      });
-      _showMessage('Today cannot be used as a previous workout.');
-      return;
-    }
-    if (!_hasWorkout(selected)) {
-      setState(() {
-        _selectedDaySets = [];
-        _selectedExerciseNames = {};
-        _loadingSets = false;
-      });
-      _showMessage('No workout on ${_formatDate(selected)}.');
-      return;
-    }
-    final sets = await widget.database.getSetsByDate(userId: widget.userId, date: selected);
     if (!mounted) return;
-
-    final exerciseNames = <String>{
-      for (final set in sets) set.exerciseName,
-    };
 
     setState(() {
-      _selectedDaySets = sets;
-      // Every exercise is selected by default.
-      _selectedExerciseNames = exerciseNames;
-      _loadingSets = false;
+      _workoutDates = dates.map(_dateKey).toSet();
+      _routineDates = routines;
+      _loading = false;
     });
   }
 
-  List<String> _exerciseNamesForSelectedDay() {
-    final names = <String>[];
-    for (final set in _selectedDaySets) {
-      if (!names.contains(set.exerciseName)) {
-        names.add(set.exerciseName);
-      }
+  Future<void> _selectDate(DateTime selected, DateTime focused) async {
+    setState(() {
+      _selectedDay = selected;
+      _focusedDay = focused;
+      _loadingSets = true;
+      _selectedDaySets = [];
+      _selectedRoutineSets = [];
+      _selectedExerciseNames = {};
+    });
+
+    if (isSameDay(selected, DateTime.now())) {
+      setState(() => _loadingSets = false);
+      _showMessage('Today cannot be used as a previous workout.');
+      return;
     }
-    return names;
+
+    final hasWorkout = _workoutDates.contains(_dateKey(selected));
+
+    final routines = await widget.database.getWorkoutRoutinesByDate(
+      userId: widget.userId,
+      date: selected,
+    );
+
+    if (!hasWorkout && routines.isEmpty) {
+      if (!mounted) return;
+
+      setState(() => _loadingSets = false);
+      _showMessage('No workout or routine on ${_formatDate(selected)}.');
+      return;
+    }
+
+    List<WorkoutSet> workoutSets = [];
+
+    if (hasWorkout) {
+      workoutSets = await widget.database.getSetsByDate(
+        userId: widget.userId,
+        date: selected,
+      );
+    }
+
+    final routineSets = <RoutineSet>[];
+
+    for (final routine in routines) {
+      final sets = await widget.database.getRoutineSets(routineId: routine.id);
+      routineSets.addAll(sets);
+    }
+
+    if (!mounted) return;
+
+    final exerciseNames = <String>{
+      for (final set in workoutSets) set.exerciseName,
+      for (final set in routineSets) set.exerciseName,
+    };
+
+    setState(() {
+      _selectedDaySets = workoutSets;
+      _selectedRoutineSets = routineSets;
+      _selectedExerciseNames = exerciseNames;
+      _loadingSets = false;
+    });
   }
 
   bool get _allExercisesSelected {
@@ -1993,13 +2754,21 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
   }
 
   Future<void> _copyToToday() async {
-    if (_copying || _selectedDaySets.isEmpty || _selectedExerciseNames.isEmpty) return;
+    if (_copying || _selectedExerciseNames.isEmpty) return;
 
-    final setsToCopy = _selectedDaySets
+    final selectedWorkoutSets = _selectedDaySets
         .where((set) => _selectedExerciseNames.contains(set.exerciseName))
         .toList();
 
-    if (setsToCopy.isEmpty) return;
+    final selectedRoutineSets = _selectedRoutineSets
+        .where((set) => _selectedExerciseNames.contains(set.exerciseName))
+        .toList();
+
+    if (selectedWorkoutSets.isEmpty && selectedRoutineSets.isEmpty) {
+      return;
+    }
+
+    final totalSets = selectedWorkoutSets.length + selectedRoutineSets.length;
 
     final selectedExerciseCount = _selectedExerciseNames.length;
 
@@ -2009,8 +2778,10 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
         backgroundColor: const Color(0xFF101C32),
         title: const Text('Copy to Today?'),
         content: Text(
-          'Copy $selectedExerciseCount exercise${selectedExerciseCount == 1 ? '' : 's'} '
-          '(${setsToCopy.length} sets) from ${_formatDate(_selectedDay!)} to today?',
+          'Copy $selectedExerciseCount exercise'
+          '${selectedExerciseCount == 1 ? '' : 's'} '
+          '($totalSets sets) from '
+          '${_formatDate(_selectedDay!)} to today?',
         ),
         actions: [
           TextButton(
@@ -2026,9 +2797,12 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
     );
 
     if (confirmed != true) return;
+
     setState(() => _copying = true);
+
     try {
-      for (final set in setsToCopy) {
+      // Copy actual workout sets.
+      for (final set in selectedWorkoutSets) {
         await widget.database.saveSet(
           userId: widget.userId,
           exerciseName: set.exerciseName,
@@ -2037,12 +2811,30 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
           date: DateTime.now(),
         );
       }
+
+      // Copy planned routine sets as today's workout sets.
+      for (final set in selectedRoutineSets) {
+        await widget.database.saveSet(
+          userId: widget.userId,
+          exerciseName: set.exerciseName,
+          weight: set.weight,
+          reps: set.reps,
+          date: DateTime.now(),
+        );
+      }
+
       if (!mounted) return;
+
       _showMessage('Selected exercises copied to today.');
+
       await Future<void>.delayed(const Duration(milliseconds: 500));
-      if (mounted) Navigator.pop(context, true);
+
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
     } catch (e) {
       debugPrint('Error copying workout: $e');
+
       if (mounted) {
         setState(() => _copying = false);
         _showMessage('Could not copy workout.');
@@ -2052,63 +2844,128 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF050B18),
-      appBar: AppBar(backgroundColor: const Color(0xFF071329), elevation: 0, title: Text(widget.title)),
-      body: _loading ? const Center(child: CircularProgressIndicator()) : Column(children: [
-        Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(12), child: Column(children: [
-          TableCalendar<dynamic>(
-            firstDay: DateTime(2025, 1, 1), lastDay: DateTime(2035, 12, 31), focusedDay: _focusedDay,
-            selectedDayPredicate: (d) => isSameDay(_selectedDay, d),
-            eventLoader: (d) => _hasWorkout(d) ? [true] : [],
-            onDaySelected: _selectDate,
-            calendarFormat: CalendarFormat.month,
-            availableCalendarFormats: const {CalendarFormat.month: 'Month'},
-            calendarStyle: CalendarStyle(
-              outsideDaysVisible: false,
-              defaultTextStyle: const TextStyle(color: Colors.white),
-              weekendTextStyle: const TextStyle(color: Colors.white),
-              selectedDecoration: const BoxDecoration(color: Color(0xFF1688C4), shape: BoxShape.circle),
-              todayDecoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.10), shape: BoxShape.circle),
-              markerDecoration: const BoxDecoration(color: Color(0xFF39D98A), shape: BoxShape.circle), markerSize: 7,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF071329),
+        elevation: 0,
+        title: Text(widget.title),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        TableCalendar<dynamic>(
+                          firstDay: DateTime(2025, 1, 1),
+                          lastDay: DateTime(2035, 12, 31),
+                          focusedDay: _focusedDay,
+                          selectedDayPredicate: (d) =>
+                              isSameDay(_selectedDay, d),
+                          eventLoader: (d) => _hasWorkout(d) ? [true] : [],
+                          onDaySelected: _selectDate,
+                          calendarFormat: CalendarFormat.month,
+                          availableCalendarFormats: const {
+                            CalendarFormat.month: 'Month',
+                          },
+                          calendarStyle: CalendarStyle(
+                            outsideDaysVisible: false,
+                            defaultTextStyle: const TextStyle(
+                              color: Colors.white,
+                            ),
+                            weekendTextStyle: const TextStyle(
+                              color: Colors.white,
+                            ),
+                            selectedDecoration: const BoxDecoration(
+                              color: Color(0xFF1688C4),
+                              shape: BoxShape.circle,
+                            ),
+                            todayDecoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.10),
+                              shape: BoxShape.circle,
+                            ),
+                            markerDecoration: const BoxDecoration(
+                              color: Color(0xFF39D98A),
+                              shape: BoxShape.circle,
+                            ),
+                            markerSize: 7,
+                          ),
+                          headerStyle: const HeaderStyle(
+                            formatButtonVisible: false,
+                            titleCentered: true,
+                            titleTextStyle: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        if (_loadingSets)
+                          const CircularProgressIndicator()
+                        else if (_selectedDaySets.isNotEmpty ||
+                            _selectedRoutineSets.isNotEmpty)
+                          _selectedWorkoutCard()
+                        else
+                          const Text(
+                            'Select a previous workout date to see the workout.',
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed:
+                            (_selectedDaySets.isEmpty &&
+                                    _selectedRoutineSets.isEmpty) ||
+                                _copying
+                            ? null
+                            : _copyToToday,
+                        child: _copying
+                            ? const CircularProgressIndicator()
+                            : const Text('COPY TO TODAY'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true, titleTextStyle: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(height: 18),
-          if (_loadingSets) const CircularProgressIndicator()
-          else if (_selectedDaySets.isNotEmpty) _selectedWorkoutCard()
-          else const Text('Select a previous workout date to see the workout.', style: TextStyle(color: Colors.white54)),
-        ])),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _selectedDaySets.isEmpty || _copying ? null : _copyToToday,
-                child: _copying
-                    ? const CircularProgressIndicator()
-                    : const Text('COPY TO TODAY'),
-              ),
-            ),
-          ),
-        ),
-      ]),
     );
   }
 
   Widget _selectedWorkoutCard() {
-    final grouped = <String, List<WorkoutSet>>{};
+    final groupedWorkoutSets = <String, List<WorkoutSet>>{};
     for (final set in _selectedDaySets) {
-      grouped.putIfAbsent(set.exerciseName, () => []).add(set);
+      groupedWorkoutSets.putIfAbsent(set.exerciseName, () => []).add(set);
     }
+
+    final groupedRoutineSets = <String, List<RoutineSet>>{};
+    for (final set in _selectedRoutineSets) {
+      groupedRoutineSets.putIfAbsent(set.exerciseName, () => []).add(set);
+    }
+
+    final exerciseNames = <String>{
+      ...groupedWorkoutSets.keys,
+      ...groupedRoutineSets.keys,
+    }.toList()..sort();
 
     return Container(
       width: double.infinity,
@@ -2140,7 +2997,7 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
             ),
             subtitle: Text(
-              '${_selectedExerciseNames.length}/${grouped.length} exercises selected',
+              '${_selectedExerciseNames.length}/${exerciseNames.length} exercises selected',
               style: const TextStyle(color: Colors.white54, fontSize: 11),
             ),
             onChanged: (value) => _toggleSelectAll(value ?? false),
@@ -2148,56 +3005,97 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
             checkColor: Colors.black,
           ),
           const Divider(color: Colors.white12),
-          ...grouped.entries.map(
-            (e) => Padding(
+
+          ...exerciseNames.map((exerciseName) {
+            final workoutSets = groupedWorkoutSets[exerciseName] ?? [];
+            final routineSets = groupedRoutineSets[exerciseName] ?? [];
+
+            final totalSets = workoutSets.length + routineSets.length;
+
+            return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Column(
                 children: [
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
-                    value: _selectedExerciseNames.contains(e.key),
+                    value: _selectedExerciseNames.contains(exerciseName),
                     title: Text(
-                      e.key,
+                      exerciseName,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      '${e.value.length} set${e.value.length == 1 ? '' : 's'}',
-                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                      '$totalSets set${totalSets == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
                     ),
-                    onChanged: (value) => _toggleExercise(e.key, value ?? false),
+                    onChanged: (value) =>
+                        _toggleExercise(exerciseName, value ?? false),
                     activeColor: const Color(0xFF39D98A),
                     checkColor: Colors.black,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 48),
-                    child: Column(
-                      children: e.value.asMap().entries.map(
-                        (x) => Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Set ${x.key + 1}   ${x.value.weight} kg × ${x.value.reps}',
-                            style: const TextStyle(color: Colors.white70, fontSize: 12),
-                          ),
-                        ),
-                      ).toList(),
+
+                  if (routineSets.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 48),
+                      child: Column(
+                        children: routineSets.asMap().entries.map((x) {
+                          final set = x.value;
+
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Planned Set ${x.key + 1}   '
+                              '${set.weight} kg × ${set.reps}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
+
+                  if (workoutSets.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 48),
+                      child: Column(
+                        children: workoutSets.asMap().entries.map((x) {
+                          final set = x.value;
+
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Set ${x.key + 1}   '
+                              '${set.weight} kg × ${set.reps}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                 ],
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
   }
 
   @override
-  void dispose() { super.dispose(); }
+  void dispose() {
+    super.dispose();
+  }
 }
 
-class ExerciseHistoryScreen
-    extends StatefulWidget {
+class ExerciseHistoryScreen extends StatefulWidget {
   final String userId;
   final String exerciseName;
   final AppDatabase database;
@@ -2210,18 +3108,13 @@ class ExerciseHistoryScreen
   });
 
   @override
-  State<ExerciseHistoryScreen>
-      createState() =>
-          _ExerciseHistoryScreenState();
+  State<ExerciseHistoryScreen> createState() => _ExerciseHistoryScreenState();
 }
 
-class _ExerciseHistoryScreenState
-    extends State<
-        ExerciseHistoryScreen> {
+class _ExerciseHistoryScreenState extends State<ExerciseHistoryScreen> {
   bool _loading = true;
 
-  Map<String, List<WorkoutSet>>
-      _history = {};
+  Map<String, List<WorkoutSet>> _history = {};
 
   @override
   void initState() {
@@ -2235,15 +3128,12 @@ class _ExerciseHistoryScreenState
 
   Future<void> _loadHistory() async {
     try {
-      final sets =
-          await widget.database.getExerciseHistory(
+      final sets = await widget.database.getExerciseHistory(
         userId: widget.userId,
         exerciseName: widget.exerciseName,
       );
 
-      final Map<String,
-              List<WorkoutSet>>
-          grouped = {};
+      final Map<String, List<WorkoutSet>> grouped = {};
 
       for (final set in sets) {
         final dateKey =
@@ -2251,14 +3141,9 @@ class _ExerciseHistoryScreenState
             '${set.date.month.toString().padLeft(2, '0')}-'
             '${set.date.day.toString().padLeft(2, '0')}';
 
-        grouped.putIfAbsent(
-          dateKey,
-          () => [],
-        );
+        grouped.putIfAbsent(dateKey, () => []);
 
-        grouped[dateKey]!.add(
-          set,
-        );
+        grouped[dateKey]!.add(set);
       }
 
       if (!mounted) return;
@@ -2268,9 +3153,7 @@ class _ExerciseHistoryScreenState
         _loading = false;
       });
     } catch (e) {
-      debugPrint(
-        'Error loading history: $e',
-      );
+      debugPrint('Error loading history: $e');
 
       if (!mounted) return;
 
@@ -2285,74 +3168,42 @@ class _ExerciseHistoryScreenState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFF050B18),
+      backgroundColor: const Color(0xFF050B18),
       appBar: AppBar(
-        backgroundColor:
-            const Color(0xFF071329),
+        backgroundColor: const Color(0xFF071329),
         elevation: 0,
-        title: Text(
-          widget.exerciseName,
-        ),
+        title: Text(widget.exerciseName),
       ),
       body: Container(
-        decoration:
-            const BoxDecoration(
-          gradient:
-              LinearGradient(
-            begin:
-                Alignment.topCenter,
-            end:
-                Alignment.bottomCenter,
-            colors: [
-              Color(0xFF08285C),
-              Color(0xFF061A3B),
-              Color(0xFF050B18),
-            ],
-            stops: [
-              0.0,
-              0.38,
-              1.0,
-            ],
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+            stops: [0.0, 0.38, 1.0],
           ),
         ),
         child: _loading
-            ? const Center(
-                child:
-                    CircularProgressIndicator(),
-              )
+            ? const Center(child: CircularProgressIndicator())
             : _history.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No workout history yet.',
-                      style:
-                          TextStyle(
-                        color:
-                            Colors.white60,
-                      ),
-                    ),
-                  )
-                : ListView(
-                    padding:
-                        const EdgeInsets
-                            .all(
-                      18,
-                    ),
-                    children:
-                        _history.entries
-                            .map(
-                      (entry) {
-                        return _historyDayCard(
-                          entry.key,
-                          entry.value,
-                        );
-                      },
-                    ).toList(),
-                  ),
+            ? const Center(
+                child: Text(
+                  'No workout history yet.',
+                  style: TextStyle(color: Colors.white60),
+                ),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(18),
+                children:
+                    (_history.entries.toList()
+                          ..sort((a, b) => b.key.compareTo(a.key)))
+                        .map((entry) {
+                          return _historyDayCard(entry.key, entry.value);
+                        })
+                        .toList(),
+              ),
       ),
     );
   }
@@ -2361,89 +3212,51 @@ class _ExerciseHistoryScreenState
   // HISTORY DAY CARD
   // ============================================================
 
-  Widget _historyDayCard(
-    String date,
-    List<WorkoutSet> sets,
-  ) {
+  Widget _historyDayCard(String date, List<WorkoutSet> sets) {
     return Container(
-      margin:
-          const EdgeInsets.only(
-        bottom: 14,
-      ),
-      padding:
-          const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color:
-            Colors.white.withValues(
-          alpha: 0.055,
-        ),
-        borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color:
-              Colors.white.withValues(
-            alpha: 0.06,
-          ),
-        ),
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             date,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight:
-                  FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
 
-          const SizedBox(
-            height: 12,
-          ),
+          const SizedBox(height: 12),
 
-          ...sets.asMap().entries.map(
-            (entry) {
-              final index =
-                  entry.key;
-              final set =
-                  entry.value;
+          ...sets.asMap().entries.map((entry) {
+            final index = entry.key;
+            final set = entry.value;
 
-              return Padding(
-                padding:
-                    const EdgeInsets
-                        .only(
-                  bottom: 8,
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'Set ${index + 1}',
-                      style:
-                          const TextStyle(
-                        fontSize: 13,
-                        color:
-                            Colors.white60,
-                      ),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Set ${index + 1}',
+                    style: const TextStyle(fontSize: 13, color: Colors.white60),
+                  ),
+
+                  const Spacer(),
+
+                  Text(
+                    '${set.weight} kg × ${set.reps}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
-
-                    const Spacer(),
-
-                    Text(
-                      '${set.weight} kg × ${set.reps}',
-                      style:
-                          const TextStyle(
-                        fontSize: 14,
-                        fontWeight:
-                            FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

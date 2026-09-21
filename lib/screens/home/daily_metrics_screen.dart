@@ -19,13 +19,14 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
   bool _healthConnected = false;
   bool _healthConnecting = false;
 
-  final TextEditingController _stepTargetController = TextEditingController();
+  final TextEditingController _calorieTargetController =
+      TextEditingController();
 
-  final TextEditingController _sleepTargetController = TextEditingController();
+  final TextEditingController _stepTargetController =
+      TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
-  double _plannedCalories = 0;
 
   @override
   void initState() {
@@ -57,11 +58,9 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
 
       final types = <HealthDataType>[
         HealthDataType.STEPS,
-        HealthDataType.SLEEP_ASLEEP,
       ];
 
       final permissions = <HealthDataAccess>[
-        HealthDataAccess.READ,
         HealthDataAccess.READ,
       ];
 
@@ -105,11 +104,11 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
 
       final steps = healthData['steps'] as int? ?? 0;
 
-      final sleepHours = (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
-
       final now = DateTime.now();
 
-      final targets = await _database.getDailyTargets(userId: 'user1');
+      final targets = await _database.getDailyTargets(
+        userId: 'user1',
+      );
 
       if (targets == null) {
         debugPrint(
@@ -119,7 +118,10 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
         return;
       }
 
-      final existing = await _database.getDailyData(userId: 'user1', date: now);
+      final existing = await _database.getDailyData(
+        userId: 'user1',
+        date: now,
+      );
 
       await _database.saveDailyData(
         userId: 'user1',
@@ -128,15 +130,13 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
         calorieTarget: targets.calorieTarget,
         steps: steps,
         stepTarget: targets.stepTarget,
-        sleepHours: sleepHours,
         recoveryScore: existing?.recoveryScore ?? 0,
         effortScore: existing?.effortScore ?? 0,
       );
 
       debugPrint(
         'Automatic health sync complete: '
-        '$steps steps, '
-        '${sleepHours.toStringAsFixed(1)}h sleep',
+        '$steps steps',
       );
 
       if (!mounted) return;
@@ -167,11 +167,9 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
 
       final types = <HealthDataType>[
         HealthDataType.STEPS,
-        HealthDataType.SLEEP_ASLEEP,
       ];
 
       final permissions = <HealthDataAccess>[
-        HealthDataAccess.READ,
         HealthDataAccess.READ,
       ];
 
@@ -198,8 +196,6 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
 
       final steps = healthData?['steps'] as int? ?? 0;
 
-      final sleepHours = (healthData?['sleepHours'] as num?)?.toDouble() ?? 0;
-
       if (!mounted) return;
 
       setState(() {
@@ -208,8 +204,7 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
       });
 
       _showMessage(
-        'Health connected: $steps steps • '
-        '${sleepHours.toStringAsFixed(1)}h sleep',
+        'Health connected: $steps steps',
       );
     } catch (e) {
       debugPrint('Health connection error: $e');
@@ -231,31 +226,36 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
 
   Future<void> _loadTargets() async {
     try {
-      final targets = await _database.getDailyTargets(userId: 'user1');
-
-      final plannedCalories = await _database.getPlannedCalories(
+      final targets = await _database.getDailyTargets(
         userId: 'user1',
-        date: DateTime.now(),
       );
 
       if (!mounted) return;
 
       if (targets == null) {
+        _calorieTargetController.text = '2500';
         _stepTargetController.text = '10000';
-        _sleepTargetController.text = '8';
       } else {
-        _stepTargetController.text = targets.stepTarget.toString();
+        _calorieTargetController.text =
+            targets.calorieTarget.toStringAsFixed(0);
 
-        _sleepTargetController.text = targets.sleepTarget.toStringAsFixed(1);
+        _stepTargetController.text =
+            targets.stepTarget.toString();
       }
-
-      _plannedCalories = plannedCalories;
 
       setState(() {
         _loading = false;
       });
     } catch (e) {
-      // keep your existing catch block
+      debugPrint('Error loading daily targets: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
+
+      _showMessage('Could not load targets.');
     }
   }
 
@@ -264,16 +264,20 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
   // ==========================================================
 
   Future<void> _saveTargets() async {
-    final stepTarget = int.tryParse(_stepTargetController.text.trim());
+    final calorieTarget = double.tryParse(
+      _calorieTargetController.text.trim(),
+    );
 
-    final sleepTarget = double.tryParse(_sleepTargetController.text.trim());
+    final stepTarget = int.tryParse(
+      _stepTargetController.text.trim(),
+    );
 
-    if (stepTarget == null || sleepTarget == null) {
+    if (calorieTarget == null || stepTarget == null) {
       _showMessage('Please enter valid target values.');
       return;
     }
 
-    if (stepTarget <= 0 || sleepTarget <= 0 || sleepTarget > 24) {
+    if (calorieTarget <= 0 || stepTarget <= 0) {
       _showMessage('Please enter realistic target values.');
       return;
     }
@@ -285,11 +289,9 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
     try {
       await _database.saveDailyTargets(
         userId: 'user1',
-        calorieTarget: _plannedCalories,
+        calorieTarget: calorieTarget,
         stepTarget: stepTarget,
-        sleepTarget: sleepTarget,
       );
-      await _syncHealthData();
 
       if (!mounted) return;
 
@@ -309,7 +311,7 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
         _saving = false;
       });
 
-      _showMessage('Could not save targets.');
+      _showMessage('Could not save daily targets.');
     }
   }
 
@@ -320,7 +322,11 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
   void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 
   // ==========================================================
@@ -331,8 +337,8 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
 
+    _calorieTargetController.dispose();
     _stepTargetController.dispose();
-    _sleepTargetController.dispose();
 
     _database.close();
 
@@ -352,11 +358,15 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
         elevation: 0,
         title: const Text(
           'Daily Targets',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -368,7 +378,10 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
 
                   const Text(
                     'Set Your Daily Targets',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
 
                   const SizedBox(height: 8),
@@ -388,6 +401,7 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                   // ==================================================
                   // CALORIES
                   // ==================================================
+
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -401,7 +415,9 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: Colors.cyan.withValues(alpha: 0.12),
+                            color: Colors.cyan.withValues(
+                              alpha: 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(13),
                           ),
                           child: const Icon(
@@ -413,7 +429,8 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
                             children: [
                               const Text(
                                 'Calories Target',
@@ -430,14 +447,6 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                                   fontSize: 12,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${_plannedCalories.toStringAsFixed(0)} kcal',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -450,6 +459,7 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                   // ==================================================
                   // STEPS
                   // ==================================================
+
                   _targetCard(
                     icon: Icons.directions_walk,
                     title: 'Steps Target',
@@ -460,26 +470,12 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                     decimal: false,
                   ),
 
-                  const SizedBox(height: 14),
-
-                  // ==================================================
-                  // SLEEP
-                  // ==================================================
-                  _targetCard(
-                    icon: Icons.bedtime,
-                    title: 'Sleep Target',
-                    subtitle: 'Your target sleep duration',
-                    controller: _sleepTargetController,
-                    hint: '8',
-                    suffix: 'hours',
-                    decimal: true,
-                  ),
-
                   const SizedBox(height: 28),
 
                   // ==================================================
                   // INFORMATION
                   // ==================================================
+
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -487,22 +483,26 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                       color: const Color(0xFF1A1D24),
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Colors.cyan.withValues(alpha: 0.18),
+                        color: Colors.cyan.withValues(
+                          alpha: 0.18,
+                        ),
                       ),
                     ),
                     child: const Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info_outline, color: Colors.cyan, size: 22),
-
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.cyan,
+                          size: 22,
+                        ),
                         SizedBox(width: 12),
-
                         Expanded(
                           child: Text(
-                            'Steps and sleep will be tracked '
-                            'automatically when phone health '
-                            'data is connected. Calories will '
-                            'come from your Diet entries.',
+                            'Steps will be tracked automatically '
+                            'when health data is connected. Calories '
+                            'will come from your Diet entries.',
                             style: TextStyle(
                               color: Colors.white60,
                               fontSize: 13,
@@ -519,47 +519,47 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                   // ==================================================
                   // CONNECT HEALTH DATA
                   // ==================================================
+
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: OutlinedButton.icon(
-                      onPressed: _healthConnecting ? null : _connectHealthData,
-
+                      onPressed: _healthConnecting
+                          ? null
+                          : _connectHealthData,
                       icon: _healthConnecting
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
                             )
                           : Icon(
                               _healthConnected
                                   ? Icons.check_circle_outline
                                   : Icons.favorite_outline,
                             ),
-
                       label: Text(
                         _healthConnecting
                             ? 'Connecting...'
                             : _healthConnected
-                            ? 'Health Data Connected'
-                            : 'Connect Health Data',
+                                ? 'Health Data Connected'
+                                : 'Connect Health Data',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _healthConnected
                             ? Colors.greenAccent
                             : Colors.cyan,
-
                         side: BorderSide(
                           color: _healthConnected
                               ? Colors.greenAccent
                               : Colors.cyan,
                         ),
-
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -572,12 +572,12 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                   // ==================================================
                   // SAVE
                   // ==================================================
+
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: FilledButton(
                       onPressed: _saving ? null : _saveTargets,
-
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.cyan,
                         foregroundColor: Colors.black,
@@ -585,7 +585,6 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-
                       child: _saving
                           ? const SizedBox(
                               width: 22,
@@ -641,11 +640,13 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
               color: Colors.cyan.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(icon, color: Colors.cyan, size: 23),
+            child: Icon(
+              icon,
+              color: Colors.cyan,
+              size: 23,
+            ),
           ),
-
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,20 +658,21 @@ class _DailyMetricsScreenState extends State<DailyMetricsScreen>
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-
                 const SizedBox(height: 3),
-
                 Text(
                   subtitle,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                  ),
                 ),
-
                 const SizedBox(height: 8),
-
                 TextField(
                   controller: controller,
                   keyboardType: decimal
-                      ? const TextInputType.numberWithOptions(decimal: true)
+                      ? const TextInputType.numberWithOptions(
+                          decimal: true,
+                        )
                       : TextInputType.number,
                   decoration: InputDecoration(
                     hintText: hint,

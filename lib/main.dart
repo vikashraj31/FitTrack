@@ -8,17 +8,12 @@ import 'screens/diet/diet_screen.dart';
 import 'screens/home/daily_metrics_screen.dart';
 import 'services/database_service.dart';
 import 'services/health_sync_service.dart';
-import 'services/workout_seed_service.dart';
 import 'screens/stats/stats_screen.dart';
 import 'screens/exercise/exercise_screen.dart';
 import 'screens/settings/settings_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final database = AppDatabase();
-
-  await WorkoutSeedService.seedFitNotesWorkouts(database);
 
   runApp(const FitTrackApp());
 }
@@ -113,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final targets = await _database.getDailyTargets(userId: 'user1');
 
         final steps = (healthData['steps'] as num?)?.toInt() ?? 0;
-        final sleepHours = (healthData['sleepHours'] as num?)?.toDouble() ?? 0;
 
         final plannedCalories = await _database.getPlannedCalories(
           userId: 'user1',
@@ -133,7 +127,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           calorieTarget: calorieTarget,
           steps: steps,
           stepTarget: stepTarget,
-          sleepHours: sleepHours,
           recoveryScore: existing?.recoveryScore ?? 0,
           effortScore: existing?.effortScore ?? 0,
         );
@@ -175,7 +168,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         calorieTarget: existing?.calorieTarget ?? 0,
         steps: steps,
         stepTarget: targets?.stepTarget ?? existing?.stepTarget ?? 10000,
-        sleepHours: existing?.sleepHours ?? 0,
         recoveryScore: existing?.recoveryScore ?? 0,
         effortScore: existing?.effortScore ?? 0,
       );
@@ -246,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _openDiet() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const DietScreen()),
+      MaterialPageRoute(builder: (_) => const DietScreen(todayOnly: true)),
     );
 
     await _loadDailyData();
@@ -314,56 +306,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return value;
   }
 
-  // ==========================================================
-  // DATE TEXT
-  // ==========================================================
-
-  String _dateText() {
-    final date = DateTime.now();
-
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
-  // ==========================================================
-  // SLEEP TEXT
-  // ==========================================================
-
-  String _sleepText() {
-    if (_dailyData == null) {
-      return '—';
-    }
-
-    final hours = _dailyData!.sleepHours;
-
-    if (hours <= 0) {
-      return '—';
-    }
-
-    final wholeHours = hours.floor();
-
-    final minutes = ((hours - wholeHours) * 60).round();
-
-    if (minutes == 60) {
-      return '${wholeHours + 1}h 0m';
-    }
-
-    return '${wholeHours}h ${minutes}m';
-  }
 
   // ==========================================================
   // DISPOSE
@@ -420,91 +362,60 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 // =================================================
                 // HEADER
                 // =================================================
-                Row(
+                Column(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'FitTrack',
-                            style: TextStyle(
-                              fontSize: 27,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Steps - left
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 28),
+                            child: _metricRing(
+                              value: _stepsPercent(),
+                              label: 'Steps',
+                              displayValue: _dailyData == null
+                                  ? '0'
+                                  : '${_stepsPercent().round()}',
+                              color: const Color(0xFFB66CFF),
                             ),
                           ),
+                        ),
 
-                          const SizedBox(height: 3),
+                        // Recovery - center, slightly higher
+                        Expanded(
+                          child: _metricRing(
+                            value: _recoveryPercent(),
+                            label: 'Recovery',
+                            displayValue:
+                                _dailyData == null ||
+                                    _dailyData!.recoveryScore <= 0
+                                ? '0'
+                                : '${_recoveryPercent().round()}',
+                            color: const Color(0xFF39D98A),
+                          ),
+                        ),
 
-                          Text(
-                            _dateText(),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.white60,
+                        // Effort - right
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 28),
+                            child: _metricRing(
+                              value: _effortPercent(),
+                              label: 'Effort',
+                              displayValue:
+                                  _dailyData == null ||
+                                      _dailyData!.effortScore <= 0
+                                  ? '0'
+                                  : '${_effortPercent().round()}',
+                              color: const Color(0xFFFF7A21),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 32),
-
-                // =================================================
-                // TODAY
-                // =================================================
-                const Text(
-                  'Today',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-
-                const SizedBox(height: 18),
-
-                // =================================================
-                // MAIN THREE RINGS
-                // =================================================
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: _metricRing(
-                        value: _stepsPercent(),
-                        label: 'Steps',
-                        displayValue: _dailyData == null
-                            ? '0'
-                            : '${_stepsPercent().round()}',
-                        color: const Color(0xFFB66CFF),
-                      ),
-                    ),
-
-                    Expanded(
-                      child: _metricRing(
-                        value: _recoveryPercent(),
-                        label: 'Recovery',
-                        displayValue:
-                            _dailyData == null || _dailyData!.recoveryScore <= 0
-                            ? '0'
-                            : '${_recoveryPercent().round()}',
-                        color: const Color(0xFF39D98A),
-                      ),
-                    ),
-
-                    Expanded(
-                      child: _metricRing(
-                        value: _effortPercent(),
-                        label: 'Effort',
-                        displayValue:
-                            _dailyData == null || _dailyData!.effortScore <= 0
-                            ? '0'
-                            : '${_effortPercent().round()}',
-                        color: const Color(0xFFFF7A21),
-                      ),
-                    ),
-                  ],
-                ),
-
                 const SizedBox(height: 34),
 
                 // =================================================
@@ -517,35 +428,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                 const SizedBox(height: 14),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: _infoCard(
-                        icon: Icons.local_fire_department,
-                        title: 'Calories',
-                        value: _dailyData == null
-                            ? '—'
-                            : '${_dailyData!.calories.round()} kcal',
-                        color: const Color(0xFFFFB52E),
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    Expanded(
-                      child: _infoCard(
-                        icon: Icons.bedtime_outlined,
-                        title: 'Sleep',
-                        value: _sleepText(),
-                        color: const Color(0xFF9B6CFF),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                const SizedBox(height: 14),
+                const SizedBox(height: 28),
 
                 Row(
                   children: [
@@ -580,9 +463,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 12),
-
                 // =================================================
                 // USERS
                 // =================================================
@@ -743,46 +623,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ],
-    );
-  }
-
-  // ============================================================
-  // INFO CARD
-  // ============================================================
-
-  Widget _infoCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 22),
-
-          const SizedBox(height: 14),
-
-          Text(
-            title,
-            style: const TextStyle(fontSize: 13, color: Colors.white60),
-          ),
-
-          const SizedBox(height: 5),
-
-          Text(
-            value,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
     );
   }
 
@@ -989,7 +829,7 @@ class User1Screen extends StatelessWidget {
                   context,
                   icon: Icons.analytics_outlined,
                   title: 'Daily Metrics',
-                  subtitle: 'Steps, sleep, effort and recovery',
+                  subtitle: 'Steps, effort and recovery',
                   onTap: () async {
                     await Navigator.push(
                       context,

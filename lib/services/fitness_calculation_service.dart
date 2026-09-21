@@ -56,19 +56,13 @@ class FitnessCalculationService {
 
   /// Calculates Recovery Score.
   ///
-  /// Sleep contributes 60%.
-  /// Activity condition contributes 20%.
-  /// Training condition contributes 20%.
+  /// Activity recovery contributes 50%.
+  /// Training recovery contributes 50%.
   static double calculateRecovery({
-    required double sleepHours,
     required double steps,
     required double stepTarget,
     required double trainingLoad,
   }) {
-    // 8 hours sleep = 100% sleep recovery.
-    final sleepScore =
-        ((sleepHours / 8) * 100).clamp(0, 100).toDouble();
-
     final stepPercent = calculateTargetPercentage(
       value: steps,
       target: stepTarget,
@@ -97,10 +91,10 @@ class FitnessCalculationService {
             .clamp(0, 100)
             .toDouble();
 
+    // Recovery is now completely independent of sleep.
     final recovery =
-        (sleepScore * 0.60) +
-        (activityRecovery * 0.20) +
-        (trainingRecovery * 0.20);
+        (activityRecovery * 0.50) +
+        (trainingRecovery * 0.50);
 
     return recovery.clamp(0, 100).toDouble();
   }

@@ -18,13 +18,9 @@ class HealthSyncService {
 
     final types = <HealthDataType>[
       HealthDataType.STEPS,
-      HealthDataType.SLEEP_SESSION,
-      HealthDataType.SLEEP_ASLEEP,
     ];
 
     final permissions = <HealthDataAccess>[
-      HealthDataAccess.READ,
-      HealthDataAccess.READ,
       HealthDataAccess.READ,
     ];
 
@@ -66,13 +62,13 @@ class HealthSyncService {
       }
 
       final now = DateTime.now();
+
       final midnight = DateTime(
         now.year,
         now.month,
         now.day,
       );
 
-      // First try Health Connect's aggregated step total.
       try {
         final totalSteps = await _health.getTotalStepsInInterval(
           midnight,
@@ -85,150 +81,15 @@ class HealthSyncService {
           'Health Connect aggregated steps: $steps',
         );
 
-        if (steps > 0) {
-          return steps;
-        }
+        return steps;
       } catch (e) {
         debugPrint(
           'Health Connect aggregated step read error: $e',
         );
-      }
-
-      // Fallback: read the actual Steps records.
-      try {
-        final stepData = await _health.getHealthDataFromTypes(
-          types: [HealthDataType.STEPS],
-          startTime: midnight,
-          endTime: now,
-        );
-
-        double total = 0;
-
-        for (final point in stepData) {
-          final value = point.value;
-
-          if (value is NumericHealthValue) {
-            total += value.numericValue;
-          }
-        }
-
-        final steps = total.round();
-
-        debugPrint(
-          'Health Connect raw step records: $steps',
-        );
-
-        return steps;
-      } catch (e) {
-        debugPrint(
-          'Health Connect raw step read error: $e',
-        );
-      }
-
-      return 0;
-    } catch (e) {
-      debugPrint('Health steps read error: $e');
-      return 0;
-    }
-  }
-
-  // ============================================================
-  // SLEEP
-  // ============================================================
-
-  static Future<double> getSleepHours() async {
-    try {
-      if (!await _ensureAuthorization()) {
-        debugPrint('Health authorization unavailable for sleep.');
         return 0;
       }
-
-      final now = DateTime.now();
-
-      // Cover the previous evening + overnight sleep.
-      final sleepStart = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).subtract(
-        const Duration(hours: 18),
-      );
-
-      // ----------------------------------------------------------
-      // FIRST: Read complete sleep sessions.
-      // ----------------------------------------------------------
-
-      try {
-        final sessionData = await _health.getHealthDataFromTypes(
-          types: [HealthDataType.SLEEP_SESSION],
-          startTime: sleepStart,
-          endTime: now,
-        );
-
-        double sleepMinutes = 0;
-
-        for (final point in sessionData) {
-          final value = point.value;
-
-          if (value is NumericHealthValue) {
-            sleepMinutes += value.numericValue;
-          }
-        }
-
-        if (sleepMinutes > 0) {
-          final sleepHours = sleepMinutes / 60.0;
-
-          debugPrint(
-            'Health Connect sleep sessions: '
-            '${sleepHours.toStringAsFixed(2)} hours',
-          );
-
-          return sleepHours;
-        }
-      } catch (e) {
-        debugPrint(
-          'Health sleep session read error: $e',
-        );
-      }
-
-      // ----------------------------------------------------------
-      // FALLBACK: Read asleep-stage records.
-      // ----------------------------------------------------------
-
-      try {
-        final sleepData = await _health.getHealthDataFromTypes(
-          types: [HealthDataType.SLEEP_ASLEEP],
-          startTime: sleepStart,
-          endTime: now,
-        );
-
-        double sleepMinutes = 0;
-
-        for (final point in sleepData) {
-          final value = point.value;
-
-          if (value is NumericHealthValue) {
-            sleepMinutes += value.numericValue;
-          }
-        }
-
-        final sleepHours = sleepMinutes / 60.0;
-
-        debugPrint(
-          'Health Connect asleep records: '
-          '${sleepHours.toStringAsFixed(2)} hours',
-        );
-
-        return sleepHours;
-      } catch (e) {
-        debugPrint(
-          'Health asleep record read error: $e',
-        );
-      }
-
-      return 0;
     } catch (e) {
-      debugPrint('Health sleep read error: $e');
+      debugPrint('Health steps read error: $e');
       return 0;
     }
   }
@@ -248,17 +109,13 @@ class HealthSyncService {
       }
 
       final steps = await getTodaySteps();
-      final sleepHours = await getSleepHours();
 
       debugPrint(
-        'FitTrack Health Sync → '
-        'steps=$steps, '
-        'sleep=${sleepHours.toStringAsFixed(2)}h',
+        'FitTrack Health Sync → steps=$steps',
       );
 
       return {
         'steps': steps,
-        'sleepHours': sleepHours,
       };
     } catch (e) {
       debugPrint('Health sync error: $e');

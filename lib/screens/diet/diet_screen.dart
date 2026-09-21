@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/database_service.dart';
+import 'weekly_diet_screen.dart';
 
 /// User 1 weekly diet plan.
 ///
@@ -10,7 +11,9 @@ import '../../services/database_service.dart';
 /// Therefore item-level planned calories are intentionally stored as 0.
 /// Actual calories remain editable when the user logs what was really eaten.
 class DietScreen extends StatefulWidget {
-  const DietScreen({super.key});
+  final bool todayOnly;
+
+  const DietScreen({super.key, this.todayOnly = false});
 
   @override
   State<DietScreen> createState() => _DietScreenState();
@@ -19,12 +22,15 @@ class DietScreen extends StatefulWidget {
 class _DietScreenState extends State<DietScreen> {
   final AppDatabase _database = AppDatabase();
 
+  bool get _todayOnly => widget.todayOnly;
+
   DateTime _selectedDate = DateTime.now();
   List<DietEntry> _entries = [];
   List<ExtraCaloriesEntry> _extraCalories = [];
   bool _loading = true;
   bool _seeding = false;
-
+  double? _customTargetCalories;
+  double? _customTargetProtein;
   static const String _seedMarker = '__FITTRACK_WEEKLY_DIET_PLAN_V1__';
 
   static const List<String> _meals = [
@@ -234,14 +240,30 @@ class _DietScreenState extends State<DietScreen> {
 
   DietDayPlan get _todayPlan =>
       _weeklyPlan[_selectedDate.weekday] ?? _weeklyPlan[DateTime.monday]!;
+  Future<WeeklyDietPlan?> _getCustomWeeklyPlan() {
+    return _database.getWeeklyDietPlan(
+      userId: 'user1',
+      dayOfWeek: _selectedDate.weekday,
+    );
+  }
 
+  Future<void> _repairExistingPlanCalories() async {
+  // Custom weekly plans already contain the correct calories
+  // for each individual food item. Never redistribute or
+  // overwrite those calories.
+  final customPlan = await _getCustomWeeklyPlan();
 
-Future<void> _repairExistingPlanCalories() async {
+  if (customPlan != null) {
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // OLD BUILT-IN PLAN FALLBACK
+  // ----------------------------------------------------------
   final plan = _todayPlan;
 
-  final totalFoodItems = plan.meals.values
-      .expand((items) => items)
-      .length;
+  final totalFoodItems =
+      plan.meals.values.expand((items) => items).length;
 
   if (totalFoodItems == 0) return;
 
@@ -268,19 +290,28 @@ Future<void> _repairExistingPlanCalories() async {
         actualQuantity: entry.actualQuantity,
         actualCalories: entry.eaten ? caloriesPerItem : 0,
         eaten: entry.eaten,
-      );
+       );
     }
   }
 }
   // ==========================================================
   // LOAD + SEED
-  // ==========================================================
 
   Future<void> _loadData() async {
     if (mounted) {
       setState(() {
         _loading = true;
       });
+    }
+
+    final customPlan = await _getCustomWeeklyPlan();
+
+    if (customPlan != null) {
+      _customTargetCalories = customPlan.targetCalories;
+      _customTargetProtein = customPlan.targetProtein;
+    } else {
+      _customTargetCalories = null;
+      _customTargetProtein = null;
     }
 
     await _ensurePlanSeeded();
@@ -318,6 +349,66 @@ Future<void> _repairExistingPlanCalories() async {
         date: _selectedDate,
       );
 
+      // ----------------------------------------------------------
+      // CUSTOM WEEKLY PLAN
+      // ----------------------------------------------------------
+      final customPlan = await _getCustomWeeklyPlan();
+
+      if (customPlan != null) {
+        final customMarker = '__FITTRACK_WEEKLY_PLAN_${customPlan.id}__';
+
+        final alreadySeeded = existing.any(
+          (entry) => entry.foodName == customMarker,
+        );
+
+        if (alreadySeeded) return;
+
+        final items = await _database.getWeeklyDietItems(planId: customPlan.id);
+
+        // If the selected date already contains real daily entries,
+        // do not overwrite them.
+        final hasRealEntries = existing.any(
+          (entry) =>
+              entry.foodName != _seedMarker &&
+              !entry.foodName.startsWith('__FITTRACK_WEEKLY_PLAN_'),
+        );
+
+        if (hasRealEntries) return;
+
+        for (final item in items) {
+          await _database.saveDietEntry(
+            userId: 'user1',
+            date: _selectedDate,
+            meal: item.meal,
+            foodName: item.foodName,
+            plannedQuantity: item.quantity,
+            quantityUnit: item.quantityUnit,
+            plannedCalories: item.calories,
+            actualQuantity: 0,
+            actualCalories: 0,
+            eaten: false,
+          );
+        }
+
+        await _database.saveDietEntry(
+          userId: 'user1',
+          date: _selectedDate,
+          meal: '__META__',
+          foodName: customMarker,
+          plannedQuantity: 0,
+          quantityUnit: '',
+          plannedCalories: 0,
+          actualQuantity: 0,
+          actualCalories: 0,
+          eaten: false,
+        );
+
+        return;
+      }
+
+      // ----------------------------------------------------------
+      // OLD BUILT-IN PLAN FALLBACK
+      // ----------------------------------------------------------
       final alreadySeeded = existing.any(
         (entry) => entry.foodName == _seedMarker,
       );
@@ -351,8 +442,6 @@ Future<void> _repairExistingPlanCalories() async {
         }
       }
 
-      // Persistent marker prevents the plan from being re-created if
-      // the user later deletes one or more planned food entries.
       await _database.saveDietEntry(
         userId: 'user1',
         date: _selectedDate,
@@ -528,6 +617,10 @@ Future<void> _repairExistingPlanCalories() async {
   }
 
   double get _targetMidpoint {
+    if (_customTargetCalories != null && _customTargetCalories! > 0) {
+      return _customTargetCalories!;
+    }
+
     final numbers = RegExp(r'(\d+(?:\.\d+)?)')
         .allMatches(_todayPlan.calorieRange)
         .map((match) => double.tryParse(match.group(1)!) ?? 0)
@@ -556,16 +649,18 @@ Future<void> _repairExistingPlanCalories() async {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F1115),
         elevation: 0,
-        title: const Text(
-          'Diet',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          _todayOnly ? "Today's Diet" : 'Diet',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            onPressed: _selectDate,
-            icon: const Icon(Icons.calendar_month),
-          ),
-        ],
+        actions: _todayOnly
+            ? null
+            : [
+                IconButton(
+                  onPressed: _selectDate,
+                  icon: const Icon(Icons.calendar_month),
+                ),
+              ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -574,12 +669,45 @@ Future<void> _repairExistingPlanCalories() async {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
                 children: [
-                  _buildDateCard(),
-                  const SizedBox(height: 12),
+                  if (_todayOnly)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        '${_todayPlan.day} • ${_formatDate(_selectedDate)}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    )
+                  else ...[
+                    _buildDateCard(),
+                    const SizedBox(height: 12),
+                  ],
                   _buildPlanSummary(),
                   const SizedBox(height: 16),
                   _buildCaloriesSummary(),
                   const SizedBox(height: 12),
+                  if (!_todayOnly) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const WeeklyDietScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.calendar_view_week),
+                        label: const Text('Manage Weekly Diet'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
@@ -605,137 +733,49 @@ Future<void> _repairExistingPlanCalories() async {
   // ==========================================================
 
   Widget _buildDateCard() {
-    final current = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-
-    final monday = current.subtract(
-      Duration(days: current.weekday - DateTime.monday),
-    );
-
-    const dayNames = [
-      'Mon',
-      'Tue',
-      'Wed',
-      'Thu',
-      'Fri',
-      'Sat',
-      'Sun',
-    ];
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+    final card = Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1D24),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  '7-Day Diet Plan',
-                  style: TextStyle(
-                    fontSize: 18,
+          const Icon(Icons.calendar_today, color: Colors.cyan),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _todayOnly ? 'Today' : 'Selected Date',
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_todayPlan.day} • ${_formatDate(_selectedDate)}',
+                  style: const TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: _selectDate,
-                icon: const Icon(
-                  Icons.calendar_month,
-                  color: Colors.cyan,
-                ),
-                tooltip: 'Select date',
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${_todayPlan.day} • ${_formatDate(_selectedDate)}',
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 13,
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 72,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 7,
-              itemBuilder: (context, index) {
-                final date = monday.add(Duration(days: index));
-
-                final selected =
-                    date.year == _selectedDate.year &&
-                    date.month == _selectedDate.month &&
-                    date.day == _selectedDate.day;
-
-                return GestureDetector(
-                  onTap: () async {
-                    if (selected) return;
-
-                    setState(() {
-                      _selectedDate = date;
-                    });
-
-                    await _loadData();
-                  },
-                  child: Container(
-                    width: 58,
-                    margin: EdgeInsets.only(
-                      right: index == 6 ? 0 : 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.cyan
-                          : const Color(0xFF22252D),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: selected
-                            ? Colors.cyan
-                            : Colors.white10,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          dayNames[index],
-                          style: TextStyle(
-                            color: selected
-                                ? Colors.black
-                                : Colors.white54,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          '${date.day}',
-                          style: TextStyle(
-                            color: selected
-                                ? Colors.black
-                                : Colors.white,
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          if (!_todayOnly)
+            const Icon(Icons.chevron_right, color: Colors.white54),
         ],
       ),
+    );
+
+    if (_todayOnly) {
+      return card;
+    }
+
+    return InkWell(
+      onTap: _selectDate,
+      borderRadius: BorderRadius.circular(18),
+      child: card,
     );
   }
 
@@ -778,11 +818,15 @@ Future<void> _repairExistingPlanCalories() async {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _todayPlan.calorieRange,
+                  _customTargetCalories != null
+                      ? '${_customTargetCalories!.toStringAsFixed(0)} kcal'
+                      : _todayPlan.calorieRange,
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 Text(
-                  _todayPlan.proteinRange,
+                  _customTargetProtein != null
+                      ? '${_customTargetProtein!.toStringAsFixed(0)} g protein'
+                      : _todayPlan.proteinRange,
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
@@ -801,68 +845,51 @@ Future<void> _repairExistingPlanCalories() async {
     final actual = _actualCalories;
     final percentage = _caloriePercentage;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Calories',
-            style: TextStyle(fontSize: 16, color: Colors.white70),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                actual.toStringAsFixed(0),
-                style: const TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Calories Eaten',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white70,
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(width: 6),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 5),
-                child: Text('kcal', style: TextStyle(color: Colors.white54)),
-              ),
-              const Spacer(),
-              Text(
-                '${percentage.toStringAsFixed(0)}%',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.cyan,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Plan range: ${_todayPlan.calorieRange}',
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Percentage uses the midpoint of the plan range.',
-            style: const TextStyle(color: Colors.white38, fontSize: 11),
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: (percentage / 100).clamp(0.0, 1.0),
-              minHeight: 8,
-              backgroundColor: Colors.white12,
-              valueColor: const AlwaysStoppedAnimation(Colors.cyan),
             ),
+            const Spacer(),
+            Text(
+              '${actual.toStringAsFixed(0)} kcal',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '${percentage.toStringAsFixed(0)}%',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.cyan,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Target: ${_targetMidpoint.toStringAsFixed(0)} kcal',
+          style: const TextStyle(color: Colors.white38, fontSize: 11),
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: (percentage / 100).clamp(0.0, 1.0),
+            minHeight: 4,
+            backgroundColor: Colors.white12,
+            valueColor: const AlwaysStoppedAnimation(Colors.cyan),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1030,10 +1057,7 @@ Future<void> _repairExistingPlanCalories() async {
   Future<void> _openFoodLibraryDialog() async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (_) => AddFoodLibraryDialog(
-        database: _database,
-        addToDate: _selectedDate,
-      ),
+      builder: (_) => AddFoodLibraryDialog(database: _database),
     );
 
     if (result == true && mounted) {
@@ -1047,10 +1071,7 @@ Future<void> _repairExistingPlanCalories() async {
   Future<void> _addCustomFood(String meal) async {
     final result = await showDialog<FoodLibraryPickerResult>(
       context: context,
-      builder: (_) => FoodLibraryPickerDialog(
-        database: _database,
-        meal: meal,
-      ),
+      builder: (_) => FoodLibraryPickerDialog(database: _database, meal: meal),
     );
 
     if (!mounted || result == null) return;
@@ -1058,11 +1079,8 @@ Future<void> _repairExistingPlanCalories() async {
     if (result.createManually) {
       final manualResult = await showDialog<bool>(
         context: context,
-        builder: (_) => AddDietDialog(
-          meal: meal,
-          database: _database,
-          date: _selectedDate,
-        ),
+        builder: (_) =>
+            AddDietDialog(meal: meal, database: _database, date: _selectedDate),
       );
 
       if (manualResult == true) {
@@ -1623,16 +1641,12 @@ class FoodLibraryPickerResult {
   final FoodLibraryData? food;
   final bool createManually;
 
-  const FoodLibraryPickerResult._({
-    this.food,
-    this.createManually = false,
-  });
+  const FoodLibraryPickerResult._({this.food, this.createManually = false});
 
   const FoodLibraryPickerResult.food(FoodLibraryData value)
-      : this._(food: value);
+    : this._(food: value);
 
-  const FoodLibraryPickerResult.manual()
-      : this._(createManually: true);
+  const FoodLibraryPickerResult.manual() : this._(createManually: true);
 }
 
 class FoodLibraryPickerDialog extends StatefulWidget {
@@ -1698,47 +1712,47 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
                 child: Center(child: CircularProgressIndicator()),
               )
             : _foods.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Text(
-                      'No saved foods yet.',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _foods.length,
-                    separatorBuilder: (_, _) =>
-                        const Divider(color: Colors.white12),
-                    itemBuilder: (context, index) {
-                      final food = _foods[index];
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  'No saved foods yet.',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              )
+            : ListView.separated(
+                shrinkWrap: true,
+                itemCount: _foods.length,
+                separatorBuilder: (_, _) =>
+    const Divider(color: Colors.white12),
+                itemBuilder: (context, index) {
+                  final food = _foods[index];
 
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.white10,
-                          child: Icon(Icons.restaurant, color: Colors.cyan),
-                        ),
-                        title: Text(
-                          food.foodName,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          '${food.quantity} ${food.quantityUnit} • '
-                          '${food.calories.toStringAsFixed(0)} kcal',
-                          style: const TextStyle(color: Colors.white54),
-                        ),
-                        trailing: const Icon(
-                          Icons.add_circle_outline,
-                          color: Colors.cyan,
-                        ),
-                        onTap: () => Navigator.pop(
-                          context,
-                          FoodLibraryPickerResult.food(food),
-                        ),
-                      );
-                    },
-                  ),
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      backgroundColor: Colors.white10,
+                      child: Icon(Icons.restaurant, color: Colors.cyan),
+                    ),
+                    title: Text(
+                      food.foodName,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      '${food.quantity} ${food.quantityUnit} • '
+                      '${food.calories.toStringAsFixed(0)} kcal',
+                      style: const TextStyle(color: Colors.white54),
+                    ),
+                    trailing: const Icon(
+                      Icons.add_circle_outline,
+                      color: Colors.cyan,
+                    ),
+                    onTap: () => Navigator.pop(
+                      context,
+                      FoodLibraryPickerResult.food(food),
+                    ),
+                  );
+                },
+              ),
       ),
       actions: [
         TextButton.icon(
@@ -1752,10 +1766,8 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
         ),
         if (_foods.isNotEmpty)
           FilledButton.tonal(
-            onPressed: () => Navigator.pop(
-              context,
-              const FoodLibraryPickerResult.manual(),
-            ),
+            onPressed: () =>
+                Navigator.pop(context, const FoodLibraryPickerResult.manual()),
             child: const Text('Add Manually'),
           ),
       ],
@@ -1770,13 +1782,11 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
 class AddFoodLibraryDialog extends StatefulWidget {
   final AppDatabase database;
   final String? initialMeal;
-  final DateTime? addToDate;
 
   const AddFoodLibraryDialog({
     super.key,
     required this.database,
     this.initialMeal,
-    this.addToDate,
   });
 
   @override
@@ -1813,42 +1823,23 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
     setState(() => _saving = true);
 
     try {
-      final foodName = _foodController.text.trim();
-      final quantity = double.parse(_quantityController.text.trim());
-      final calories = double.parse(_caloriesController.text.trim());
-
       await widget.database.saveFoodLibraryItem(
         userId: 'user1',
-        foodName: foodName,
+        foodName: _foodController.text.trim(),
         defaultMeal: _meal,
-        quantity: quantity,
+        quantity: double.parse(_quantityController.text.trim()),
         quantityUnit: _unit,
-        calories: calories,
+        calories: double.parse(_caloriesController.text.trim()),
       );
-
-      if (widget.addToDate != null) {
-        await widget.database.saveDietEntry(
-          userId: 'user1',
-          date: widget.addToDate!,
-          meal: _meal,
-          foodName: foodName,
-          plannedQuantity: quantity,
-          quantityUnit: _unit,
-          plannedCalories: calories,
-          actualQuantity: 0,
-          actualCalories: 0,
-          eaten: false,
-        );
-      }
 
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save food: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save food: $e')));
     }
   }
 
@@ -1870,24 +1861,28 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                   labelText: 'Food name',
                   hintText: 'Example: Eggs',
                 ),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? 'Enter food name'
-                        : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Enter food name'
+                    : null,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _meal,
+  initialValue: _meal,
                 decoration: const InputDecoration(labelText: 'Default meal'),
                 items: const [
-                  DropdownMenuItem(value: 'Breakfast', child: Text('Breakfast')),
+                  DropdownMenuItem(
+                    value: 'Breakfast',
+                    child: Text('Breakfast'),
+                  ),
                   DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
                   DropdownMenuItem(value: 'Evening', child: Text('Evening')),
                   DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
                 ],
-                onChanged: _saving ? null : (value) {
-                  if (value != null) setState(() => _meal = value);
-                },
+                onChanged: _saving
+                    ? null
+                    : (value) {
+                        if (value != null) setState(() => _meal = value);
+                      },
               ),
               const SizedBox(height: 12),
               Row(
@@ -1895,32 +1890,41 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _quantityController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Quantity',
                         hintText: 'Example: 100',
                       ),
                       validator: (value) {
                         final quantity = double.tryParse(value?.trim() ?? '');
-                        return quantity == null || quantity <= 0 ? 'Invalid' : null;
+                        return quantity == null || quantity <= 0
+                            ? 'Invalid'
+                            : null;
                       },
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _unit,
+  initialValue: _unit,
                       decoration: const InputDecoration(labelText: 'Unit'),
                       items: const [
                         DropdownMenuItem(value: 'g', child: Text('g')),
                         DropdownMenuItem(value: 'ml', child: Text('ml')),
                         DropdownMenuItem(value: 'piece', child: Text('piece')),
                         DropdownMenuItem(value: 'cup', child: Text('cup')),
-                        DropdownMenuItem(value: 'serving', child: Text('serving')),
+                        DropdownMenuItem(
+                          value: 'serving',
+                          child: Text('serving'),
+                        ),
                       ],
-                      onChanged: _saving ? null : (value) {
-                        if (value != null) setState(() => _unit = value);
-                      },
+                      onChanged: _saving
+                          ? null
+                          : (value) {
+                              if (value != null) setState(() => _unit = value);
+                            },
                     ),
                   ),
                 ],
@@ -1928,7 +1932,9 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _caloriesController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Calories',
                   hintText: 'Example: 150',

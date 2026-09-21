@@ -77,12 +77,6 @@ class SettingsScreen extends StatelessWidget {
                 title: 'Steps',
                 subtitle: 'Daily target is managed from Daily Metrics',
               ),
-              const SizedBox(height: 10),
-              _infoTile(
-                icon: Icons.bedtime_outlined,
-                title: 'Sleep',
-                subtitle: 'Daily sleep data is saved with Daily Metrics',
-              ),
               const SizedBox(height: 24),
               _sectionTitle('Data'),
               const SizedBox(height: 10),

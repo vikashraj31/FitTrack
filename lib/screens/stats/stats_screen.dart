@@ -19,7 +19,6 @@ class _StatsScreenState extends State<StatsScreen> {
 
   double _avgCalories = 0;
   double _avgSteps = 0;
-  double _avgSleep = 0;
   double _avgRecovery = 0;
   double _avgEffort = 0;
   double _avgTrainingLoad = 0;
@@ -57,11 +56,10 @@ class _StatsScreenState extends State<StatsScreen> {
             .toList(),
       );
 
-      final actualCalories =
-          await _database.getActualCalories(
-            userId: 'user1',
-            date: data.date,
-          );
+      final actualCalories = await _database.getActualCalories(
+        userId: 'user1',
+        date: data.date,
+      );
 
       result.add(
         DailyStats(
@@ -70,7 +68,6 @@ class _StatsScreenState extends State<StatsScreen> {
           calorieTarget: data.calorieTarget.toDouble(),
           steps: data.steps.toDouble(),
           stepTarget: data.stepTarget.toDouble(),
-          sleep: data.sleepHours,
           recovery: data.recoveryScore,
           effort: data.effortScore,
           trainingLoad: trainingLoad,
@@ -91,11 +88,9 @@ class _StatsScreenState extends State<StatsScreen> {
       _stats = result;
       _avgCalories = average(result.map((e) => e.calories).toList());
       _avgSteps = average(result.map((e) => e.steps).toList());
-      _avgSleep = average(result.map((e) => e.sleep).toList());
       _avgRecovery = average(result.map((e) => e.recovery).toList());
       _avgEffort = average(result.map((e) => e.effort).toList());
-      _avgTrainingLoad =
-          average(result.map((e) => e.trainingLoad).toList());
+      _avgTrainingLoad = average(result.map((e) => e.trainingLoad).toList());
       _loading = false;
     });
   }
@@ -138,9 +133,7 @@ class _StatsScreenState extends State<StatsScreen> {
         elevation: 0,
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadStats,
               child: ListView(
@@ -202,9 +195,7 @@ class _StatsScreenState extends State<StatsScreen> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: selected
-                ? const Color(0xFF2374E1)
-                : Colors.transparent,
+            color: selected ? const Color(0xFF2374E1) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -225,25 +216,17 @@ class _StatsScreenState extends State<StatsScreen> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF123E70),
-            Color(0xFF0B2B50),
-          ],
+          colors: [Color(0xFF123E70), Color(0xFF0B2B50)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$_selectedDays-Day Overview',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -267,12 +250,6 @@ class _StatsScreenState extends State<StatsScreen> {
                 child: _overviewValue(
                   'Effort',
                   '${_avgEffort.toStringAsFixed(0)}%',
-                ),
-              ),
-              Expanded(
-                child: _overviewValue(
-                  'Sleep',
-                  '${_avgSleep.toStringAsFixed(1)}h',
                 ),
               ),
             ],
@@ -322,11 +299,7 @@ class _StatsScreenState extends State<StatsScreen> {
           value: _formatNumber(_avgSteps),
           icon: Icons.directions_walk_outlined,
         ),
-        _metricCard(
-          title: 'Avg Sleep',
-          value: '${_avgSleep.toStringAsFixed(1)} h',
-          icon: Icons.bedtime_outlined,
-        ),
+       
         _metricCard(
           title: 'Training Load',
           value: _formatNumber(_avgTrainingLoad),
@@ -346,9 +319,7 @@ class _StatsScreenState extends State<StatsScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,10 +329,7 @@ class _StatsScreenState extends State<StatsScreen> {
           const SizedBox(height: 9),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
           ),
           const SizedBox(height: 3),
           Text(
@@ -405,45 +373,21 @@ class _StatsScreenState extends State<StatsScreen> {
                   '${stat.calories.toStringAsFixed(0)} kcal',
                 ),
               ),
-              Expanded(
-                child: _smallStat(
-                  'Steps',
-                  _formatNumber(stat.steps),
-                ),
-              ),
-              Expanded(
-                child: _smallStat(
-                  'Sleep',
-                  '${stat.sleep.toStringAsFixed(1)} h',
-                ),
-              ),
+              Expanded(child: _smallStat('Steps', _formatNumber(stat.steps))),
             ],
           ),
           const SizedBox(height: 13),
           Row(
             children: [
-              Expanded(
-                child: _progressStat(
-                  'Recovery',
-                  stat.recovery,
-                ),
-              ),
+              Expanded(child: _progressStat('Recovery', stat.recovery)),
               const SizedBox(width: 12),
-              Expanded(
-                child: _progressStat(
-                  'Effort',
-                  stat.effort,
-                ),
-              ),
+              Expanded(child: _progressStat('Effort', stat.effort)),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             'Training Load: ${_formatNumber(stat.trainingLoad)}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
         ],
       ),
@@ -456,10 +400,7 @@ class _StatsScreenState extends State<StatsScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 11,
-          ),
+          style: const TextStyle(color: Colors.white54, fontSize: 11),
         ),
         const SizedBox(height: 3),
         Text(
@@ -485,10 +426,7 @@ class _StatsScreenState extends State<StatsScreen> {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 11,
-              ),
+              style: const TextStyle(color: Colors.white60, fontSize: 11),
             ),
             Text(
               '${safeValue.toStringAsFixed(0)}%',
@@ -522,27 +460,17 @@ class _StatsScreenState extends State<StatsScreen> {
       ),
       child: const Column(
         children: [
-          Icon(
-            Icons.bar_chart_rounded,
-            color: Colors.white54,
-            size: 42,
-          ),
+          Icon(Icons.bar_chart_rounded, color: Colors.white54, size: 42),
           SizedBox(height: 10),
           Text(
             'No saved daily data yet',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 5),
           Text(
             'Save Daily Metrics to start building your statistics.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white60,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: Colors.white60, fontSize: 13),
           ),
         ],
       ),
@@ -563,7 +491,6 @@ class DailyStats {
   final double calorieTarget;
   final double steps;
   final double stepTarget;
-  final double sleep;
   final double recovery;
   final double effort;
   final double trainingLoad;
@@ -574,7 +501,6 @@ class DailyStats {
     required this.calorieTarget,
     required this.steps,
     required this.stepTarget,
-    required this.sleep,
     required this.recovery,
     required this.effort,
     required this.trainingLoad,
