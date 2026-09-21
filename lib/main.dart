@@ -306,7 +306,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return value;
   }
 
-
   // ==========================================================
   // DISPOSE
   // ==========================================================
@@ -363,7 +362,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 // HEADER
                 // =================================================
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // DATE HEADER
+                    Text(
+                      _formatHomeDate(DateTime.now()),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    const Text(
+                      'Today',
+                      style: TextStyle(fontSize: 13, color: Colors.white60),
+                    ),
+
+                    const SizedBox(height: 18),
+
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -570,6 +589,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  String _formatHomeDate(DateTime date) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return '${weekdays[date.weekday - 1]}, '
+        '${date.day} ${months[date.month - 1]}';
+  }
   // ============================================================
   // CIRCULAR METRIC
   // ============================================================
