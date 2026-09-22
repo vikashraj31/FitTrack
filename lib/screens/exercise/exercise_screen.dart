@@ -347,212 +347,256 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Widget _exerciseCard(String exerciseName) {
-    final count = _setCount(exerciseName);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        title: Text(
-          exerciseName,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '$count ${count == 1 ? 'set' : 'sets'}',
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ),
-        trailing: widget.homeMode
-            ? const Icon(Icons.chevron_right, color: Colors.white54)
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Delete today',
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.redAccent,
-                      size: 20,
-                    ),
-                    onPressed: () => _deleteTodayExercise(exerciseName),
+  final count = _setCount(exerciseName);
+
+  return InkWell(
+    onTap: () => _openExercise(exerciseName),
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  exerciseName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const Icon(Icons.chevron_right, color: Colors.white54),
-                ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '$count ${count == 1 ? 'set' : 'sets'}',
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (!widget.homeMode)
+            IconButton(
+              tooltip: 'Delete today',
+              icon: const Icon(
+                Icons.delete_outline,
+                color: Colors.redAccent,
+                size: 18,
               ),
-        onTap: () => _openExercise(exerciseName),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
+              onPressed: () => _deleteTodayExercise(exerciseName),
+            ),
+
+          const Icon(
+            Icons.chevron_right,
+            color: Colors.white38,
+            size: 20,
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _copyCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        leading: const Icon(Icons.content_copy_outlined),
-        title: const Text(
-          'COPY PREVIOUS EXERCISE',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: const Padding(
-          padding: EdgeInsets.only(top: 4),
-          child: Text(
-            'Choose a previous workout and copy it to today',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
+  return InkWell(
+    onTap: _openCopyPreviousExercise,
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.content_copy_outlined,
+            size: 19,
+            color: Colors.white70,
           ),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-        onTap: _openCopyPreviousExercise,
-      ),
-    );
-  }
-
-  Widget _deleteTodayCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.18)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-        title: const Text(
-          "DELETE TODAY'S WORKOUT",
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.redAccent,
-          ),
-        ),
-        subtitle: const Padding(
-          padding: EdgeInsets.only(top: 4),
-          child: Text(
-            'Remove all exercises and sets recorded today',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-        onTap: _deleteAllTodayExercises,
-      ),
-    );
-  }
-
-  Widget _addExerciseCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        leading: const Icon(Icons.add_circle_outline, color: Colors.cyanAccent),
-        title: const Text(
-          'ADD NEW EXERCISE',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: const Padding(
-          padding: EdgeInsets.only(top: 4),
-          child: Text(
-            'Add an exercise to your library',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-        onTap: _addNewExercise,
-      ),
-    );
-  }
-
-  Widget _createRoutineCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        leading: const Icon(
-          Icons.event_note_outlined,
-          color: Colors.orangeAccent,
-        ),
-        title: const Text(
-          'CREATE NEW ROUTINE',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: const Padding(
-          padding: EdgeInsets.only(top: 4),
-          child: Text(
-            'Build a complete workout for any date',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CreateRoutineScreen(
-                userId: widget.userId,
-                database: _database,
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Copy Previous Exercise',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          );
-          await _loadTodayWorkout();
-        },
+          ),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: Colors.white38,
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _myRoutinesCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+  Widget _deleteTodayCard() {
+  return InkWell(
+    onTap: _deleteAllTodayExercises,
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.delete_outline,
+            size: 19,
+            color: Colors.redAccent,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              "Delete Today's Workout",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.redAccent,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: Colors.white38,
+          ),
+        ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        leading: const Icon(
-          Icons.calendar_month_outlined,
-          color: Colors.cyanAccent,
-        ),
-        title: const Text(
-          'MY ROUTINES',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: const Padding(
-          padding: EdgeInsets.only(top: 4),
-          child: Text(
-            'View your date-wise workout routines',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
+    ),
+  );
+}
+
+  Widget _addExerciseCard() {
+  return InkWell(
+    onTap: _addNewExercise,
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.add_circle_outline,
+            size: 19,
+            color: Colors.cyanAccent,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Add New Exercise',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: Colors.white38,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _createRoutineCard() {
+  return InkWell(
+    onTap: () async {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CreateRoutineScreen(
+            userId: widget.userId,
+            database: _database,
           ),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  MyRoutinesScreen(userId: widget.userId, database: _database),
+      );
+      await _loadTodayWorkout();
+    },
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.event_note_outlined,
+            size: 19,
+            color: Colors.orangeAccent,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Create New Routine',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          );
-          await _loadTodayWorkout();
-        },
+          ),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: Colors.white38,
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+  Widget _myRoutinesCard() {
+  return InkWell(
+    onTap: () async {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MyRoutinesScreen(
+            userId: widget.userId,
+            database: _database,
+          ),
+        ),
+      );
+      await _loadTodayWorkout();
+    },
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.calendar_month_outlined,
+            size: 19,
+            color: Colors.cyanAccent,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'My Routines',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: Colors.white38,
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   Future<void> _deleteLibraryExercise(ExerciseLibraryData exercise) async {
     final confirmed = await showDialog<bool>(
@@ -593,57 +637,65 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Widget _libraryExerciseCard(ExerciseLibraryData exercise) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        title: Text(
-          exercise.exerciseName,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-        subtitle: const Padding(
-          padding: EdgeInsets.only(top: 3),
-          child: Text(
-            'Tap to record today',
-            style: TextStyle(color: Colors.white54, fontSize: 11),
+  return InkWell(
+    onTap: () => _openExercise(exercise.exerciseName),
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.fitness_center_outlined,
+            size: 18,
+            color: Colors.white70,
           ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Delete from library',
-              icon: const Icon(
-                Icons.delete_outline,
-                color: Colors.redAccent,
-                size: 21,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              exercise.exerciseName,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-              onPressed: () => _deleteLibraryExercise(exercise),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white54),
-          ],
+          ),
+          IconButton(
+            tooltip: 'Delete from library',
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Colors.redAccent,
+              size: 18,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
+            ),
+            onPressed: () => _deleteLibraryExercise(exercise),
+          ),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: Colors.white38,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _emptyCard() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        'No exercises for today.',
+        style: TextStyle(
+          color: Colors.white38,
+          fontSize: 13,
         ),
-        onTap: () => _openExercise(exercise.exerciseName),
       ),
     );
   }
-
-  Widget _emptyCard() => Container(
-    padding: const EdgeInsets.all(22),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.055),
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: const Text(
-      'No exercises for today.',
-      style: TextStyle(color: Colors.white60),
-    ),
-  );
 }
 
 // ============================================================
