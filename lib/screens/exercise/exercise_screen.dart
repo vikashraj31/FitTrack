@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
-
+import '../../utils/exercise_catalog.dart';
 import '../../services/database_service.dart';
 
 class ExerciseScreen extends StatefulWidget {
@@ -117,36 +117,43 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Future<void> _addNewExercise() async {
+    final exerciseNames = {
+  ...ExerciseCatalog.defaultExercises,
+  ..._exerciseLibrary.map((e) => e.exerciseName),
+}.toList();
+
+exerciseNames.sort();
     final exerciseName = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (_) => AddExerciseScreen(exercises: _exerciseLibrary),
+        builder: (_) => AddExerciseScreen(exerciseNames: exerciseNames),
       ),
     );
 
-    if (!mounted || exerciseName == null) return;
-
-    final normalized = exerciseName.trim();
-    if (normalized.isEmpty) return;
-
-    final alreadyExists = _exerciseLibrary.any(
-      (item) =>
-          item.exerciseName.trim().toLowerCase() == normalized.toLowerCase(),
-    );
-
-    if (!alreadyExists) {
-      try {
-        await _database.saveExerciseLibraryItem(
-          userId: widget.userId,
-          exerciseName: normalized,
-        );
-      } catch (e) {
-        debugPrint('Error adding exercise: $e');
-        return;
-      }
+    if (exerciseName == null || exerciseName.trim().isEmpty) {
+      return;
     }
 
-    await _openExercise(normalized);
+    final exists = _exerciseLibrary.any(
+      (exercise) =>
+          exercise.exerciseName.trim().toLowerCase() ==
+          exerciseName.trim().toLowerCase(),
+    );
+
+    if (!exists &&
+        !ExerciseCatalog.defaultExercises.any(
+          (name) =>
+              name.trim().toLowerCase() == exerciseName.trim().toLowerCase(),
+        )) {
+      await _database.saveExerciseLibraryItem(
+        userId: widget.userId,
+        exerciseName: exerciseName.trim(),
+      );
+    }
+
+    if (!mounted) return;
+
+    await _openExercise(exerciseName.trim());
   }
 
   Future<void> _deleteTodayExercise(String exerciseName) async {
@@ -1872,16 +1879,16 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
       final performedDate = DateTime.now();
 
       for (var i = 0; i < values.length; i++) {
-  final value = values[i];
+        final value = values[i];
 
-  await widget.database.saveSet(
-    userId: widget.userId,
-    exerciseName: value.exerciseName,
-    weight: value.weight,
-    reps: value.reps,
-    date: performedDate,
-    exerciseOrder: i,
-  );
+        await widget.database.saveSet(
+          userId: widget.userId,
+          exerciseName: value.exerciseName,
+          weight: value.weight,
+          reps: value.reps,
+          date: performedDate,
+          exerciseOrder: i,
+        );
 
         await widget.database.updateRoutineSet(
           id: value.routineSetId,
@@ -2065,9 +2072,9 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
 }
 
 class AddExerciseScreen extends StatefulWidget {
-  final List<ExerciseLibraryData> exercises;
+  final List<String> exerciseNames;
 
-  const AddExerciseScreen({super.key, required this.exercises});
+  const AddExerciseScreen({super.key, required this.exerciseNames});
 
   @override
   State<AddExerciseScreen> createState() => _AddExerciseScreenState();
@@ -2122,9 +2129,9 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
             const SizedBox(height: 16),
 
             if (!_creatingNew) ...[
-              ...widget.exercises.map(
-                (exercise) => InkWell(
-                  onTap: () => _selectExisting(exercise.exerciseName),
+              ...widget.exerciseNames.map(
+                (exerciseName) => InkWell(
+                  onTap: () => _selectExisting(exerciseName),
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -2135,7 +2142,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            exercise.exerciseName,
+                            exerciseName,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,

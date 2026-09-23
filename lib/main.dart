@@ -251,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen>
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const DietScreen(todayOnly: true),
+        builder: (_) => const DietScreen(),
       ),
     );
 

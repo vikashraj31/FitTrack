@@ -463,40 +463,37 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   Future<List<ExerciseLibraryData>> getExerciseLibrary({
-    required String userId,
-  }) async {
-    return (select(exerciseLibrary)
-          ..where((tbl) => tbl.userId.equals(userId))
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.exerciseName),
-          ]))
-        .get();
-  }
-
+  required String userId,
+}) async {
+  return (select(exerciseLibrary)
+        ..orderBy([
+          (tbl) => OrderingTerm.asc(tbl.exerciseName),
+        ]))
+      .get();
+}
   Future<int> saveExerciseLibraryItem({
-    required String userId,
-    required String exerciseName,
-  }) async {
-    final now = DateTime.now();
+  required String userId,
+  required String exerciseName,
+}) async {
+  final now = DateTime.now();
 
-    return into(exerciseLibrary).insert(
-      ExerciseLibraryCompanion.insert(
-        userId: userId,
-        exerciseName: exerciseName,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
-  }
+  return into(exerciseLibrary).insert(
+    ExerciseLibraryCompanion.insert(
+      userId: 'shared',
+      exerciseName: exerciseName,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+}
 
-  Future<bool> deleteExerciseLibraryItem({
-    required int id,
-  }) async {
-    return (delete(exerciseLibrary)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go()
-        .then((rows) => rows > 0);
-  }
+  Future<bool> deleteExerciseLibraryItem({required int id}) async {
+  if (id <= 0) return false;
+
+  return (delete(
+    exerciseLibrary,
+  )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+}
 
   // ==========================================================
   // WORKOUT ROUTINES
