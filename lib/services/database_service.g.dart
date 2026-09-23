@@ -42,6 +42,18 @@ class $WorkoutSetsTable extends WorkoutSets
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _exerciseOrderMeta = const VerificationMeta(
+    'exerciseOrder',
+  );
+  @override
+  late final GeneratedColumn<int> exerciseOrder = GeneratedColumn<int>(
+    'exercise_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _weightMeta = const VerificationMeta('weight');
   @override
   late final GeneratedColumn<double> weight = GeneratedColumn<double>(
@@ -85,6 +97,7 @@ class $WorkoutSetsTable extends WorkoutSets
     id,
     userId,
     exerciseName,
+    exerciseOrder,
     weight,
     reps,
     date,
@@ -123,6 +136,15 @@ class $WorkoutSetsTable extends WorkoutSets
       );
     } else if (isInserting) {
       context.missing(_exerciseNameMeta);
+    }
+    if (data.containsKey('exercise_order')) {
+      context.handle(
+        _exerciseOrderMeta,
+        exerciseOrder.isAcceptableOrUnknown(
+          data['exercise_order']!,
+          _exerciseOrderMeta,
+        ),
+      );
     }
     if (data.containsKey('weight')) {
       context.handle(
@@ -177,6 +199,10 @@ class $WorkoutSetsTable extends WorkoutSets
         DriftSqlType.string,
         data['${effectivePrefix}exercise_name'],
       )!,
+      exerciseOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}exercise_order'],
+      )!,
       weight: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}weight'],
@@ -206,6 +232,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
   final int id;
   final String userId;
   final String exerciseName;
+  final int exerciseOrder;
   final double weight;
   final int reps;
   final DateTime date;
@@ -214,6 +241,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
     required this.id,
     required this.userId,
     required this.exerciseName,
+    required this.exerciseOrder,
     required this.weight,
     required this.reps,
     required this.date,
@@ -225,6 +253,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
     map['id'] = Variable<int>(id);
     map['user_id'] = Variable<String>(userId);
     map['exercise_name'] = Variable<String>(exerciseName);
+    map['exercise_order'] = Variable<int>(exerciseOrder);
     map['weight'] = Variable<double>(weight);
     map['reps'] = Variable<int>(reps);
     map['date'] = Variable<DateTime>(date);
@@ -237,6 +266,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
       id: Value(id),
       userId: Value(userId),
       exerciseName: Value(exerciseName),
+      exerciseOrder: Value(exerciseOrder),
       weight: Value(weight),
       reps: Value(reps),
       date: Value(date),
@@ -253,6 +283,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
       id: serializer.fromJson<int>(json['id']),
       userId: serializer.fromJson<String>(json['userId']),
       exerciseName: serializer.fromJson<String>(json['exerciseName']),
+      exerciseOrder: serializer.fromJson<int>(json['exerciseOrder']),
       weight: serializer.fromJson<double>(json['weight']),
       reps: serializer.fromJson<int>(json['reps']),
       date: serializer.fromJson<DateTime>(json['date']),
@@ -266,6 +297,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
       'id': serializer.toJson<int>(id),
       'userId': serializer.toJson<String>(userId),
       'exerciseName': serializer.toJson<String>(exerciseName),
+      'exerciseOrder': serializer.toJson<int>(exerciseOrder),
       'weight': serializer.toJson<double>(weight),
       'reps': serializer.toJson<int>(reps),
       'date': serializer.toJson<DateTime>(date),
@@ -277,6 +309,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
     int? id,
     String? userId,
     String? exerciseName,
+    int? exerciseOrder,
     double? weight,
     int? reps,
     DateTime? date,
@@ -285,6 +318,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
     id: id ?? this.id,
     userId: userId ?? this.userId,
     exerciseName: exerciseName ?? this.exerciseName,
+    exerciseOrder: exerciseOrder ?? this.exerciseOrder,
     weight: weight ?? this.weight,
     reps: reps ?? this.reps,
     date: date ?? this.date,
@@ -297,6 +331,9 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
       exerciseName: data.exerciseName.present
           ? data.exerciseName.value
           : this.exerciseName,
+      exerciseOrder: data.exerciseOrder.present
+          ? data.exerciseOrder.value
+          : this.exerciseOrder,
       weight: data.weight.present ? data.weight.value : this.weight,
       reps: data.reps.present ? data.reps.value : this.reps,
       date: data.date.present ? data.date.value : this.date,
@@ -310,6 +347,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
           ..write('id: $id, ')
           ..write('userId: $userId, ')
           ..write('exerciseName: $exerciseName, ')
+          ..write('exerciseOrder: $exerciseOrder, ')
           ..write('weight: $weight, ')
           ..write('reps: $reps, ')
           ..write('date: $date, ')
@@ -319,8 +357,16 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, userId, exerciseName, weight, reps, date, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    exerciseName,
+    exerciseOrder,
+    weight,
+    reps,
+    date,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -328,6 +374,7 @@ class WorkoutSet extends DataClass implements Insertable<WorkoutSet> {
           other.id == this.id &&
           other.userId == this.userId &&
           other.exerciseName == this.exerciseName &&
+          other.exerciseOrder == this.exerciseOrder &&
           other.weight == this.weight &&
           other.reps == this.reps &&
           other.date == this.date &&
@@ -338,6 +385,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
   final Value<int> id;
   final Value<String> userId;
   final Value<String> exerciseName;
+  final Value<int> exerciseOrder;
   final Value<double> weight;
   final Value<int> reps;
   final Value<DateTime> date;
@@ -346,6 +394,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
     this.id = const Value.absent(),
     this.userId = const Value.absent(),
     this.exerciseName = const Value.absent(),
+    this.exerciseOrder = const Value.absent(),
     this.weight = const Value.absent(),
     this.reps = const Value.absent(),
     this.date = const Value.absent(),
@@ -355,6 +404,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
     this.id = const Value.absent(),
     required String userId,
     required String exerciseName,
+    this.exerciseOrder = const Value.absent(),
     required double weight,
     required int reps,
     required DateTime date,
@@ -369,6 +419,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
     Expression<int>? id,
     Expression<String>? userId,
     Expression<String>? exerciseName,
+    Expression<int>? exerciseOrder,
     Expression<double>? weight,
     Expression<int>? reps,
     Expression<DateTime>? date,
@@ -378,6 +429,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
       if (id != null) 'id': id,
       if (userId != null) 'user_id': userId,
       if (exerciseName != null) 'exercise_name': exerciseName,
+      if (exerciseOrder != null) 'exercise_order': exerciseOrder,
       if (weight != null) 'weight': weight,
       if (reps != null) 'reps': reps,
       if (date != null) 'date': date,
@@ -389,6 +441,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
     Value<int>? id,
     Value<String>? userId,
     Value<String>? exerciseName,
+    Value<int>? exerciseOrder,
     Value<double>? weight,
     Value<int>? reps,
     Value<DateTime>? date,
@@ -398,6 +451,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       exerciseName: exerciseName ?? this.exerciseName,
+      exerciseOrder: exerciseOrder ?? this.exerciseOrder,
       weight: weight ?? this.weight,
       reps: reps ?? this.reps,
       date: date ?? this.date,
@@ -416,6 +470,9 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
     }
     if (exerciseName.present) {
       map['exercise_name'] = Variable<String>(exerciseName.value);
+    }
+    if (exerciseOrder.present) {
+      map['exercise_order'] = Variable<int>(exerciseOrder.value);
     }
     if (weight.present) {
       map['weight'] = Variable<double>(weight.value);
@@ -438,6 +495,7 @@ class WorkoutSetsCompanion extends UpdateCompanion<WorkoutSet> {
           ..write('id: $id, ')
           ..write('userId: $userId, ')
           ..write('exerciseName: $exerciseName, ')
+          ..write('exerciseOrder: $exerciseOrder, ')
           ..write('weight: $weight, ')
           ..write('reps: $reps, ')
           ..write('date: $date, ')
@@ -1246,6 +1304,18 @@ class $RoutineSetsTable extends RoutineSets
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _exerciseOrderMeta = const VerificationMeta(
+    'exerciseOrder',
+  );
+  @override
+  late final GeneratedColumn<int> exerciseOrder = GeneratedColumn<int>(
+    'exercise_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _setNumberMeta = const VerificationMeta(
     'setNumber',
   );
@@ -1280,6 +1350,7 @@ class $RoutineSetsTable extends RoutineSets
     id,
     routineId,
     exerciseName,
+    exerciseOrder,
     setNumber,
     weight,
     reps,
@@ -1317,6 +1388,15 @@ class $RoutineSetsTable extends RoutineSets
       );
     } else if (isInserting) {
       context.missing(_exerciseNameMeta);
+    }
+    if (data.containsKey('exercise_order')) {
+      context.handle(
+        _exerciseOrderMeta,
+        exerciseOrder.isAcceptableOrUnknown(
+          data['exercise_order']!,
+          _exerciseOrderMeta,
+        ),
+      );
     }
     if (data.containsKey('set_number')) {
       context.handle(
@@ -1363,6 +1443,10 @@ class $RoutineSetsTable extends RoutineSets
         DriftSqlType.string,
         data['${effectivePrefix}exercise_name'],
       )!,
+      exerciseOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}exercise_order'],
+      )!,
       setNumber: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}set_number'],
@@ -1388,6 +1472,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
   final int id;
   final int routineId;
   final String exerciseName;
+  final int exerciseOrder;
   final int setNumber;
   final double weight;
   final int reps;
@@ -1395,6 +1480,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
     required this.id,
     required this.routineId,
     required this.exerciseName,
+    required this.exerciseOrder,
     required this.setNumber,
     required this.weight,
     required this.reps,
@@ -1405,6 +1491,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
     map['id'] = Variable<int>(id);
     map['routine_id'] = Variable<int>(routineId);
     map['exercise_name'] = Variable<String>(exerciseName);
+    map['exercise_order'] = Variable<int>(exerciseOrder);
     map['set_number'] = Variable<int>(setNumber);
     map['weight'] = Variable<double>(weight);
     map['reps'] = Variable<int>(reps);
@@ -1416,6 +1503,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
       id: Value(id),
       routineId: Value(routineId),
       exerciseName: Value(exerciseName),
+      exerciseOrder: Value(exerciseOrder),
       setNumber: Value(setNumber),
       weight: Value(weight),
       reps: Value(reps),
@@ -1431,6 +1519,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
       id: serializer.fromJson<int>(json['id']),
       routineId: serializer.fromJson<int>(json['routineId']),
       exerciseName: serializer.fromJson<String>(json['exerciseName']),
+      exerciseOrder: serializer.fromJson<int>(json['exerciseOrder']),
       setNumber: serializer.fromJson<int>(json['setNumber']),
       weight: serializer.fromJson<double>(json['weight']),
       reps: serializer.fromJson<int>(json['reps']),
@@ -1443,6 +1532,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
       'id': serializer.toJson<int>(id),
       'routineId': serializer.toJson<int>(routineId),
       'exerciseName': serializer.toJson<String>(exerciseName),
+      'exerciseOrder': serializer.toJson<int>(exerciseOrder),
       'setNumber': serializer.toJson<int>(setNumber),
       'weight': serializer.toJson<double>(weight),
       'reps': serializer.toJson<int>(reps),
@@ -1453,6 +1543,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
     int? id,
     int? routineId,
     String? exerciseName,
+    int? exerciseOrder,
     int? setNumber,
     double? weight,
     int? reps,
@@ -1460,6 +1551,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
     id: id ?? this.id,
     routineId: routineId ?? this.routineId,
     exerciseName: exerciseName ?? this.exerciseName,
+    exerciseOrder: exerciseOrder ?? this.exerciseOrder,
     setNumber: setNumber ?? this.setNumber,
     weight: weight ?? this.weight,
     reps: reps ?? this.reps,
@@ -1471,6 +1563,9 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
       exerciseName: data.exerciseName.present
           ? data.exerciseName.value
           : this.exerciseName,
+      exerciseOrder: data.exerciseOrder.present
+          ? data.exerciseOrder.value
+          : this.exerciseOrder,
       setNumber: data.setNumber.present ? data.setNumber.value : this.setNumber,
       weight: data.weight.present ? data.weight.value : this.weight,
       reps: data.reps.present ? data.reps.value : this.reps,
@@ -1483,6 +1578,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
           ..write('id: $id, ')
           ..write('routineId: $routineId, ')
           ..write('exerciseName: $exerciseName, ')
+          ..write('exerciseOrder: $exerciseOrder, ')
           ..write('setNumber: $setNumber, ')
           ..write('weight: $weight, ')
           ..write('reps: $reps')
@@ -1491,8 +1587,15 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, routineId, exerciseName, setNumber, weight, reps);
+  int get hashCode => Object.hash(
+    id,
+    routineId,
+    exerciseName,
+    exerciseOrder,
+    setNumber,
+    weight,
+    reps,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1500,6 +1603,7 @@ class RoutineSet extends DataClass implements Insertable<RoutineSet> {
           other.id == this.id &&
           other.routineId == this.routineId &&
           other.exerciseName == this.exerciseName &&
+          other.exerciseOrder == this.exerciseOrder &&
           other.setNumber == this.setNumber &&
           other.weight == this.weight &&
           other.reps == this.reps);
@@ -1509,6 +1613,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
   final Value<int> id;
   final Value<int> routineId;
   final Value<String> exerciseName;
+  final Value<int> exerciseOrder;
   final Value<int> setNumber;
   final Value<double> weight;
   final Value<int> reps;
@@ -1516,6 +1621,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
     this.id = const Value.absent(),
     this.routineId = const Value.absent(),
     this.exerciseName = const Value.absent(),
+    this.exerciseOrder = const Value.absent(),
     this.setNumber = const Value.absent(),
     this.weight = const Value.absent(),
     this.reps = const Value.absent(),
@@ -1524,6 +1630,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
     this.id = const Value.absent(),
     required int routineId,
     required String exerciseName,
+    this.exerciseOrder = const Value.absent(),
     required int setNumber,
     required double weight,
     required int reps,
@@ -1536,6 +1643,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
     Expression<int>? id,
     Expression<int>? routineId,
     Expression<String>? exerciseName,
+    Expression<int>? exerciseOrder,
     Expression<int>? setNumber,
     Expression<double>? weight,
     Expression<int>? reps,
@@ -1544,6 +1652,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
       if (id != null) 'id': id,
       if (routineId != null) 'routine_id': routineId,
       if (exerciseName != null) 'exercise_name': exerciseName,
+      if (exerciseOrder != null) 'exercise_order': exerciseOrder,
       if (setNumber != null) 'set_number': setNumber,
       if (weight != null) 'weight': weight,
       if (reps != null) 'reps': reps,
@@ -1554,6 +1663,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
     Value<int>? id,
     Value<int>? routineId,
     Value<String>? exerciseName,
+    Value<int>? exerciseOrder,
     Value<int>? setNumber,
     Value<double>? weight,
     Value<int>? reps,
@@ -1562,6 +1672,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
       id: id ?? this.id,
       routineId: routineId ?? this.routineId,
       exerciseName: exerciseName ?? this.exerciseName,
+      exerciseOrder: exerciseOrder ?? this.exerciseOrder,
       setNumber: setNumber ?? this.setNumber,
       weight: weight ?? this.weight,
       reps: reps ?? this.reps,
@@ -1579,6 +1690,9 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
     }
     if (exerciseName.present) {
       map['exercise_name'] = Variable<String>(exerciseName.value);
+    }
+    if (exerciseOrder.present) {
+      map['exercise_order'] = Variable<int>(exerciseOrder.value);
     }
     if (setNumber.present) {
       map['set_number'] = Variable<int>(setNumber.value);
@@ -1598,6 +1712,7 @@ class RoutineSetsCompanion extends UpdateCompanion<RoutineSet> {
           ..write('id: $id, ')
           ..write('routineId: $routineId, ')
           ..write('exerciseName: $exerciseName, ')
+          ..write('exerciseOrder: $exerciseOrder, ')
           ..write('setNumber: $setNumber, ')
           ..write('weight: $weight, ')
           ..write('reps: $reps')
@@ -2341,6 +2456,18 @@ class $DietEntriesTable extends DietEntries
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _plannedProteinMeta = const VerificationMeta(
+    'plannedProtein',
+  );
+  @override
+  late final GeneratedColumn<double> plannedProtein = GeneratedColumn<double>(
+    'planned_protein',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _actualQuantityMeta = const VerificationMeta(
     'actualQuantity',
   );
@@ -2359,6 +2486,18 @@ class $DietEntriesTable extends DietEntries
   @override
   late final GeneratedColumn<double> actualCalories = GeneratedColumn<double>(
     'actual_calories',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _actualProteinMeta = const VerificationMeta(
+    'actualProtein',
+  );
+  @override
+  late final GeneratedColumn<double> actualProtein = GeneratedColumn<double>(
+    'actual_protein',
     aliasedName,
     false,
     type: DriftSqlType.double,
@@ -2410,8 +2549,10 @@ class $DietEntriesTable extends DietEntries
     plannedQuantity,
     quantityUnit,
     plannedCalories,
+    plannedProtein,
     actualQuantity,
     actualCalories,
+    actualProtein,
     eaten,
     createdAt,
     updatedAt,
@@ -2496,6 +2637,15 @@ class $DietEntriesTable extends DietEntries
     } else if (isInserting) {
       context.missing(_plannedCaloriesMeta);
     }
+    if (data.containsKey('planned_protein')) {
+      context.handle(
+        _plannedProteinMeta,
+        plannedProtein.isAcceptableOrUnknown(
+          data['planned_protein']!,
+          _plannedProteinMeta,
+        ),
+      );
+    }
     if (data.containsKey('actual_quantity')) {
       context.handle(
         _actualQuantityMeta,
@@ -2511,6 +2661,15 @@ class $DietEntriesTable extends DietEntries
         actualCalories.isAcceptableOrUnknown(
           data['actual_calories']!,
           _actualCaloriesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('actual_protein')) {
+      context.handle(
+        _actualProteinMeta,
+        actualProtein.isAcceptableOrUnknown(
+          data['actual_protein']!,
+          _actualProteinMeta,
         ),
       );
     }
@@ -2577,6 +2736,10 @@ class $DietEntriesTable extends DietEntries
         DriftSqlType.double,
         data['${effectivePrefix}planned_calories'],
       )!,
+      plannedProtein: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}planned_protein'],
+      )!,
       actualQuantity: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}actual_quantity'],
@@ -2584,6 +2747,10 @@ class $DietEntriesTable extends DietEntries
       actualCalories: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}actual_calories'],
+      )!,
+      actualProtein: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}actual_protein'],
       )!,
       eaten: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
@@ -2615,8 +2782,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
   final double plannedQuantity;
   final String quantityUnit;
   final double plannedCalories;
+  final double plannedProtein;
   final double actualQuantity;
   final double actualCalories;
+  final double actualProtein;
   final bool eaten;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -2629,8 +2798,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
     required this.plannedQuantity,
     required this.quantityUnit,
     required this.plannedCalories,
+    required this.plannedProtein,
     required this.actualQuantity,
     required this.actualCalories,
+    required this.actualProtein,
     required this.eaten,
     required this.createdAt,
     required this.updatedAt,
@@ -2646,8 +2817,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
     map['planned_quantity'] = Variable<double>(plannedQuantity);
     map['quantity_unit'] = Variable<String>(quantityUnit);
     map['planned_calories'] = Variable<double>(plannedCalories);
+    map['planned_protein'] = Variable<double>(plannedProtein);
     map['actual_quantity'] = Variable<double>(actualQuantity);
     map['actual_calories'] = Variable<double>(actualCalories);
+    map['actual_protein'] = Variable<double>(actualProtein);
     map['eaten'] = Variable<bool>(eaten);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -2664,8 +2837,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
       plannedQuantity: Value(plannedQuantity),
       quantityUnit: Value(quantityUnit),
       plannedCalories: Value(plannedCalories),
+      plannedProtein: Value(plannedProtein),
       actualQuantity: Value(actualQuantity),
       actualCalories: Value(actualCalories),
+      actualProtein: Value(actualProtein),
       eaten: Value(eaten),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -2686,8 +2861,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
       plannedQuantity: serializer.fromJson<double>(json['plannedQuantity']),
       quantityUnit: serializer.fromJson<String>(json['quantityUnit']),
       plannedCalories: serializer.fromJson<double>(json['plannedCalories']),
+      plannedProtein: serializer.fromJson<double>(json['plannedProtein']),
       actualQuantity: serializer.fromJson<double>(json['actualQuantity']),
       actualCalories: serializer.fromJson<double>(json['actualCalories']),
+      actualProtein: serializer.fromJson<double>(json['actualProtein']),
       eaten: serializer.fromJson<bool>(json['eaten']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -2705,8 +2882,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
       'plannedQuantity': serializer.toJson<double>(plannedQuantity),
       'quantityUnit': serializer.toJson<String>(quantityUnit),
       'plannedCalories': serializer.toJson<double>(plannedCalories),
+      'plannedProtein': serializer.toJson<double>(plannedProtein),
       'actualQuantity': serializer.toJson<double>(actualQuantity),
       'actualCalories': serializer.toJson<double>(actualCalories),
+      'actualProtein': serializer.toJson<double>(actualProtein),
       'eaten': serializer.toJson<bool>(eaten),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -2722,8 +2901,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
     double? plannedQuantity,
     String? quantityUnit,
     double? plannedCalories,
+    double? plannedProtein,
     double? actualQuantity,
     double? actualCalories,
+    double? actualProtein,
     bool? eaten,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -2736,8 +2917,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
     plannedQuantity: plannedQuantity ?? this.plannedQuantity,
     quantityUnit: quantityUnit ?? this.quantityUnit,
     plannedCalories: plannedCalories ?? this.plannedCalories,
+    plannedProtein: plannedProtein ?? this.plannedProtein,
     actualQuantity: actualQuantity ?? this.actualQuantity,
     actualCalories: actualCalories ?? this.actualCalories,
+    actualProtein: actualProtein ?? this.actualProtein,
     eaten: eaten ?? this.eaten,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -2758,12 +2941,18 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
       plannedCalories: data.plannedCalories.present
           ? data.plannedCalories.value
           : this.plannedCalories,
+      plannedProtein: data.plannedProtein.present
+          ? data.plannedProtein.value
+          : this.plannedProtein,
       actualQuantity: data.actualQuantity.present
           ? data.actualQuantity.value
           : this.actualQuantity,
       actualCalories: data.actualCalories.present
           ? data.actualCalories.value
           : this.actualCalories,
+      actualProtein: data.actualProtein.present
+          ? data.actualProtein.value
+          : this.actualProtein,
       eaten: data.eaten.present ? data.eaten.value : this.eaten,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -2781,8 +2970,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
           ..write('plannedQuantity: $plannedQuantity, ')
           ..write('quantityUnit: $quantityUnit, ')
           ..write('plannedCalories: $plannedCalories, ')
+          ..write('plannedProtein: $plannedProtein, ')
           ..write('actualQuantity: $actualQuantity, ')
           ..write('actualCalories: $actualCalories, ')
+          ..write('actualProtein: $actualProtein, ')
           ..write('eaten: $eaten, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -2800,8 +2991,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
     plannedQuantity,
     quantityUnit,
     plannedCalories,
+    plannedProtein,
     actualQuantity,
     actualCalories,
+    actualProtein,
     eaten,
     createdAt,
     updatedAt,
@@ -2818,8 +3011,10 @@ class DietEntry extends DataClass implements Insertable<DietEntry> {
           other.plannedQuantity == this.plannedQuantity &&
           other.quantityUnit == this.quantityUnit &&
           other.plannedCalories == this.plannedCalories &&
+          other.plannedProtein == this.plannedProtein &&
           other.actualQuantity == this.actualQuantity &&
           other.actualCalories == this.actualCalories &&
+          other.actualProtein == this.actualProtein &&
           other.eaten == this.eaten &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -2834,8 +3029,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
   final Value<double> plannedQuantity;
   final Value<String> quantityUnit;
   final Value<double> plannedCalories;
+  final Value<double> plannedProtein;
   final Value<double> actualQuantity;
   final Value<double> actualCalories;
+  final Value<double> actualProtein;
   final Value<bool> eaten;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -2848,8 +3045,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
     this.plannedQuantity = const Value.absent(),
     this.quantityUnit = const Value.absent(),
     this.plannedCalories = const Value.absent(),
+    this.plannedProtein = const Value.absent(),
     this.actualQuantity = const Value.absent(),
     this.actualCalories = const Value.absent(),
+    this.actualProtein = const Value.absent(),
     this.eaten = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2863,8 +3062,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
     required double plannedQuantity,
     required String quantityUnit,
     required double plannedCalories,
+    this.plannedProtein = const Value.absent(),
     this.actualQuantity = const Value.absent(),
     this.actualCalories = const Value.absent(),
+    this.actualProtein = const Value.absent(),
     this.eaten = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -2886,8 +3087,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
     Expression<double>? plannedQuantity,
     Expression<String>? quantityUnit,
     Expression<double>? plannedCalories,
+    Expression<double>? plannedProtein,
     Expression<double>? actualQuantity,
     Expression<double>? actualCalories,
+    Expression<double>? actualProtein,
     Expression<bool>? eaten,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -2901,8 +3104,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
       if (plannedQuantity != null) 'planned_quantity': plannedQuantity,
       if (quantityUnit != null) 'quantity_unit': quantityUnit,
       if (plannedCalories != null) 'planned_calories': plannedCalories,
+      if (plannedProtein != null) 'planned_protein': plannedProtein,
       if (actualQuantity != null) 'actual_quantity': actualQuantity,
       if (actualCalories != null) 'actual_calories': actualCalories,
+      if (actualProtein != null) 'actual_protein': actualProtein,
       if (eaten != null) 'eaten': eaten,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2918,8 +3123,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
     Value<double>? plannedQuantity,
     Value<String>? quantityUnit,
     Value<double>? plannedCalories,
+    Value<double>? plannedProtein,
     Value<double>? actualQuantity,
     Value<double>? actualCalories,
+    Value<double>? actualProtein,
     Value<bool>? eaten,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -2933,8 +3140,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
       plannedQuantity: plannedQuantity ?? this.plannedQuantity,
       quantityUnit: quantityUnit ?? this.quantityUnit,
       plannedCalories: plannedCalories ?? this.plannedCalories,
+      plannedProtein: plannedProtein ?? this.plannedProtein,
       actualQuantity: actualQuantity ?? this.actualQuantity,
       actualCalories: actualCalories ?? this.actualCalories,
+      actualProtein: actualProtein ?? this.actualProtein,
       eaten: eaten ?? this.eaten,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2968,11 +3177,17 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
     if (plannedCalories.present) {
       map['planned_calories'] = Variable<double>(plannedCalories.value);
     }
+    if (plannedProtein.present) {
+      map['planned_protein'] = Variable<double>(plannedProtein.value);
+    }
     if (actualQuantity.present) {
       map['actual_quantity'] = Variable<double>(actualQuantity.value);
     }
     if (actualCalories.present) {
       map['actual_calories'] = Variable<double>(actualCalories.value);
+    }
+    if (actualProtein.present) {
+      map['actual_protein'] = Variable<double>(actualProtein.value);
     }
     if (eaten.present) {
       map['eaten'] = Variable<bool>(eaten.value);
@@ -2997,8 +3212,10 @@ class DietEntriesCompanion extends UpdateCompanion<DietEntry> {
           ..write('plannedQuantity: $plannedQuantity, ')
           ..write('quantityUnit: $quantityUnit, ')
           ..write('plannedCalories: $plannedCalories, ')
+          ..write('plannedProtein: $plannedProtein, ')
           ..write('actualQuantity: $actualQuantity, ')
           ..write('actualCalories: $actualCalories, ')
+          ..write('actualProtein: $actualProtein, ')
           ..write('eaten: $eaten, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -3055,11 +3272,11 @@ class $ExtraCaloriesEntriesTable extends ExtraCaloriesEntries
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _descriptionMeta = const VerificationMeta(
-    'description',
+  static const VerificationMeta _extraDescriptionMeta = const VerificationMeta(
+    'extraDescription',
   );
   @override
-  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+  late final GeneratedColumn<String> extraDescription = GeneratedColumn<String>(
     'description',
     aliasedName,
     false,
@@ -3084,7 +3301,7 @@ class $ExtraCaloriesEntriesTable extends ExtraCaloriesEntries
     userId,
     date,
     calories,
-    description,
+    extraDescription,
     createdAt,
   ];
   @override
@@ -3128,10 +3345,10 @@ class $ExtraCaloriesEntriesTable extends ExtraCaloriesEntries
     }
     if (data.containsKey('description')) {
       context.handle(
-        _descriptionMeta,
-        description.isAcceptableOrUnknown(
+        _extraDescriptionMeta,
+        extraDescription.isAcceptableOrUnknown(
           data['description']!,
-          _descriptionMeta,
+          _extraDescriptionMeta,
         ),
       );
     }
@@ -3168,7 +3385,7 @@ class $ExtraCaloriesEntriesTable extends ExtraCaloriesEntries
         DriftSqlType.double,
         data['${effectivePrefix}calories'],
       )!,
-      description: attachedDatabase.typeMapping.read(
+      extraDescription: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       )!,
@@ -3191,14 +3408,14 @@ class ExtraCaloriesEntry extends DataClass
   final String userId;
   final DateTime date;
   final double calories;
-  final String description;
+  final String extraDescription;
   final DateTime createdAt;
   const ExtraCaloriesEntry({
     required this.id,
     required this.userId,
     required this.date,
     required this.calories,
-    required this.description,
+    required this.extraDescription,
     required this.createdAt,
   });
   @override
@@ -3208,7 +3425,7 @@ class ExtraCaloriesEntry extends DataClass
     map['user_id'] = Variable<String>(userId);
     map['date'] = Variable<DateTime>(date);
     map['calories'] = Variable<double>(calories);
-    map['description'] = Variable<String>(description);
+    map['description'] = Variable<String>(extraDescription);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -3219,7 +3436,7 @@ class ExtraCaloriesEntry extends DataClass
       userId: Value(userId),
       date: Value(date),
       calories: Value(calories),
-      description: Value(description),
+      extraDescription: Value(extraDescription),
       createdAt: Value(createdAt),
     );
   }
@@ -3234,7 +3451,7 @@ class ExtraCaloriesEntry extends DataClass
       userId: serializer.fromJson<String>(json['userId']),
       date: serializer.fromJson<DateTime>(json['date']),
       calories: serializer.fromJson<double>(json['calories']),
-      description: serializer.fromJson<String>(json['description']),
+      extraDescription: serializer.fromJson<String>(json['extraDescription']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -3246,7 +3463,7 @@ class ExtraCaloriesEntry extends DataClass
       'userId': serializer.toJson<String>(userId),
       'date': serializer.toJson<DateTime>(date),
       'calories': serializer.toJson<double>(calories),
-      'description': serializer.toJson<String>(description),
+      'extraDescription': serializer.toJson<String>(extraDescription),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -3256,14 +3473,14 @@ class ExtraCaloriesEntry extends DataClass
     String? userId,
     DateTime? date,
     double? calories,
-    String? description,
+    String? extraDescription,
     DateTime? createdAt,
   }) => ExtraCaloriesEntry(
     id: id ?? this.id,
     userId: userId ?? this.userId,
     date: date ?? this.date,
     calories: calories ?? this.calories,
-    description: description ?? this.description,
+    extraDescription: extraDescription ?? this.extraDescription,
     createdAt: createdAt ?? this.createdAt,
   );
   ExtraCaloriesEntry copyWithCompanion(ExtraCaloriesEntriesCompanion data) {
@@ -3272,9 +3489,9 @@ class ExtraCaloriesEntry extends DataClass
       userId: data.userId.present ? data.userId.value : this.userId,
       date: data.date.present ? data.date.value : this.date,
       calories: data.calories.present ? data.calories.value : this.calories,
-      description: data.description.present
-          ? data.description.value
-          : this.description,
+      extraDescription: data.extraDescription.present
+          ? data.extraDescription.value
+          : this.extraDescription,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -3286,7 +3503,7 @@ class ExtraCaloriesEntry extends DataClass
           ..write('userId: $userId, ')
           ..write('date: $date, ')
           ..write('calories: $calories, ')
-          ..write('description: $description, ')
+          ..write('extraDescription: $extraDescription, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -3294,7 +3511,7 @@ class ExtraCaloriesEntry extends DataClass
 
   @override
   int get hashCode =>
-      Object.hash(id, userId, date, calories, description, createdAt);
+      Object.hash(id, userId, date, calories, extraDescription, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3303,7 +3520,7 @@ class ExtraCaloriesEntry extends DataClass
           other.userId == this.userId &&
           other.date == this.date &&
           other.calories == this.calories &&
-          other.description == this.description &&
+          other.extraDescription == this.extraDescription &&
           other.createdAt == this.createdAt);
 }
 
@@ -3313,14 +3530,14 @@ class ExtraCaloriesEntriesCompanion
   final Value<String> userId;
   final Value<DateTime> date;
   final Value<double> calories;
-  final Value<String> description;
+  final Value<String> extraDescription;
   final Value<DateTime> createdAt;
   const ExtraCaloriesEntriesCompanion({
     this.id = const Value.absent(),
     this.userId = const Value.absent(),
     this.date = const Value.absent(),
     this.calories = const Value.absent(),
-    this.description = const Value.absent(),
+    this.extraDescription = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   ExtraCaloriesEntriesCompanion.insert({
@@ -3328,7 +3545,7 @@ class ExtraCaloriesEntriesCompanion
     required String userId,
     required DateTime date,
     required double calories,
-    this.description = const Value.absent(),
+    this.extraDescription = const Value.absent(),
     required DateTime createdAt,
   }) : userId = Value(userId),
        date = Value(date),
@@ -3339,7 +3556,7 @@ class ExtraCaloriesEntriesCompanion
     Expression<String>? userId,
     Expression<DateTime>? date,
     Expression<double>? calories,
-    Expression<String>? description,
+    Expression<String>? extraDescription,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -3347,7 +3564,7 @@ class ExtraCaloriesEntriesCompanion
       if (userId != null) 'user_id': userId,
       if (date != null) 'date': date,
       if (calories != null) 'calories': calories,
-      if (description != null) 'description': description,
+      if (extraDescription != null) 'description': extraDescription,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -3357,7 +3574,7 @@ class ExtraCaloriesEntriesCompanion
     Value<String>? userId,
     Value<DateTime>? date,
     Value<double>? calories,
-    Value<String>? description,
+    Value<String>? extraDescription,
     Value<DateTime>? createdAt,
   }) {
     return ExtraCaloriesEntriesCompanion(
@@ -3365,7 +3582,7 @@ class ExtraCaloriesEntriesCompanion
       userId: userId ?? this.userId,
       date: date ?? this.date,
       calories: calories ?? this.calories,
-      description: description ?? this.description,
+      extraDescription: extraDescription ?? this.extraDescription,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -3385,8 +3602,8 @@ class ExtraCaloriesEntriesCompanion
     if (calories.present) {
       map['calories'] = Variable<double>(calories.value);
     }
-    if (description.present) {
-      map['description'] = Variable<String>(description.value);
+    if (extraDescription.present) {
+      map['description'] = Variable<String>(extraDescription.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -3401,7 +3618,7 @@ class ExtraCaloriesEntriesCompanion
           ..write('userId: $userId, ')
           ..write('date: $date, ')
           ..write('calories: $calories, ')
-          ..write('description: $description, ')
+          ..write('extraDescription: $extraDescription, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -4904,7 +5121,8 @@ class $WeeklyDietItemsTable extends WeeklyDietItems
     aliasedName,
     false,
     type: DriftSqlType.double,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _proteinMeta = const VerificationMeta(
     'protein',
@@ -5016,8 +5234,6 @@ class $WeeklyDietItemsTable extends WeeklyDietItems
         _caloriesMeta,
         calories.isAcceptableOrUnknown(data['calories']!, _caloriesMeta),
       );
-    } else if (isInserting) {
-      context.missing(_caloriesMeta);
     }
     if (data.containsKey('protein')) {
       context.handle(
@@ -5304,7 +5520,7 @@ class WeeklyDietItemsCompanion extends UpdateCompanion<WeeklyDietItem> {
     required String foodName,
     required double quantity,
     required String quantityUnit,
-    required double calories,
+    this.calories = const Value.absent(),
     this.protein = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -5313,7 +5529,6 @@ class WeeklyDietItemsCompanion extends UpdateCompanion<WeeklyDietItem> {
        foodName = Value(foodName),
        quantity = Value(quantity),
        quantityUnit = Value(quantityUnit),
-       calories = Value(calories),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<WeeklyDietItem> custom({
@@ -5469,6 +5684,7 @@ typedef $$WorkoutSetsTableCreateCompanionBuilder =
       Value<int> id,
       required String userId,
       required String exerciseName,
+      Value<int> exerciseOrder,
       required double weight,
       required int reps,
       required DateTime date,
@@ -5479,6 +5695,7 @@ typedef $$WorkoutSetsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> userId,
       Value<String> exerciseName,
+      Value<int> exerciseOrder,
       Value<double> weight,
       Value<int> reps,
       Value<DateTime> date,
@@ -5506,6 +5723,11 @@ class $$WorkoutSetsTableFilterComposer
 
   ColumnFilters<String> get exerciseName => $composableBuilder(
     column: $table.exerciseName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get exerciseOrder => $composableBuilder(
+    column: $table.exerciseOrder,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5554,6 +5776,11 @@ class $$WorkoutSetsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get exerciseOrder => $composableBuilder(
+    column: $table.exerciseOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get weight => $composableBuilder(
     column: $table.weight,
     builder: (column) => ColumnOrderings(column),
@@ -5592,6 +5819,11 @@ class $$WorkoutSetsTableAnnotationComposer
 
   GeneratedColumn<String> get exerciseName => $composableBuilder(
     column: $table.exerciseName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get exerciseOrder => $composableBuilder(
+    column: $table.exerciseOrder,
     builder: (column) => column,
   );
 
@@ -5642,6 +5874,7 @@ class $$WorkoutSetsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> userId = const Value.absent(),
                 Value<String> exerciseName = const Value.absent(),
+                Value<int> exerciseOrder = const Value.absent(),
                 Value<double> weight = const Value.absent(),
                 Value<int> reps = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
@@ -5650,6 +5883,7 @@ class $$WorkoutSetsTableTableManager
                 id: id,
                 userId: userId,
                 exerciseName: exerciseName,
+                exerciseOrder: exerciseOrder,
                 weight: weight,
                 reps: reps,
                 date: date,
@@ -5660,6 +5894,7 @@ class $$WorkoutSetsTableTableManager
                 Value<int> id = const Value.absent(),
                 required String userId,
                 required String exerciseName,
+                Value<int> exerciseOrder = const Value.absent(),
                 required double weight,
                 required int reps,
                 required DateTime date,
@@ -5668,6 +5903,7 @@ class $$WorkoutSetsTableTableManager
                 id: id,
                 userId: userId,
                 exerciseName: exerciseName,
+                exerciseOrder: exerciseOrder,
                 weight: weight,
                 reps: reps,
                 date: date,
@@ -6159,6 +6395,7 @@ typedef $$RoutineSetsTableCreateCompanionBuilder =
       Value<int> id,
       required int routineId,
       required String exerciseName,
+      Value<int> exerciseOrder,
       required int setNumber,
       required double weight,
       required int reps,
@@ -6168,6 +6405,7 @@ typedef $$RoutineSetsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int> routineId,
       Value<String> exerciseName,
+      Value<int> exerciseOrder,
       Value<int> setNumber,
       Value<double> weight,
       Value<int> reps,
@@ -6194,6 +6432,11 @@ class $$RoutineSetsTableFilterComposer
 
   ColumnFilters<String> get exerciseName => $composableBuilder(
     column: $table.exerciseName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get exerciseOrder => $composableBuilder(
+    column: $table.exerciseOrder,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6237,6 +6480,11 @@ class $$RoutineSetsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get exerciseOrder => $composableBuilder(
+    column: $table.exerciseOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get setNumber => $composableBuilder(
     column: $table.setNumber,
     builder: (column) => ColumnOrderings(column),
@@ -6270,6 +6518,11 @@ class $$RoutineSetsTableAnnotationComposer
 
   GeneratedColumn<String> get exerciseName => $composableBuilder(
     column: $table.exerciseName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get exerciseOrder => $composableBuilder(
+    column: $table.exerciseOrder,
     builder: (column) => column,
   );
 
@@ -6317,6 +6570,7 @@ class $$RoutineSetsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int> routineId = const Value.absent(),
                 Value<String> exerciseName = const Value.absent(),
+                Value<int> exerciseOrder = const Value.absent(),
                 Value<int> setNumber = const Value.absent(),
                 Value<double> weight = const Value.absent(),
                 Value<int> reps = const Value.absent(),
@@ -6324,6 +6578,7 @@ class $$RoutineSetsTableTableManager
                 id: id,
                 routineId: routineId,
                 exerciseName: exerciseName,
+                exerciseOrder: exerciseOrder,
                 setNumber: setNumber,
                 weight: weight,
                 reps: reps,
@@ -6333,6 +6588,7 @@ class $$RoutineSetsTableTableManager
                 Value<int> id = const Value.absent(),
                 required int routineId,
                 required String exerciseName,
+                Value<int> exerciseOrder = const Value.absent(),
                 required int setNumber,
                 required double weight,
                 required int reps,
@@ -6340,6 +6596,7 @@ class $$RoutineSetsTableTableManager
                 id: id,
                 routineId: routineId,
                 exerciseName: exerciseName,
+                exerciseOrder: exerciseOrder,
                 setNumber: setNumber,
                 weight: weight,
                 reps: reps,
@@ -6713,8 +6970,10 @@ typedef $$DietEntriesTableCreateCompanionBuilder =
       required double plannedQuantity,
       required String quantityUnit,
       required double plannedCalories,
+      Value<double> plannedProtein,
       Value<double> actualQuantity,
       Value<double> actualCalories,
+      Value<double> actualProtein,
       Value<bool> eaten,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -6729,8 +6988,10 @@ typedef $$DietEntriesTableUpdateCompanionBuilder =
       Value<double> plannedQuantity,
       Value<String> quantityUnit,
       Value<double> plannedCalories,
+      Value<double> plannedProtein,
       Value<double> actualQuantity,
       Value<double> actualCalories,
+      Value<double> actualProtein,
       Value<bool> eaten,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -6785,6 +7046,11 @@ class $$DietEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get plannedProtein => $composableBuilder(
+    column: $table.plannedProtein,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<double> get actualQuantity => $composableBuilder(
     column: $table.actualQuantity,
     builder: (column) => ColumnFilters(column),
@@ -6792,6 +7058,11 @@ class $$DietEntriesTableFilterComposer
 
   ColumnFilters<double> get actualCalories => $composableBuilder(
     column: $table.actualCalories,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get actualProtein => $composableBuilder(
+    column: $table.actualProtein,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6860,6 +7131,11 @@ class $$DietEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get plannedProtein => $composableBuilder(
+    column: $table.plannedProtein,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get actualQuantity => $composableBuilder(
     column: $table.actualQuantity,
     builder: (column) => ColumnOrderings(column),
@@ -6867,6 +7143,11 @@ class $$DietEntriesTableOrderingComposer
 
   ColumnOrderings<double> get actualCalories => $composableBuilder(
     column: $table.actualCalories,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get actualProtein => $composableBuilder(
+    column: $table.actualProtein,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6925,6 +7206,11 @@ class $$DietEntriesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get plannedProtein => $composableBuilder(
+    column: $table.plannedProtein,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get actualQuantity => $composableBuilder(
     column: $table.actualQuantity,
     builder: (column) => column,
@@ -6932,6 +7218,11 @@ class $$DietEntriesTableAnnotationComposer
 
   GeneratedColumn<double> get actualCalories => $composableBuilder(
     column: $table.actualCalories,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get actualProtein => $composableBuilder(
+    column: $table.actualProtein,
     builder: (column) => column,
   );
 
@@ -6984,8 +7275,10 @@ class $$DietEntriesTableTableManager
                 Value<double> plannedQuantity = const Value.absent(),
                 Value<String> quantityUnit = const Value.absent(),
                 Value<double> plannedCalories = const Value.absent(),
+                Value<double> plannedProtein = const Value.absent(),
                 Value<double> actualQuantity = const Value.absent(),
                 Value<double> actualCalories = const Value.absent(),
+                Value<double> actualProtein = const Value.absent(),
                 Value<bool> eaten = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -6998,8 +7291,10 @@ class $$DietEntriesTableTableManager
                 plannedQuantity: plannedQuantity,
                 quantityUnit: quantityUnit,
                 plannedCalories: plannedCalories,
+                plannedProtein: plannedProtein,
                 actualQuantity: actualQuantity,
                 actualCalories: actualCalories,
+                actualProtein: actualProtein,
                 eaten: eaten,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7014,8 +7309,10 @@ class $$DietEntriesTableTableManager
                 required double plannedQuantity,
                 required String quantityUnit,
                 required double plannedCalories,
+                Value<double> plannedProtein = const Value.absent(),
                 Value<double> actualQuantity = const Value.absent(),
                 Value<double> actualCalories = const Value.absent(),
+                Value<double> actualProtein = const Value.absent(),
                 Value<bool> eaten = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -7028,8 +7325,10 @@ class $$DietEntriesTableTableManager
                 plannedQuantity: plannedQuantity,
                 quantityUnit: quantityUnit,
                 plannedCalories: plannedCalories,
+                plannedProtein: plannedProtein,
                 actualQuantity: actualQuantity,
                 actualCalories: actualCalories,
+                actualProtein: actualProtein,
                 eaten: eaten,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7071,7 +7370,7 @@ typedef $$ExtraCaloriesEntriesTableCreateCompanionBuilder =
       required String userId,
       required DateTime date,
       required double calories,
-      Value<String> description,
+      Value<String> extraDescription,
       required DateTime createdAt,
     });
 typedef $$ExtraCaloriesEntriesTableUpdateCompanionBuilder =
@@ -7080,7 +7379,7 @@ typedef $$ExtraCaloriesEntriesTableUpdateCompanionBuilder =
       Value<String> userId,
       Value<DateTime> date,
       Value<double> calories,
-      Value<String> description,
+      Value<String> extraDescription,
       Value<DateTime> createdAt,
     });
 
@@ -7113,8 +7412,8 @@ class $$ExtraCaloriesEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get description => $composableBuilder(
-    column: $table.description,
+  ColumnFilters<String> get extraDescription => $composableBuilder(
+    column: $table.extraDescription,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7153,8 +7452,8 @@ class $$ExtraCaloriesEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get description => $composableBuilder(
-    column: $table.description,
+  ColumnOrderings<String> get extraDescription => $composableBuilder(
+    column: $table.extraDescription,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -7185,8 +7484,8 @@ class $$ExtraCaloriesEntriesTableAnnotationComposer
   GeneratedColumn<double> get calories =>
       $composableBuilder(column: $table.calories, builder: (column) => column);
 
-  GeneratedColumn<String> get description => $composableBuilder(
-    column: $table.description,
+  GeneratedColumn<String> get extraDescription => $composableBuilder(
+    column: $table.extraDescription,
     builder: (column) => column,
   );
 
@@ -7241,14 +7540,14 @@ class $$ExtraCaloriesEntriesTableTableManager
                 Value<String> userId = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<double> calories = const Value.absent(),
-                Value<String> description = const Value.absent(),
+                Value<String> extraDescription = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => ExtraCaloriesEntriesCompanion(
                 id: id,
                 userId: userId,
                 date: date,
                 calories: calories,
-                description: description,
+                extraDescription: extraDescription,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -7257,14 +7556,14 @@ class $$ExtraCaloriesEntriesTableTableManager
                 required String userId,
                 required DateTime date,
                 required double calories,
-                Value<String> description = const Value.absent(),
+                Value<String> extraDescription = const Value.absent(),
                 required DateTime createdAt,
               }) => ExtraCaloriesEntriesCompanion.insert(
                 id: id,
                 userId: userId,
                 date: date,
                 calories: calories,
-                description: description,
+                extraDescription: extraDescription,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -8075,7 +8374,7 @@ typedef $$WeeklyDietItemsTableCreateCompanionBuilder =
       required String foodName,
       required double quantity,
       required String quantityUnit,
-      required double calories,
+      Value<double> calories,
       Value<double> protein,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -8323,7 +8622,7 @@ class $$WeeklyDietItemsTableTableManager
                 required String foodName,
                 required double quantity,
                 required String quantityUnit,
-                required double calories,
+                Value<double> calories = const Value.absent(),
                 Value<double> protein = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,

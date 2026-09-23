@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'screens/calendar/user1_calendar_screen.dart';
-import 'screens/user2/user2_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import 'screens/calendar/user1_calendar_screen.dart';
+import 'screens/user2/user2_screen.dart';
 import 'screens/diet/diet_screen.dart';
 import 'screens/home/daily_metrics_screen.dart';
 import 'services/database_service.dart';
@@ -55,7 +57,8 @@ class HomeScreen extends StatefulWidget {
 // HOME STATE
 // ============================================================
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
 
   DailyDataData? _dailyData;
@@ -105,7 +108,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           date: DateTime.now(),
         );
 
-        final targets = await _database.getDailyTargets(userId: 'user1');
+        final targets = await _database.getDailyTargets(
+          userId: 'user1',
+        );
 
         final steps = (healthData['steps'] as num?)?.toInt() ?? 0;
 
@@ -118,7 +123,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ? plannedCalories
             : (existing?.calorieTarget ?? 0);
 
-        final stepTarget = targets?.stepTarget ?? existing?.stepTarget ?? 10000;
+        final stepTarget =
+            targets?.stepTarget ?? existing?.stepTarget ?? 10000;
 
         await _database.saveDailyData(
           userId: 'user1',
@@ -159,7 +165,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         date: DateTime.now(),
       );
 
-      final targets = await _database.getDailyTargets(userId: 'user1');
+      final targets = await _database.getDailyTargets(
+        userId: 'user1',
+      );
 
       await _database.saveDailyData(
         userId: 'user1',
@@ -214,7 +222,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _openUser1() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const User1Screen()),
+      MaterialPageRoute(
+        builder: (_) => const User1Screen(),
+      ),
     );
 
     await _loadDailyData();
@@ -227,7 +237,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _openUser2() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const User2Screen()),
+      MaterialPageRoute(
+        builder: (_) => const User2Screen(),
+      ),
     );
   }
 
@@ -238,7 +250,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _openDiet() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const DietScreen(todayOnly: true)),
+      MaterialPageRoute(
+        builder: (_) => const DietScreen(todayOnly: true),
+      ),
     );
 
     await _loadDailyData();
@@ -259,7 +273,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return 0;
     }
 
-    return _clamp((_dailyData!.steps / target) * 100);
+    return _clamp(
+      (_dailyData!.steps / target) * 100,
+    );
   }
 
   // ==========================================================
@@ -307,8 +323,120 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ==========================================================
-  // DISPOSE
+  // TODAY'S INSIGHT
   // ==========================================================
+
+  void _showTodaysInsight() {
+    if (!mounted) return;
+
+    final recovery = _recoveryPercent();
+    final steps = _dailyData?.steps ?? 0;
+    final stepTarget = _dailyData?.stepTarget ?? 0;
+
+    String message;
+
+    if (_dailyData == null) {
+      message =
+          'Today’s fitness data is still loading. '
+          'Your insight will update once today’s activity is available.';
+    } else if (recovery <= 30) {
+      message =
+          'Your recovery is currently low. '
+          'Today’s score is influenced by your activity and training load. '
+          'If you have already trained, additional rest and avoiding '
+          'unnecessary extra activity may support recovery.';
+    } else if (recovery <= 60) {
+      message =
+          'Your recovery is currently moderate. '
+          'Your activity and training load are both contributing to '
+          'today’s recovery score.';
+    } else {
+      message =
+          'Your recovery is currently in a higher range. '
+          'Your activity and training load are contributing to today’s '
+          'overall balance.';
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0A1730),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(22),
+        ),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.insights_outlined,
+                      color: Colors.white70,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Today’s Insight',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      color: Colors.white60,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.55,
+                    color: Colors.white70,
+                  ),
+                ),
+                if (_dailyData != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Today',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '$steps steps'
+                    '${stepTarget > 0 ? '  •  Target $stepTarget' : ''}'
+                    '  •  Recovery ${recovery.round()}%',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white60,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
@@ -318,9 +446,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // ==========================================================
+  // ============================================================
   // BUILD
-  // ==========================================================
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -339,110 +467,139 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // ======================================================
       // BODY
       // ======================================================
+
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+            colors: [
+              Color(0xFF08285C),
+              Color(0xFF061A3B),
+              Color(0xFF050B18),
+            ],
             stops: [0.0, 0.38, 1.0],
           ),
         ),
-
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
-
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
                 // =================================================
                 // HEADER
                 // =================================================
-                Column(
+
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // DATE HEADER
-                    Text(
-                      _formatHomeDate(DateTime.now()),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _formatHomeDate(DateTime.now()),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Today',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white60,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-
-                    const SizedBox(height: 4),
-
-                    const Text(
-                      'Today',
-                      style: TextStyle(fontSize: 13, color: Colors.white60),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Steps - left
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 28),
-                            child: _metricRing(
-                              value: _stepsPercent(),
-                              label: 'Steps',
-                              displayValue: _dailyData == null
-                                  ? '0'
-                                  : '${_stepsPercent().round()}',
-                              color: const Color(0xFFB66CFF),
-                            ),
-                          ),
-                        ),
-
-                        // Recovery - center, slightly higher
-                        Expanded(
-                          child: _metricRing(
-                            value: _recoveryPercent(),
-                            label: 'Recovery',
-                            displayValue:
-                                _dailyData == null ||
-                                    _dailyData!.recoveryScore <= 0
-                                ? '0'
-                                : '${_recoveryPercent().round()}',
-                            color: const Color(0xFF39D98A),
-                          ),
-                        ),
-
-                        // Effort - right
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 28),
-                            child: _metricRing(
-                              value: _effortPercent(),
-                              label: 'Effort',
-                              displayValue:
-                                  _dailyData == null ||
-                                      _dailyData!.effortScore <= 0
-                                  ? '0'
-                                  : '${_effortPercent().round()}',
-                              color: const Color(0xFFFF7A21),
-                            ),
-                          ),
-                        ),
-                      ],
+                    IconButton(
+                      onPressed: _showTodaysInsight,
+                      tooltip: 'Today’s Insight',
+                      icon: const Icon(
+                        Icons.insights_outlined,
+                        color: Colors.white70,
+                        size: 23,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 18),
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Steps - left
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 28),
+                        child: _metricRing(
+                          value: _stepsPercent(),
+                          label: 'Steps',
+                          displayValue: _dailyData == null
+                              ? '0'
+                              : '${_stepsPercent().round()}',
+                          color: const Color(0xFFB66CFF),
+                        ),
+                      ),
+                    ),
+
+                    // Recovery - center, slightly higher
+                    Expanded(
+                      child: _metricRing(
+                        value: _recoveryPercent(),
+                        label: 'Recovery',
+                        displayValue:
+                            _dailyData == null ||
+                                    _dailyData!.recoveryScore <= 0
+                                ? '0'
+                                : '${_recoveryPercent().round()}',
+                        color: const Color(0xFF39D98A),
+                      ),
+                    ),
+
+                    // Effort - right
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 28),
+                        child: _metricRing(
+                          value: _effortPercent(),
+                          label: 'Effort',
+                          displayValue:
+                              _dailyData == null ||
+                                      _dailyData!.effortScore <= 0
+                                  ? '0'
+                                  : '${_effortPercent().round()}',
+                          color: const Color(0xFFFF7A21),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
                 const SizedBox(height: 34),
 
                 // =================================================
                 // DAILY DATA
                 // =================================================
+
                 const Text(
                   'Daily Data',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
 
                 const SizedBox(height: 14),
@@ -469,9 +626,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         },
                       ),
                     ),
-
                     const SizedBox(width: 12),
-
                     Expanded(
                       child: _actionCard(
                         icon: Icons.restaurant_menu,
@@ -482,12 +637,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
+
                 // =================================================
                 // USERS
                 // =================================================
+
                 const Text(
                   'Users',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
 
                 const SizedBox(height: 14),
@@ -502,9 +662,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         _openUser1,
                       ),
                     ),
-
                     const SizedBox(width: 12),
-
                     Expanded(
                       child: _userCard(
                         'User 2',
@@ -526,22 +684,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // ========================================================
       // BOTTOM NAVIGATION
       // ========================================================
+
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF071329),
-        indicatorColor: const Color(0xFF8F5CFF).withValues(alpha: 0.30),
-
+        indicatorColor:
+            const Color(0xFF8F5CFF).withValues(alpha: 0.30),
         selectedIndex: 0,
-
         onDestinationSelected: (index) {
           switch (index) {
             case 0:
-              // Already on Home
               break;
 
             case 1:
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const User1CalendarScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const User1CalendarScreen(),
+                ),
               );
               break;
 
@@ -549,7 +708,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const ExerciseScreen(userId: 'user1'),
+                  builder: (_) => const ExerciseScreen(
+                    userId: 'user1',
+                  ),
                 ),
               );
               break;
@@ -557,12 +718,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             case 3:
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
               );
               break;
           }
         },
-
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -588,6 +750,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
     );
   }
+
+  // ============================================================
+  // HOME DATE
+  // ============================================================
 
   String _formatHomeDate(DateTime date) {
     const weekdays = [
@@ -618,6 +784,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return '${weekdays[date.weekday - 1]}, '
         '${date.day} ${months[date.month - 1]}';
   }
+
   // ============================================================
   // CIRCULAR METRIC
   // ============================================================
@@ -628,49 +795,190 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required String displayValue,
     required Color color,
   }) {
-    return Column(
-      children: [
-        SizedBox(
-          width: 108,
-          height: 108,
-          child: CustomPaint(
-            painter: _RingPainter(progress: value / 100, color: color),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    displayValue,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
+    return InkWell(
+      onTap: () => _showScoreBreakdown(label),
+      borderRadius: BorderRadius.circular(60),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 108,
+              height: 108,
+              child: CustomPaint(
+                painter: _RingPainter(
+                  progress: value / 100,
+                  color: color,
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        displayValue,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 2),
-
-                  Text(
-                    label,
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.white70,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
 
-        const SizedBox(height: 4),
+  // ============================================================
+  // SCORE BREAKDOWN
+  // ============================================================
 
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.white70,
-            fontWeight: FontWeight.w500,
-          ),
+  Future<void> _showScoreBreakdown(String metric) async {
+    if (!mounted) return;
+
+    String title;
+    String description;
+
+    switch (metric) {
+      case 'Steps':
+        final steps = _dailyData?.steps ?? 0;
+        final target = _dailyData?.stepTarget ?? 0;
+
+        title = 'Steps';
+
+        description = target > 0
+            ? 'Your Steps score is based on today’s steps compared '
+                'with your step target.\n\n'
+                'Today: $steps steps\n'
+                'Target: $target steps'
+            : 'Your Steps score is based on today’s steps compared '
+                'with your step target.';
+
+        break;
+
+      case 'Effort':
+        final steps = _dailyData?.steps ?? 0;
+        final trainingLoad = await _getTodayTrainingLoad();
+
+        title = 'Effort';
+
+        description =
+            'Your Effort score combines two contributors:\n\n'
+            '• Steps: 40%\n'
+            '• Training Load: 60%\n\n'
+            'Today’s steps: $steps\n'
+            'Training load: ${trainingLoad.round()}';
+
+        break;
+
+      case 'Recovery':
+        final steps = _dailyData?.steps ?? 0;
+        final trainingLoad = await _getTodayTrainingLoad();
+
+        title = 'Recovery';
+
+        description =
+            'Your Recovery score is based on today’s activity '
+            'and training load.\n\n'
+            'Activity contribution: based on steps\n'
+            'Training contribution: based on training load\n\n'
+            'Today’s steps: $steps\n'
+            'Training load: ${trainingLoad.round()}';
+
+        break;
+
+      default:
+        return;
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0A1730),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(22),
         ),
-      ],
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$title Score Breakdown',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      color: Colors.white60,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.55,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // TRAINING LOAD
+  // ============================================================
+
+  Future<double> _getTodayTrainingLoad() async {
+    final sets = await _database.getSetsByDate(
+      userId: 'user1',
+      date: DateTime.now(),
+    );
+
+    return sets.fold<double>(
+      0,
+      (total, set) => total + (set.weight * set.reps),
     );
   }
 
@@ -692,14 +1000,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white70, size: 23),
-
+            Icon(
+              icon,
+              color: Colors.white70,
+              size: 23,
+            ),
             const SizedBox(width: 10),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -711,9 +1023,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   const SizedBox(height: 3),
-
                   Text(
                     subtitle,
                     style: TextStyle(
@@ -724,8 +1034,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-
-            const Icon(Icons.chevron_right, size: 20, color: Colors.white54),
+            const Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: Colors.white54,
+            ),
           ],
         ),
       ),
@@ -750,22 +1063,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 25, color: Colors.white70),
-
+            Icon(
+              icon,
+              size: 25,
+              color: Colors.white70,
+            ),
             const SizedBox(height: 15),
-
             Text(
               name,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-
             const SizedBox(height: 4),
-
             Text(
               subtitle,
               style: TextStyle(
@@ -800,45 +1118,50 @@ class User1Screen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF050B18),
-
       appBar: AppBar(
         backgroundColor: const Color(0xFF071329),
         elevation: 0,
         title: const Text(
           'User 1',
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
-
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+            colors: [
+              Color(0xFF08285C),
+              Color(0xFF061A3B),
+              Color(0xFF050B18),
+            ],
             stops: [0.0, 0.38, 1.0],
           ),
         ),
-
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(18),
-
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Full Tracking',
-                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-
                 const SizedBox(height: 6),
-
                 const Text(
                   'Manage your complete fitness data',
-                  style: TextStyle(fontSize: 13, color: Colors.white60),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white60,
+                  ),
                 ),
-
                 const SizedBox(height: 28),
 
                 _user1MenuCard(
@@ -850,7 +1173,9 @@ class User1Screen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ExerciseScreen(userId: 'user1'),
+                        builder: (_) => const ExerciseScreen(
+                          userId: 'user1',
+                        ),
                       ),
                     );
                   },
@@ -866,7 +1191,9 @@ class User1Screen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const DietScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const DietScreen(),
+                      ),
                     );
                   },
                 ),
@@ -915,7 +1242,9 @@ class User1Screen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const StatsScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const StatsScreen(),
+                      ),
                     );
                   },
                 ),
@@ -930,7 +1259,9 @@ class User1Screen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
+                      ),
                     );
                   },
                 ),
@@ -954,11 +1285,16 @@ class User1Screen extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 18,
+        ),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
         child: Row(
           children: [
@@ -969,11 +1305,13 @@ class User1Screen extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.07),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.white70, size: 22),
+              child: Icon(
+                icon,
+                color: Colors.white70,
+                size: 22,
+              ),
             ),
-
             const SizedBox(width: 14),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -985,9 +1323,7 @@ class User1Screen extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
                     subtitle,
                     style: TextStyle(
@@ -998,8 +1334,10 @@ class User1Screen extends StatelessWidget {
                 ],
               ),
             ),
-
-            const Icon(Icons.chevron_right, color: Colors.white54),
+            const Icon(
+              Icons.chevron_right,
+              color: Colors.white54,
+            ),
           ],
         ),
       ),
@@ -1015,11 +1353,17 @@ class _RingPainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  _RingPainter({required this.progress, required this.color});
+  _RingPainter({
+    required this.progress,
+    required this.color,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
+    final center = Offset(
+      size.width / 2,
+      size.height / 2,
+    );
 
     final radius = size.width / 2 - 8;
 
@@ -1034,7 +1378,10 @@ class _RingPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.10);
 
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
+      Rect.fromCircle(
+        center: center,
+        radius: radius,
+      ),
       -math.pi / 2,
       math.pi * 2,
       false,
@@ -1053,7 +1400,10 @@ class _RingPainter extends CustomPainter {
         ..color = color;
 
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
+        Rect.fromCircle(
+          center: center,
+          radius: radius,
+        ),
         -math.pi / 2,
         math.pi * 2 * progress.clamp(0.0, 1.0),
         false,
@@ -1069,7 +1419,11 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..color = const Color(0xFF07101E);
 
-    canvas.drawCircle(center, radius - 11, innerPaint);
+    canvas.drawCircle(
+      center,
+      radius - 11,
+      innerPaint,
+    );
 
     // --------------------------------------------------------
     // INNER BORDER
@@ -1080,11 +1434,16 @@ class _RingPainter extends CustomPainter {
       ..strokeWidth = 1
       ..color = Colors.white.withValues(alpha: 0.18);
 
-    canvas.drawCircle(center, radius - 11, borderPaint);
+    canvas.drawCircle(
+      center,
+      radius - 11,
+      borderPaint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _RingPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.color != color;
+    return oldDelegate.progress != progress ||
+        oldDelegate.color != color;
   }
 }

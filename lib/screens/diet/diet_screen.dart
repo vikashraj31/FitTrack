@@ -30,7 +30,6 @@ class _DietScreenState extends State<DietScreen> {
   bool _loading = true;
   bool _seeding = false;
   double? _customTargetCalories;
-  double? _customTargetProtein;
   static const String _seedMarker = '__FITTRACK_WEEKLY_DIET_PLAN_V1__';
 
   static const List<String> _meals = [
@@ -248,52 +247,50 @@ class _DietScreenState extends State<DietScreen> {
   }
 
   Future<void> _repairExistingPlanCalories() async {
-  // Custom weekly plans already contain the correct calories
-  // for each individual food item. Never redistribute or
-  // overwrite those calories.
-  final customPlan = await _getCustomWeeklyPlan();
+    // Custom weekly plans already contain the correct calories
+    // for each individual food item. Never redistribute or
+    // overwrite those calories.
+    final customPlan = await _getCustomWeeklyPlan();
 
-  if (customPlan != null) {
-    return;
-  }
+    if (customPlan != null) {
+      return;
+    }
 
-  // ----------------------------------------------------------
-  // OLD BUILT-IN PLAN FALLBACK
-  // ----------------------------------------------------------
-  final plan = _todayPlan;
+    // ----------------------------------------------------------
+    // OLD BUILT-IN PLAN FALLBACK
+    // ----------------------------------------------------------
+    final plan = _todayPlan;
 
-  final totalFoodItems =
-      plan.meals.values.expand((items) => items).length;
+    final totalFoodItems = plan.meals.values.expand((items) => items).length;
 
-  if (totalFoodItems == 0) return;
+    if (totalFoodItems == 0) return;
 
-  final caloriesPerItem = _targetMidpoint / totalFoodItems;
+    final caloriesPerItem = _targetMidpoint / totalFoodItems;
 
-  final existing = await _database.getDietEntries(
-    userId: 'user1',
-    date: _selectedDate,
-  );
+    final existing = await _database.getDietEntries(
+      userId: 'user1',
+      date: _selectedDate,
+    );
 
-  final plannedNames = <String>{
-    for (final items in plan.meals.values)
-      for (final item in items) item.name,
-  };
+    final plannedNames = <String>{
+      for (final items in plan.meals.values)
+        for (final item in items) item.name,
+    };
 
-  for (final entry in existing) {
-    if (entry.foodName == _seedMarker) continue;
+    for (final entry in existing) {
+      if (entry.foodName == _seedMarker) continue;
 
-    if (entry.plannedCalories == 0 &&
-        plannedNames.contains(entry.foodName)) {
-      await _database.updateDietEntry(
-        id: entry.id,
-        plannedCalories: caloriesPerItem,
-        actualQuantity: entry.actualQuantity,
-        actualCalories: entry.eaten ? caloriesPerItem : 0,
-        eaten: entry.eaten,
-       );
+      if (entry.plannedCalories == 0 && plannedNames.contains(entry.foodName)) {
+        await _database.updateDietEntry(
+          id: entry.id,
+          plannedCalories: caloriesPerItem,
+          actualQuantity: entry.actualQuantity,
+          actualCalories: entry.eaten ? caloriesPerItem : 0,
+          eaten: entry.eaten,
+        );
+      }
     }
   }
-}
   // ==========================================================
   // LOAD + SEED
 
@@ -308,10 +305,8 @@ class _DietScreenState extends State<DietScreen> {
 
     if (customPlan != null) {
       _customTargetCalories = customPlan.targetCalories;
-      _customTargetProtein = customPlan.targetProtein;
     } else {
       _customTargetCalories = null;
-      _customTargetProtein = null;
     }
 
     await _ensurePlanSeeded();
@@ -683,11 +678,10 @@ class _DietScreenState extends State<DietScreen> {
                     )
                   else ...[
                     _buildDateCard(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                   ],
-                  _buildPlanSummary(),
-                  const SizedBox(height: 16),
                   _buildCaloriesSummary(),
+                  const SizedBox(height: 18),
                   const SizedBox(height: 12),
                   if (!_todayOnly) ...[
                     SizedBox(
@@ -733,37 +727,37 @@ class _DietScreenState extends State<DietScreen> {
   // ==========================================================
 
   Widget _buildDateCard() {
-    final card = Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(18),
-      ),
+    final card = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today, color: Colors.cyan),
-          const SizedBox(width: 14),
+          const Icon(
+            Icons.calendar_today_outlined,
+            size: 18,
+            color: Colors.white70,
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   _todayOnly ? 'Today' : 'Selected Date',
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   '${_todayPlan.day} • ${_formatDate(_selectedDate)}',
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
           if (!_todayOnly)
-            const Icon(Icons.chevron_right, color: Colors.white54),
+            const Icon(Icons.chevron_right, size: 20, color: Colors.white38),
         ],
       ),
     );
@@ -774,66 +768,8 @@ class _DietScreenState extends State<DietScreen> {
 
     return InkWell(
       onTap: _selectDate,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(12),
       child: card,
-    );
-  }
-
-  // ==========================================================
-  // PLAN SUMMARY
-  // ==========================================================
-
-  Widget _buildPlanSummary() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF19242D), Color(0xFF172027)],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.cyan.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.cyan.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.restaurant_menu, color: Colors.cyan),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${_todayPlan.day} Plan',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _customTargetCalories != null
-                      ? '${_customTargetCalories!.toStringAsFixed(0)} kcal'
-                      : _todayPlan.calorieRange,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                Text(
-                  _customTargetProtein != null
-                      ? '${_customTargetProtein!.toStringAsFixed(0)} g protein'
-                      : _todayPlan.proteinRange,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -843,41 +779,42 @@ class _DietScreenState extends State<DietScreen> {
 
   Widget _buildCaloriesSummary() {
     final actual = _actualCalories;
+    final target = _targetMidpoint;
     final percentage = _caloriePercentage;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            const Text(
-              'Calories Eaten',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
+            Text(
+              actual.toStringAsFixed(0),
+              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 5),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Text(
+                'kcal',
+                style: TextStyle(fontSize: 12, color: Colors.white54),
               ),
             ),
             const Spacer(),
             Text(
-              '${actual.toStringAsFixed(0)} kcal',
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(width: 10),
-            Text(
               '${percentage.toStringAsFixed(0)}%',
               style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
                 color: Colors.cyan,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 3),
         Text(
-          'Target: ${_targetMidpoint.toStringAsFixed(0)} kcal',
-          style: const TextStyle(color: Colors.white38, fontSize: 11),
+          'Target ${target.toStringAsFixed(0)} kcal',
+          style: const TextStyle(fontSize: 11, color: Colors.white38),
         ),
         const SizedBox(height: 8),
         ClipRRect(
@@ -898,157 +835,194 @@ class _DietScreenState extends State<DietScreen> {
   // ==========================================================
 
   Widget _buildMealSection(String meal) {
-    final entries = _entries.where((entry) => entry.meal == meal).toList();
+  final entries = _entries.where((entry) => entry.meal == meal).toList();
 
-    final isSundaySkip =
-        _selectedDate.weekday == DateTime.sunday && meal == 'Breakfast';
+  final isSundaySkip =
+      _selectedDate.weekday == DateTime.sunday && meal == 'Breakfast';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    meal,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            Expanded(
+              child: Text(
+                meal,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                IconButton(
-                  onPressed: () => _addCustomFood(meal),
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: 'Add food',
-                ),
-              ],
+              ),
             ),
-            if (isSundaySkip)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(4, 8, 4, 8),
-                child: Text(
-                  'SKIP — no planned breakfast',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+            IconButton(
+              onPressed: () => _addCustomFood(meal),
+              icon: const Icon(
+                Icons.add,
+                size: 20,
+                color: Colors.white70,
               ),
-            if (entries.isEmpty && !isSundaySkip)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(4, 8, 4, 8),
-                child: Text(
-                  'No food added',
-                  style: TextStyle(color: Colors.white38),
-                ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
               ),
-            ...entries.map(_buildFoodItem),
+              tooltip: 'Add food',
+            ),
           ],
         ),
-      ),
-    );
-  }
 
+        if (isSundaySkip)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'No planned breakfast',
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
+              ),
+            ),
+          ),
+
+        if (entries.isEmpty && !isSundaySkip)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'No food added',
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
+              ),
+            ),
+          ),
+
+        ...entries.map(_buildFoodItem),
+      ],
+    ),
+  );
+}
   // ==========================================================
   // FOOD ITEM
   // ==========================================================
 
   Widget _buildFoodItem(DietEntry entry) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF22252D),
-        borderRadius: BorderRadius.circular(12),
+  return Dismissible(
+    key: ValueKey(entry.id),
+    direction: DismissDirection.endToStart,
+
+    confirmDismiss: (_) async {
+      return await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Delete food?'),
+            content: Text(
+              'Delete ${entry.foodName}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+
+    onDismissed: (_) {
+      _deleteDietEntry(entry);
+    },
+
+    background: Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 16),
+      child: const Icon(
+        Icons.delete_outline,
+        color: Colors.redAccent,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Checkbox(
-            value: entry.eaten,
-            activeColor: Colors.cyan,
-            onChanged: (_) => _toggleEaten(entry),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: InkWell(
-              onTap: () => _editDietEntry(entry),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+    ),
+
+    child: InkWell(
+      onTap: () => _editDietEntry(entry),
+      borderRadius: BorderRadius.circular(10),
+
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Checkbox(
+              value: entry.eaten,
+              activeColor: Colors.cyan,
+              visualDensity: VisualDensity.compact,
+              onChanged: (_) => _toggleEaten(entry),
+            ),
+
+            const SizedBox(width: 6),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.foodName,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: entry.eaten
+                          ? Colors.white70
+                          : Colors.white,
+                    ),
+                  ),
+
+                  const SizedBox(height: 3),
+
+                  Text(
+                    entry.eaten
+                        ? 'Actual: ${_formatQuantity(entry.actualQuantity)} ${entry.quantityUnit}'
+                        : 'Planned: ${entry.quantityUnit}',
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 11,
+                    ),
+                  ),
+
+                  if (entry.eaten && entry.actualCalories > 0)
                     Text(
-                      entry.foodName,
+                      '${entry.actualCalories.toStringAsFixed(0)} kcal',
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                        color: Colors.cyan,
+                        fontSize: 11,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Planned: ${entry.quantityUnit}',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
-                    ),
-                    if (entry.eaten) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        'Actual: ${_formatQuantity(entry.actualQuantity)} '
-                        '${entry.quantityUnit}',
-                        style: const TextStyle(
-                          color: Colors.cyan,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if (entry.actualCalories > 0)
-                        Text(
-                          '${entry.actualCalories.toStringAsFixed(0)} kcal logged',
-                          style: const TextStyle(
-                            color: Colors.cyan,
-                            fontSize: 12,
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
+                ],
               ),
             ),
-          ),
-          IconButton(
-            onPressed: () => _editDietEntry(entry),
-            icon: const Icon(
-              Icons.edit_outlined,
-              size: 18,
-              color: Colors.white38,
+
+            IconButton(
+              onPressed: () => _editDietEntry(entry),
+              icon: const Icon(
+                Icons.edit_outlined,
+                size: 17,
+                color: Colors.white38,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
             ),
-            tooltip: 'Edit',
-          ),
-          IconButton(
-            onPressed: () => _deleteDietEntry(entry),
-            icon: const Icon(
-              Icons.delete_outline,
-              size: 18,
-              color: Colors.white38,
-            ),
-            tooltip: 'Delete',
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ==========================================================
   // FOOD LIBRARY
@@ -1113,154 +1087,223 @@ class _DietScreenState extends State<DietScreen> {
   // ==========================================================
 
   Widget _buildExtraCalories() {
-    final totalExtra = _extraCalories.fold<double>(
-      0,
-      (sum, item) => sum + item.calories,
-    );
+  final totalExtra = _extraCalories.fold<double>(
+    0,
+    (sum, item) => sum + item.calories,
+  );
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Extra Calories',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Extra Calories',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              IconButton(
-                onPressed: _addExtraCalories,
-                icon: const Icon(Icons.add_circle_outline),
+            ),
+            IconButton(
+              onPressed: _addExtraCalories,
+              icon: const Icon(
+                Icons.add,
+                size: 20,
+                color: Colors.white70,
               ),
-            ],
-          ),
-          if (_extraCalories.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 6, bottom: 4),
-              child: Text(
-                'No extra calories',
-                style: TextStyle(color: Colors.white38),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
+              tooltip: 'Add calories',
+            ),
+          ],
+        ),
+
+        if (_extraCalories.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'No extra calories',
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
               ),
             ),
-          ..._extraCalories.map(
-            (entry) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                entry.description.isEmpty
-                    ? 'Extra calories'
-                    : entry.description,
-              ),
-              subtitle: Text('${entry.calories.toStringAsFixed(0)} kcal'),
-              trailing: IconButton(
-                onPressed: () => _deleteExtraCalories(entry),
-                icon: const Icon(Icons.delete_outline, color: Colors.white54),
-              ),
-            ),
           ),
-          if (_extraCalories.isNotEmpty) ...[
-            const Divider(color: Colors.white12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+        ..._extraCalories.map(
+          (entry) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(
               children: [
-                const Text(
-                  'Extra Total',
-                  style: TextStyle(color: Colors.white70),
+                Expanded(
+                  child: Text(
+                    entry.description.isEmpty
+                        ? 'Extra calories'
+                        : entry.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
                 Text(
-                  '${totalExtra.toStringAsFixed(0)} kcal',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  '${entry.calories.toStringAsFixed(0)} kcal',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _deleteExtraCalories(entry),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 17,
+                    color: Colors.white38,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                 ),
               ],
             ),
-          ],
+          ),
+        ),
+
+        if (_extraCalories.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          const Divider(color: Colors.white12),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Extra Total',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                '${totalExtra.toStringAsFixed(0)} kcal',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
+
 
   // ==========================================================
   // FINAL TOTAL
   // ==========================================================
 
   Widget _buildFinalTotal() {
-    final actual = _actualCalories;
-    final target = _targetMidpoint;
-    final difference = actual - target;
+  final actual = _actualCalories;
+  final target = _targetMidpoint;
+  final difference = actual - target;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Daily Total',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+
+      const SizedBox(height: 10),
+
+      Row(
         children: [
-          const Text(
-            'Daily Total',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _totalItem(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
                   'Actual',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
                   '${actual.toStringAsFixed(0)} kcal',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _totalItem(
-                  'Target midpoint',
-                  '${target.toStringAsFixed(0)} kcal',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            difference >= 0
-                ? '${difference.toStringAsFixed(0)} kcal above midpoint'
-                : '${difference.abs().toStringAsFixed(0)} kcal remaining to midpoint',
-            style: TextStyle(
-              color: difference > 0 ? Colors.orange : Colors.white54,
-              fontSize: 13,
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Plan: ${_todayPlan.calorieRange} • ${_todayPlan.proteinRange}',
-            style: const TextStyle(color: Colors.white38, fontSize: 11),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Target',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${target.toStringAsFixed(0)} kcal',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-    );
-  }
 
-  Widget _totalItem(String title, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
+      const SizedBox(height: 10),
 
+      Text(
+        difference >= 0
+            ? '${difference.toStringAsFixed(0)} kcal above target'
+            : '${difference.abs().toStringAsFixed(0)} kcal remaining',
+        style: TextStyle(
+          color: difference > 0 ? Colors.orange : Colors.white54,
+          fontSize: 12,
+        ),
+      ),
+
+      const SizedBox(height: 5),
+
+      Text(
+        'Plan: ${_todayPlan.calorieRange} • ${_todayPlan.proteinRange}',
+        style: const TextStyle(
+          color: Colors.white38,
+          fontSize: 11,
+        ),
+      ),
+    ],
+  );
+}
   // ==========================================================
   // HELPERS
   // ==========================================================
@@ -1723,7 +1766,7 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
                 shrinkWrap: true,
                 itemCount: _foods.length,
                 separatorBuilder: (_, _) =>
-    const Divider(color: Colors.white12),
+                    const Divider(color: Colors.white12),
                 itemBuilder: (context, index) {
                   final food = _foods[index];
 
@@ -1867,7 +1910,7 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-  initialValue: _meal,
+                initialValue: _meal,
                 decoration: const InputDecoration(labelText: 'Default meal'),
                 items: const [
                   DropdownMenuItem(
@@ -1908,7 +1951,7 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-  initialValue: _unit,
+                      initialValue: _unit,
                       decoration: const InputDecoration(labelText: 'Unit'),
                       items: const [
                         DropdownMenuItem(value: 'g', child: Text('g')),
