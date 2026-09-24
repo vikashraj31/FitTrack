@@ -11,7 +11,7 @@ import 'screens/home/daily_metrics_screen.dart';
 import 'services/database_service.dart';
 import 'services/health_sync_service.dart';
 import 'screens/stats/stats_screen.dart';
-import 'screens/exercise/exercise_screen.dart';
+import 'screens/exercise/user1_home_exercise_screen.dart';
 import 'screens/settings/settings_screen.dart';
 
 Future<void> main() async {
@@ -213,21 +213,6 @@ class _HomeScreenState extends State<HomeScreen>
         _dailyData = null;
       });
     }
-  }
-
-  // ==========================================================
-  // OPEN USER 1
-  // ==========================================================
-
-  Future<void> _openUser1() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const User1Screen(),
-      ),
-    );
-
-    await _loadDailyData();
   }
 
   // ==========================================================
@@ -484,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen>
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -543,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen>
                     // Steps - left
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 28),
+                        padding: const EdgeInsets.only(top: 32),
                         child: _metricRing(
                           value: _stepsPercent(),
                           label: 'Steps',
@@ -572,7 +557,7 @@ class _HomeScreenState extends State<HomeScreen>
                     // Effort - right
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 28),
+                        padding: const EdgeInsets.only(top: 32),
                         child: _metricRing(
                           value: _effortPercent(),
                           label: 'Effort',
@@ -588,7 +573,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
 
-                const SizedBox(height: 34),
+                const SizedBox(height: 42),
 
                 // =================================================
                 // DAILY DATA
@@ -602,9 +587,9 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 30),
 
                 Row(
                   children: [
@@ -617,10 +602,7 @@ class _HomeScreenState extends State<HomeScreen>
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ExerciseScreen(
-                                userId: 'user1',
-                                homeMode: true,
-                              ),
+                              builder: (_) => const User1HomeExerciseScreen(),
                             ),
                           );
                         },
@@ -638,6 +620,8 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
 
+                const SizedBox(height: 18),
+
                 // =================================================
                 // USERS
                 // =================================================
@@ -650,16 +634,23 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
 
                 Row(
                   children: [
                     Expanded(
                       child: _userCard(
-                        'User 1',
-                        'Full Tracking',
-                        Icons.person_outline,
-                        _openUser1,
+                        'Stats',
+                        'Long-term progress',
+                        Icons.bar_chart,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const StatsScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -674,7 +665,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -708,17 +699,6 @@ class _HomeScreenState extends State<HomeScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const ExerciseScreen(
-                    userId: 'user1',
-                  ),
-                ),
-              );
-              break;
-
-            case 3:
-              Navigator.push(
-                context,
-                MaterialPageRoute(
                   builder: (_) => const SettingsScreen(),
                 ),
               );
@@ -735,11 +715,6 @@ class _HomeScreenState extends State<HomeScreen>
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.fitness_center_outlined),
-            selectedIcon: Icon(Icons.fitness_center),
-            label: 'Workout',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
@@ -996,6 +971,7 @@ class _HomeScreenState extends State<HomeScreen>
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        constraints: const BoxConstraints(minHeight: 86),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
@@ -1059,6 +1035,7 @@ class _HomeScreenState extends State<HomeScreen>
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        constraints: const BoxConstraints(minHeight: 135),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
@@ -1166,42 +1143,6 @@ class User1Screen extends StatelessWidget {
 
                 _user1MenuCard(
                   context,
-                  icon: Icons.fitness_center,
-                  title: 'Exercise',
-                  subtitle: 'Track workouts and exercise history',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ExerciseScreen(
-                          userId: 'user1',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                _user1MenuCard(
-                  context,
-                  icon: Icons.restaurant_menu,
-                  title: 'Diet',
-                  subtitle: 'Track meals and calories',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DietScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                _user1MenuCard(
-                  context,
                   icon: Icons.analytics_outlined,
                   title: 'Daily Metrics',
                   subtitle: 'Steps, effort and recovery',
@@ -1210,23 +1151,6 @@ class User1Screen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const DailyMetricsScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                _user1MenuCard(
-                  context,
-                  icon: Icons.calendar_month_outlined,
-                  title: 'Calendar',
-                  subtitle: 'View your activity by date',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const User1CalendarScreen(),
                       ),
                     );
                   },
@@ -1251,20 +1175,6 @@ class User1Screen extends StatelessWidget {
 
                 const SizedBox(height: 12),
 
-                _user1MenuCard(
-                  context,
-                  icon: Icons.settings_outlined,
-                  title: 'Settings',
-                  subtitle: 'Manage FitTrack settings',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SettingsScreen(),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
           ),
