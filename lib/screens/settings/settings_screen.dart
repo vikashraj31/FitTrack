@@ -2,7 +2,9 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:health/health.dart';
+import 'package:file_picker/file_picker.dart';
 
+import '../../services/backup_service.dart';
 import '../../services/database_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -334,6 +336,15 @@ class _SettingsScreenState extends State<SettingsScreen>
                         ? '${_weightUser == 'user1' ? 'User 1' : 'User 2'} • No weight recorded'
                         : '${_weightUser == 'user1' ? 'User 1' : 'User 2'} • ${_currentWeight!.toStringAsFixed(1)} kg',
                 onTap: _showWeightSheet,
+              ),
+              const SizedBox(height: 24),
+              _sectionTitle('Data'),
+              const SizedBox(height: 10),
+              _selectorTile(
+                icon: Icons.backup_outlined,
+                title: 'Backup & Restore',
+                subtitle: 'Save or restore your FitTrack data as a backup file.',
+                onTap: _showBackupOptions,
               ),
               const SizedBox(height: 24),
               _sectionTitle('About'),
@@ -767,6 +778,183 @@ class _SettingsScreenState extends State<SettingsScreen>
         borderSide: const BorderSide(color: Colors.white54),
       ),
     );
+  }
+
+  Future<void> _showBackupOptions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF071329),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Backup & Restore',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your workout, diet, targets, weight history and other local FitTrack records are included.',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _selectorTile(
+                icon: Icons.cloud_upload_outlined,
+                title: 'Backup Now',
+                subtitle: 'Create a JSON backup file',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _backupNow();
+                },
+              ),
+              const SizedBox(height: 10),
+              _selectorTile(
+                icon: Icons.restore_outlined,
+                title: 'Restore Backup',
+                subtitle: 'Restore data from a FitTrack JSON backup',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _restoreBackup();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _backupNow() async {
+    try {
+      _showBackupMessage('Preparing backup...');
+
+      final bytes = await BackupService.createBackupBytes(_database);
+      final now = DateTime.now();
+      final fileName =
+          'FitTrack_Backup_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}.json';
+
+      final savedUri = await FilePicker.saveFile(
+        dialogTitle: 'Save FitTrack Backup',
+        fileName: fileName,
+        bytes: bytes,
+        mimeType: 'application/json',
+        allowedExtensions: ['json'],
+      );
+
+      if (!mounted) return;
+
+      _showBackupMessage(
+        savedUri == null
+            ? 'Backup cancelled.'
+            : 'Backup saved successfully.',
+      );
+    } catch (e) {
+      debugPrint('Backup failed: $e');
+      if (mounted) {
+        _showBackupMessage('Backup failed. Please try again.');
+      }
+    }
+  }
+
+  Future<void> _restoreBackup() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF071329),
+        title: const Text(
+          'Restore Backup?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Restoring a backup will replace the current FitTrack local data with the data inside the backup file.\n\nMake sure you have a recent backup of your current data before continuing.',
+          style: TextStyle(color: Colors.white70, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('RESTORE'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      _showBackupMessage('Choose your FitTrack backup file...');
+
+      final picked = await FilePicker.pickFile(
+        dialogTitle: 'Select FitTrack Backup',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (picked == null) {
+        if (mounted) _showBackupMessage('Restore cancelled.');
+        return;
+      }
+
+      final bytes = await picked.readAsBytes();
+
+      if (!mounted) return;
+      _showBackupMessage('Restoring data...');
+
+      final counts = await BackupService.restoreFromBytes(
+        _database,
+        bytes,
+      );
+
+      await _initialize();
+
+      if (!mounted) return;
+
+      final totalRows = counts.values.fold<int>(
+        0,
+        (sum, count) => sum + count,
+      );
+
+      _showBackupMessage(
+        'Restore complete • $totalRows records restored.',
+      );
+    } on FormatException catch (e) {
+      debugPrint('Invalid backup: $e');
+      if (mounted) {
+        _showBackupMessage('Invalid FitTrack backup file.');
+      }
+    } catch (e) {
+      debugPrint('Restore failed: $e');
+      if (mounted) {
+        _showBackupMessage('Restore failed. Please try again.');
+      }
+    }
+  }
+
+  void _showBackupMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message)),
+      );
   }
 
   void _showAboutDialog(BuildContext context) {
