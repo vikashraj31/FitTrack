@@ -66,19 +66,12 @@ class WorkoutRoutines extends Table {
   DateTimeColumn get updatedAt => dateTime()();
 }
 
-// ============================================================
-// ROUTINE SETS TABLE
-// ============================================================
-
 class RoutineSets extends Table {
   IntColumn get id => integer().autoIncrement()();
 
   IntColumn get routineId => integer()();
 
   TextColumn get exerciseName => text()();
-
-  IntColumn get exerciseOrder =>
-      integer().withDefault(const Constant(0))();
 
   IntColumn get setNumber => integer()();
 
@@ -87,10 +80,6 @@ class RoutineSets extends Table {
   IntColumn get reps => integer()();
 }
 
-// ============================================================
-// DAILY DATA TABLE
-// ============================================================
-
 class DailyData extends Table {
   IntColumn get id => integer().autoIncrement()();
 
@@ -98,23 +87,18 @@ class DailyData extends Table {
 
   DateTimeColumn get date => dateTime()();
 
-  RealColumn get calories =>
-      real().withDefault(const Constant(0))();
+  RealColumn get calories => real().withDefault(const Constant(0))();
 
-  RealColumn get calorieTarget =>
-      real().withDefault(const Constant(2500))();
+  RealColumn get calorieTarget => real().withDefault(const Constant(2500))();
 
-  IntColumn get steps =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get steps => integer().withDefault(const Constant(0))();
 
-  IntColumn get stepTarget =>
-      integer().withDefault(const Constant(10000))();
+  IntColumn get stepTarget => integer().withDefault(const Constant(10000))();
 
-  RealColumn get recoveryScore =>
-      real().withDefault(const Constant(0))();
 
-  RealColumn get effortScore =>
-      real().withDefault(const Constant(0))();
+  RealColumn get recoveryScore => real().withDefault(const Constant(0))();
+
+  RealColumn get effortScore => real().withDefault(const Constant(0))();
 
   DateTimeColumn get createdAt => dateTime()();
 
@@ -142,29 +126,16 @@ class DietEntries extends Table {
 
   RealColumn get plannedCalories => real()();
 
-  RealColumn get plannedProtein =>
-      real().withDefault(const Constant(0))();
+  RealColumn get actualQuantity => real().withDefault(const Constant(0))();
 
-  RealColumn get actualQuantity =>
-      real().withDefault(const Constant(0))();
+  RealColumn get actualCalories => real().withDefault(const Constant(0))();
 
-  RealColumn get actualCalories =>
-      real().withDefault(const Constant(0))();
-
-  RealColumn get actualProtein =>
-      real().withDefault(const Constant(0))();
-
-  BoolColumn get eaten =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get eaten => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get createdAt => dateTime()();
 
   DateTimeColumn get updatedAt => dateTime()();
 }
-
-// ============================================================
-// FOOD LIBRARY TABLE
-// ============================================================
 
 class FoodLibrary extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -198,11 +169,9 @@ class WeeklyDietPlans extends Table {
   // 1 = Monday ... 7 = Sunday
   IntColumn get dayOfWeek => integer()();
 
-  RealColumn get targetCalories =>
-      real().withDefault(const Constant(2500))();
+  RealColumn get targetCalories => real().withDefault(const Constant(2500))();
 
-  RealColumn get targetProtein =>
-      real().withDefault(const Constant(0))();
+  RealColumn get targetProtein => real().withDefault(const Constant(0))();
 
   DateTimeColumn get createdAt => dateTime()();
 
@@ -226,11 +195,9 @@ class WeeklyDietItems extends Table {
 
   TextColumn get quantityUnit => text()();
 
-  RealColumn get calories =>
-      real().withDefault(const Constant(0))();
+  RealColumn get calories => real()();
 
-  RealColumn get protein =>
-      real().withDefault(const Constant(0))();
+  RealColumn get protein => real().withDefault(const Constant(0))();
 
   DateTimeColumn get createdAt => dateTime()();
 
@@ -250,10 +217,7 @@ class ExtraCaloriesEntries extends Table {
 
   RealColumn get calories => real()();
 
-  // "description" conflicts with Drift's Table API.
-  // Keep the actual SQLite column name as "description".
-  TextColumn get extraDescription =>
-      text().named('description').withDefault(const Constant(''))();
+  TextColumn get description => text().withDefault(const Constant(''))();
 
   DateTimeColumn get createdAt => dateTime()();
 }
@@ -267,11 +231,10 @@ class DailyTargets extends Table {
 
   TextColumn get userId => text()();
 
-  RealColumn get calorieTarget =>
-      real().withDefault(const Constant(2500))();
+  RealColumn get calorieTarget => real().withDefault(const Constant(2500))();
 
-  IntColumn get stepTarget =>
-      integer().withDefault(const Constant(10000))();
+  IntColumn get stepTarget => integer().withDefault(const Constant(10000))();
+
 
   DateTimeColumn get createdAt => dateTime()();
 
@@ -305,101 +268,56 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (Migrator m) async {
-          await m.createAll();
-        },
-        onUpgrade: (Migrator m, int from, int to) async {
-          if (from < 2) {
-            await m.createTable(dailyData);
-            await m.createTable(dietEntries);
-            await m.createTable(extraCaloriesEntries);
-          }
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await m.createTable(dailyData);
+        await m.createTable(dietEntries);
+        await m.createTable(extraCaloriesEntries);
+      }
 
-          if (from < 5) {
-            await m.createTable(dailyTargets);
-          }
+      if (from < 5) {
+        await m.createTable(dailyTargets);
+      }
 
-          if (from < 7) {
-            await m.createTable(foodLibrary);
-          }
+      if (from < 7) {
+        await m.createTable(foodLibrary);
+      }
 
-          if (from < 8) {
-            await m.createTable(exerciseLibrary);
-          }
+      if (from < 8) {
+        await m.createTable(exerciseLibrary);
+      }
 
-          if (from < 10) {
-            await m.createTable(workoutRoutines);
-            await m.createTable(routineSets);
-          }
+      if (from < 10) {
+        await m.createTable(workoutRoutines);
+        await m.createTable(routineSets);
+      }
+      if (from < 11) {
+        await m.createTable(weeklyDietPlans);
+        await m.createTable(weeklyDietItems);
+      }
+      if (from < 13) {
+  await customStatement(
+    'ALTER TABLE daily_targets DROP COLUMN sleep_target',
+  );
+}
 
-          if (from < 11) {
-            await m.createTable(weeklyDietPlans);
-            await m.createTable(weeklyDietItems);
-          }
+if (from < 14) {
+  await m.addColumn(workoutSets, workoutSets.exerciseOrder);
+}
+    },
+  );
 
-          if (from < 13) {
-            await customStatement(
-              'ALTER TABLE daily_targets DROP COLUMN sleep_target',
-            );
-          }
-
-          if (from < 14) {
-            await m.addColumn(
-              workoutSets,
-              workoutSets.exerciseOrder,
-            );
-          }
-
-          if (from < 15) {
-            await m.addColumn(
-              routineSets,
-              routineSets.exerciseOrder,
-            );
-          }
-
-          if (from < 16) {
-            await customStatement('''
-              UPDATE routine_sets
-              SET exercise_order = (
-                SELECT COUNT(DISTINCT rs2.exercise_name) - 1
-                FROM routine_sets rs2
-                WHERE rs2.routine_id = routine_sets.routine_id
-                  AND rs2.id <= routine_sets.id
-              )
-              WHERE exercise_order = 0
-            ''');
-          }
-
-          if (from < 17) {
-            await m.addColumn(
-              dietEntries,
-              dietEntries.plannedProtein,
-            );
-
-            await m.addColumn(
-              dietEntries,
-              dietEntries.actualProtein,
-            );
-          }
-        },
-      );
-
-  // ==========================================================
-  // FOOD LIBRARY
-  // ==========================================================
-
-  Future<List<FoodLibraryData>> getFoodLibrary({
-    required String userId,
-  }) async {
+  Future<List<FoodLibraryData>> getFoodLibrary({required String userId}) async {
     return (select(foodLibrary)
           ..where((tbl) => tbl.userId.equals(userId))
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.foodName),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.foodName)]))
         .get();
   }
 
@@ -435,65 +353,59 @@ class AppDatabase extends _$AppDatabase {
     required String quantityUnit,
     required double calories,
   }) async {
-    return (update(foodLibrary)
-          ..where((tbl) => tbl.id.equals(id)))
+    return (update(foodLibrary)..where((tbl) => tbl.id.equals(id)))
         .write(
-      FoodLibraryCompanion(
-        foodName: Value(foodName),
-        defaultMeal: Value(defaultMeal),
-        quantity: Value(quantity),
-        quantityUnit: Value(quantityUnit),
-        calories: Value(calories),
-        updatedAt: Value(DateTime.now()),
-      ),
-    ).then((rows) => rows > 0);
-  }
-
-  Future<bool> deleteFoodLibraryItem({
-    required int id,
-  }) async {
-    return (delete(foodLibrary)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go()
+          FoodLibraryCompanion(
+            foodName: Value(foodName),
+            defaultMeal: Value(defaultMeal),
+            quantity: Value(quantity),
+            quantityUnit: Value(quantityUnit),
+            calories: Value(calories),
+            updatedAt: Value(DateTime.now()),
+          ),
+        )
         .then((rows) => rows > 0);
   }
 
+  Future<bool> deleteFoodLibraryItem({required int id}) async {
+    return (delete(
+      foodLibrary,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+  }
   // ==========================================================
   // EXERCISE LIBRARY
   // ==========================================================
 
   Future<List<ExerciseLibraryData>> getExerciseLibrary({
-  required String userId,
-}) async {
-  return (select(exerciseLibrary)
-        ..orderBy([
-          (tbl) => OrderingTerm.asc(tbl.exerciseName),
-        ]))
-      .get();
-}
-  Future<int> saveExerciseLibraryItem({
-  required String userId,
-  required String exerciseName,
-}) async {
-  final now = DateTime.now();
+    required String userId,
+  }) async {
+    return (select(exerciseLibrary)
+          ..where((tbl) => tbl.userId.equals(userId))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.exerciseName)]))
+        .get();
+  }
 
-  return into(exerciseLibrary).insert(
-    ExerciseLibraryCompanion.insert(
-      userId: 'shared',
-      exerciseName: exerciseName,
-      createdAt: now,
-      updatedAt: now,
-    ),
-  );
-}
+  Future<int> saveExerciseLibraryItem({
+    required String userId,
+    required String exerciseName,
+  }) async {
+    final now = DateTime.now();
+
+    return into(exerciseLibrary).insert(
+      ExerciseLibraryCompanion.insert(
+        userId: userId,
+        exerciseName: exerciseName,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
 
   Future<bool> deleteExerciseLibraryItem({required int id}) async {
-  if (id <= 0) return false;
-
-  return (delete(
-    exerciseLibrary,
-  )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
-}
+    return (delete(
+      exerciseLibrary,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+  }
 
   // ==========================================================
   // WORKOUT ROUTINES
@@ -525,9 +437,7 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(selectedDate) &
                 tbl.date.isSmallerThanValue(nextDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.id),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
         .get();
   }
 
@@ -552,7 +462,6 @@ class AppDatabase extends _$AppDatabase {
   Future<int> saveRoutineSet({
     required int routineId,
     required String exerciseName,
-    required int exerciseOrder,
     required int setNumber,
     required double weight,
     required int reps,
@@ -561,123 +470,108 @@ class AppDatabase extends _$AppDatabase {
       RoutineSetsCompanion.insert(
         routineId: routineId,
         exerciseName: exerciseName,
-        exerciseOrder: Value(exerciseOrder),
         setNumber: setNumber,
         weight: weight,
         reps: reps,
       ),
     );
   }
-
+  
   Future<bool> updateWorkoutRoutine({
-    required int id,
-    required DateTime date,
-    required String routineName,
-    required List<RoutineSet> sets,
-  }) async {
-    try {
-      await transaction(() async {
-        await (update(workoutRoutines)
-              ..where((tbl) => tbl.id.equals(id)))
-            .write(
-          WorkoutRoutinesCompanion(
-            date: Value(_dateOnly(date)),
-            routineName: Value(routineName),
-            updatedAt: Value(DateTime.now()),
+  required int id,
+  required DateTime date,
+  required String routineName,
+  required List<RoutineSet> sets,
+}) async {
+  try {
+    await transaction(() async {
+      await (update(workoutRoutines)..where(
+        (tbl) => tbl.id.equals(id),
+      )).write(
+        WorkoutRoutinesCompanion(
+          date: Value(_dateOnly(date)),
+          routineName: Value(routineName),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
+      await (delete(routineSets)..where(
+        (tbl) => tbl.routineId.equals(id),
+      )).go();
+
+      for (final set in sets) {
+        await into(routineSets).insert(
+          RoutineSetsCompanion.insert(
+            routineId: id,
+            exerciseName: set.exerciseName,
+            setNumber: set.setNumber,
+            weight: set.weight,
+            reps: set.reps,
           ),
         );
+      }
+    });
 
-        await (delete(routineSets)
-              ..where((tbl) => tbl.routineId.equals(id)))
-            .go();
+    return true;
+  } catch (e) {
+  // Error updating workout routine.
+  return false;
+}
+}
 
-        for (final set in sets) {
-          await into(routineSets).insert(
-            RoutineSetsCompanion.insert(
-              routineId: id,
-              exerciseName: set.exerciseName,
-              exerciseOrder: Value(set.exerciseOrder),
-              setNumber: set.setNumber,
-              weight: set.weight,
-              reps: set.reps,
-            ),
-          );
-        }
-      });
-
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<List<RoutineSet>> getRoutineSets({
-    required int routineId,
-  }) async {
+  Future<List<RoutineSet>> getRoutineSets({required int routineId}) async {
     return (select(routineSets)
           ..where((tbl) => tbl.routineId.equals(routineId))
           ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.exerciseOrder),
+            (tbl) => OrderingTerm.asc(tbl.exerciseName),
             (tbl) => OrderingTerm.asc(tbl.setNumber),
           ]))
         .get();
   }
+  // ==========================================================
+  // WORKOUT ROUTINE - UPDATE PERFORMED SET
+  // ==========================================================
 
   Future<bool> updateRoutineSet({
     required int id,
     required double weight,
     required int reps,
   }) async {
-    return (update(routineSets)
-          ..where((tbl) => tbl.id.equals(id)))
-        .write(
-      RoutineSetsCompanion(
-        weight: Value(weight),
-        reps: Value(reps),
-      ),
-    ).then((rows) => rows > 0);
+    return (update(routineSets)..where((tbl) => tbl.id.equals(id)))
+        .write(RoutineSetsCompanion(weight: Value(weight), reps: Value(reps)))
+        .then((rows) => rows > 0);
   }
 
-  Future<bool> deleteWorkoutRoutine({
-    required int id,
-  }) async {
-    await (delete(routineSets)
-          ..where((tbl) => tbl.routineId.equals(id)))
-        .go();
-
-    final rows = await (delete(workoutRoutines)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go();
-
+  Future<bool> deleteWorkoutRoutine({required int id}) async {
+    await (delete(routineSets)..where((tbl) => tbl.routineId.equals(id))).go();
+    final rows = await (delete(
+      workoutRoutines,
+    )..where((tbl) => tbl.id.equals(id))).go();
     return rows > 0;
   }
 
   Future<void> deleteAllWorkoutRoutines({
-    required String userId,
-  }) async {
-    final routines = await getWorkoutRoutines(userId: userId);
+  required String userId,
+}) async {
+  final routines = await getWorkoutRoutines(userId: userId);
 
-    for (final routine in routines) {
-      await deleteWorkoutRoutine(id: routine.id);
-    }
+  for (final routine in routines) {
+    await deleteWorkoutRoutine(id: routine.id);
   }
+}
 
   // ==========================================================
   // DATE HELPERS
   // ==========================================================
 
   DateTime _dateOnly(DateTime date) {
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+    return DateTime(date.year, date.month, date.day);
   }
 
   DateTime _nextDate(DateTime date) {
-    return _dateOnly(date).add(
-      const Duration(days: 1),
-    );
+    final day = _dateOnly(date);
+
+    return day.add(const Duration(days: 1));
   }
 
   // ==========================================================
@@ -685,23 +579,23 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   Future<int> saveSet({
-    required String userId,
-    required String exerciseName,
-    required double weight,
-    required int reps,
-    required DateTime date,
-    int exerciseOrder = 0,
-  }) async {
+  required String userId,
+  required String exerciseName,
+  required double weight,
+  required int reps,
+  required DateTime date,
+  int exerciseOrder = 0,
+}) async {
     return into(workoutSets).insert(
       WorkoutSetsCompanion.insert(
-        userId: userId,
-        exerciseName: exerciseName,
-        exerciseOrder: Value(exerciseOrder),
-        weight: weight,
-        reps: reps,
-        date: _dateOnly(date),
-        createdAt: DateTime.now(),
-      ),
+  userId: userId,
+  exerciseName: exerciseName,
+  exerciseOrder: Value(exerciseOrder),
+  weight: weight,
+  reps: reps,
+  date: _dateOnly(date),
+  createdAt: DateTime.now(),
+),
     );
   }
 
@@ -715,15 +609,15 @@ class AppDatabase extends _$AppDatabase {
     required double weight,
     required int reps,
   }) async {
-    return (update(workoutSets)
-          ..where((tbl) => tbl.id.equals(id)))
+    return (update(workoutSets)..where((tbl) => tbl.id.equals(id)))
         .write(
-      WorkoutSetsCompanion(
-        exerciseName: Value(exerciseName),
-        weight: Value(weight),
-        reps: Value(reps),
-      ),
-    ).then((rows) => rows > 0);
+          WorkoutSetsCompanion(
+            exerciseName: Value(exerciseName),
+            weight: Value(weight),
+            reps: Value(reps),
+          ),
+        )
+        .then((rows) => rows > 0);
   }
 
   // ==========================================================
@@ -731,10 +625,9 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   Future<bool> deleteSet(int id) async {
-    return (delete(workoutSets)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go()
-        .then((rows) => rows > 0);
+    return (delete(
+      workoutSets,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
   }
 
   // ==========================================================
@@ -745,10 +638,7 @@ class AppDatabase extends _$AppDatabase {
     required String userId,
     required DateTime date,
   }) async {
-    final sets = await getSetsByDate(
-      userId: userId,
-      date: date,
-    );
+    final sets = await getSetsByDate(userId: userId, date: date);
 
     for (final set in sets) {
       await deleteSet(set.id);
@@ -759,10 +649,7 @@ class AppDatabase extends _$AppDatabase {
   // WORKOUT - GET SETS FOR DATE
   // ==========================================================
 
-  Future<List<WorkoutSet>> getTodaySets(
-    String userId,
-    DateTime date,
-  ) async {
+  Future<List<WorkoutSet>> getTodaySets(String userId, DateTime date) async {
     final selectedDate = _dateOnly(date);
     final nextDate = _nextDate(date);
 
@@ -774,9 +661,9 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isSmallerThanValue(nextDate),
           )
           ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.exerciseOrder),
-            (tbl) => OrderingTerm.asc(tbl.createdAt),
-          ]))
+  (tbl) => OrderingTerm.asc(tbl.exerciseOrder),
+  (tbl) => OrderingTerm.asc(tbl.createdAt),
+]))
         .get();
   }
 
@@ -805,21 +692,20 @@ class AppDatabase extends _$AppDatabase {
   // WORKOUT - GET ALL WORKOUT DATES
   // ==========================================================
 
-  Future<List<DateTime>> getWorkoutDates(
-    String userId,
-  ) async {
-    final rows = await (select(workoutSets)
-          ..where((tbl) => tbl.userId.equals(userId))
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.date),
-          ]))
-        .get();
+  Future<List<DateTime>> getWorkoutDates(String userId) async {
+    final rows =
+        await (select(workoutSets)
+              ..where((tbl) => tbl.userId.equals(userId))
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.date)]))
+            .get();
 
     final uniqueDates = <String, DateTime>{};
 
     for (final row in rows) {
       final date = _dateOnly(row.date);
+
       final key = '${date.year}-${date.month}-${date.day}';
+
       uniqueDates[key] = date;
     }
 
@@ -827,34 +713,33 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ==========================================================
-  // WORKOUT - UPDATE EXERCISE ORDER
+  // WORKOUT - GET SETS BY DATE
   // ==========================================================
 
   Future<void> updateExerciseOrder({
-    required String userId,
-    required DateTime date,
-    required Map<String, int> exerciseOrders,
-  }) async {
-    final sets = await getSetsByDate(
-      userId: userId,
-      date: date,
+  required String userId,
+  required DateTime date,
+  required Map<String, int> exerciseOrders,
+}) async {
+  final sets = await getSetsByDate(
+    userId: userId,
+    date: date,
+  );
+
+  for (final set in sets) {
+    final order = exerciseOrders[set.exerciseName];
+
+    if (order == null) continue;
+
+    await (update(workoutSets)
+          ..where((tbl) => tbl.id.equals(set.id)))
+        .write(
+      WorkoutSetsCompanion(
+        exerciseOrder: Value(order),
+      ),
     );
-
-    for (final set in sets) {
-      final order = exerciseOrders[set.exerciseName];
-
-      if (order == null) continue;
-
-      await (update(workoutSets)
-            ..where((tbl) => tbl.id.equals(set.id)))
-          .write(
-        WorkoutSetsCompanion(
-          exerciseOrder: Value(order),
-        ),
-      );
-    }
   }
-
+}
   Future<List<WorkoutSet>> getSetsByDate({
     required String userId,
     required DateTime date,
@@ -863,26 +748,26 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ============================================================
-  // DAILY TARGETS
+  // DAILY TARGETS - GET
   // ============================================================
 
-  Future<DailyTarget?> getDailyTargets({
-    required String userId,
-  }) async {
+  Future<DailyTarget?> getDailyTargets({required String userId}) async {
     return (select(dailyTargets)
           ..where((tbl) => tbl.userId.equals(userId))
           ..limit(1))
         .getSingleOrNull();
   }
 
+  // ============================================================
+  // DAILY TARGETS - SAVE / UPDATE
+  // ============================================================
+
   Future<void> saveDailyTargets({
     required String userId,
     required double calorieTarget,
     required int stepTarget,
   }) async {
-    final existing = await getDailyTargets(
-      userId: userId,
-    );
+    final existing = await getDailyTargets(userId: userId);
 
     final now = DateTime.now();
 
@@ -897,9 +782,9 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
     } else {
-      await (update(dailyTargets)
-            ..where((tbl) => tbl.id.equals(existing.id)))
-          .write(
+      await (update(
+        dailyTargets,
+      )..where((tbl) => tbl.id.equals(existing.id))).write(
         DailyTargetsCompanion(
           calorieTarget: Value(calorieTarget),
           stepTarget: Value(stepTarget),
@@ -908,175 +793,280 @@ class AppDatabase extends _$AppDatabase {
       );
     }
   }
+  // ============================================================
+  // FITNESS SCORE INPUTS
+  // ============================================================
+
+  Future<double> getTrainingLoadForDate({
+    required String userId,
+    required DateTime date,
+  }) async {
+    final sets = await getTodaySets(userId, date);
+    final maps = sets
+        .map((set) => <String, dynamic>{
+              'weight': set.weight,
+              'reps': set.reps,
+            })
+        .toList();
+
+    return FitnessCalculationService.calculateTrainingLoad(maps);
+  }
+
+  Future<double> getTrainingReference({
+    required String userId,
+    required DateTime date,
+    int days = 30,
+  }) async {
+    final selectedDate = _dateOnly(date);
+    double total = 0;
+    int workoutDays = 0;
+
+    for (int i = 1; i <= days; i++) {
+      final day = selectedDate.subtract(Duration(days: i));
+      final load = await getTrainingLoadForDate(
+        userId: userId,
+        date: day,
+      );
+
+      if (load > 0) {
+        total += load;
+        workoutDays++;
+      }
+    }
+
+    // Personal 30-day average; 10,000 is only the cold-start fallback.
+    if (workoutDays == 0) return 10000;
+    return total / workoutDays;
+  }
+
+  Future<List<double>> getRecentTrainingLoads({
+    required String userId,
+    required DateTime date,
+    int days = 3,
+  }) async {
+    final selectedDate = _dateOnly(date);
+    final loads = <double>[];
+
+    for (int i = 0; i < days; i++) {
+      final day = selectedDate.subtract(Duration(days: i));
+      loads.add(await getTrainingLoadForDate(
+        userId: userId,
+        date: day,
+      ));
+    }
+
+    return loads;
+  }
+
+  Future<int> getRecentWorkoutDayCount({
+    required String userId,
+    required DateTime date,
+    int days = 3,
+  }) async {
+    final loads = await getRecentTrainingLoads(
+      userId: userId,
+      date: date,
+      days: days,
+    );
+    return loads.where((load) => load > 0).length;
+  }
+
+  Future<double> getDietFollowScore({
+    required String userId,
+    required DateTime date,
+  }) async {
+    final entries = await getDietEntries(
+      userId: userId,
+      date: date,
+    );
+
+    if (entries.isEmpty) return 0;
+
+    final eaten = entries.where((entry) => entry.eaten).length;
+    return ((eaten / entries.length) * 100).clamp(0, 100).toDouble();
+  }
 
   // ============================================================
   // DAILY DATA - GET
   // ============================================================
 
   Future<DailyDataData?> getDailyData({
-    required String userId,
-    required DateTime date,
-  }) async {
-    final selectedDate = _dateOnly(date);
-    final nextDate = _nextDate(date);
+  required String userId,
+  required DateTime date,
+}) async {
+  final selectedDate = _dateOnly(date);
+  final nextDate = _nextDate(date);
 
-    final data = await (select(dailyData)
-          ..where(
-            (tbl) =>
-                tbl.userId.equals(userId) &
-                tbl.date.isBiggerOrEqualValue(selectedDate) &
-                tbl.date.isSmallerThanValue(nextDate),
-          )
-          ..limit(1))
-        .getSingleOrNull();
+  final query = select(dailyData)
+    ..where(
+      (tbl) =>
+          tbl.userId.equals(userId) &
+          tbl.date.isBiggerOrEqualValue(selectedDate) &
+          tbl.date.isSmallerThanValue(nextDate),
+    )
+    ..limit(1);
 
-    if (data == null) {
-      return null;
-    }
+  final data = await query.getSingleOrNull();
 
-    final workoutSets = await getTodaySets(
-      userId,
-      selectedDate,
-    );
-
-    final workoutSetMaps = workoutSets
-        .map(
-          (set) => <String, dynamic>{
-            'weight': set.weight,
-            'reps': set.reps,
-          },
-        )
-        .toList();
-
-    final trainingLoad =
-        FitnessCalculationService.calculateTrainingLoad(
-      workoutSetMaps,
-    );
-
-    final calculatedEffort =
-        FitnessCalculationService.calculateEffort(
-      steps: data.steps.toDouble(),
-      stepTarget: data.stepTarget.toDouble(),
-      trainingLoad: trainingLoad,
-    );
-
-    final calculatedRecovery =
-        FitnessCalculationService.calculateRecovery(
-      steps: data.steps.toDouble(),
-      stepTarget: data.stepTarget.toDouble(),
-      trainingLoad: trainingLoad,
-    );
-
-    if ((data.effortScore - calculatedEffort).abs() > 0.01 ||
-        (data.recoveryScore - calculatedRecovery).abs() > 0.01) {
-      final now = DateTime.now();
-
-      await (update(dailyData)
-            ..where((tbl) => tbl.id.equals(data.id)))
-          .write(
-        DailyDataCompanion(
-          effortScore: Value(calculatedEffort),
-          recoveryScore: Value(calculatedRecovery),
-          updatedAt: Value(now),
-        ),
-      );
-
-      return data.copyWith(
-        effortScore: calculatedEffort,
-        recoveryScore: calculatedRecovery,
-        updatedAt: now,
-      );
-    }
-
-    return data;
+  if (data == null) {
+    return null;
   }
 
+  final trainingLoad = await getTrainingLoadForDate(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final trainingReference = await getTrainingReference(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final dietScore = await getDietFollowScore(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final recentTrainingLoads = await getRecentTrainingLoads(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final recentWorkoutDays = await getRecentWorkoutDayCount(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final calculatedEffort = FitnessCalculationService.calculateEffort(
+    steps: data.steps.toDouble(),
+    stepTarget: data.stepTarget.toDouble(),
+    dietScore: dietScore,
+    trainingLoad: trainingLoad,
+    trainingReference: trainingReference,
+  );
+
+  final calculatedRecovery = FitnessCalculationService.calculateRecovery(
+    steps: data.steps.toDouble(),
+    stepTarget: data.stepTarget.toDouble(),
+    recentTrainingLoads: recentTrainingLoads,
+    trainingReference: trainingReference,
+    recentWorkoutDays: recentWorkoutDays,
+  );
+
+  if ((data.effortScore - calculatedEffort).abs() > 0.01 ||
+      (data.recoveryScore - calculatedRecovery).abs() > 0.01) {
+    await (update(dailyData)..where(
+      (tbl) => tbl.id.equals(data.id),
+    )).write(
+      DailyDataCompanion(
+        effortScore: Value(calculatedEffort),
+        recoveryScore: Value(calculatedRecovery),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+
+    return data.copyWith(
+      effortScore: calculatedEffort,
+      recoveryScore: calculatedRecovery,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  return data;
+}
   // ============================================================
   // DAILY DATA - SAVE / UPDATE
   // ============================================================
 
-  Future<void> saveDailyData({
-    required String userId,
-    required DateTime date,
-    required double calories,
-    required double calorieTarget,
-    required int steps,
-    required int stepTarget,
-    required double recoveryScore,
-    required double effortScore,
-  }) async {
-    final selectedDate = _dateOnly(date);
+ Future<void> saveDailyData({
+  required String userId,
+  required DateTime date,
+  required double calories,
+  required double calorieTarget,
+  required int steps,
+  required int stepTarget,
+  required double recoveryScore,
+  required double effortScore,
+}) async {
+  final selectedDate = _dateOnly(date);
 
-    final existing = await getDailyData(
-      userId: userId,
-      date: selectedDate,
+  final existing = await getDailyData(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final trainingLoad = await getTrainingLoadForDate(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final trainingReference = await getTrainingReference(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final dietScore = await getDietFollowScore(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final recentTrainingLoads = await getRecentTrainingLoads(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final recentWorkoutDays = await getRecentWorkoutDayCount(
+    userId: userId,
+    date: selectedDate,
+  );
+
+  final calculatedEffort = FitnessCalculationService.calculateEffort(
+    steps: steps.toDouble(),
+    stepTarget: stepTarget.toDouble(),
+    dietScore: dietScore,
+    trainingLoad: trainingLoad,
+    trainingReference: trainingReference,
+  );
+
+  final calculatedRecovery = FitnessCalculationService.calculateRecovery(
+    steps: steps.toDouble(),
+    stepTarget: stepTarget.toDouble(),
+    recentTrainingLoads: recentTrainingLoads,
+    trainingReference: trainingReference,
+    recentWorkoutDays: recentWorkoutDays,
+  );
+
+  if (existing == null) {
+    await into(dailyData).insert(
+      DailyDataCompanion.insert(
+        userId: userId,
+        date: selectedDate,
+        calories: Value(calories),
+        calorieTarget: Value(calorieTarget),
+        steps: Value(steps),
+        stepTarget: Value(stepTarget),
+        recoveryScore: Value(calculatedRecovery),
+        effortScore: Value(calculatedEffort),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
     );
-
-    final workoutSets = await getTodaySets(
-      userId,
-      selectedDate,
+  } else {
+    await (update(
+      dailyData,
+    )..where((tbl) => tbl.id.equals(existing.id))).write(
+      DailyDataCompanion(
+        calories: Value(calories),
+        calorieTarget: Value(calorieTarget),
+        steps: Value(steps),
+        stepTarget: Value(stepTarget),
+        recoveryScore: Value(calculatedRecovery),
+        effortScore: Value(calculatedEffort),
+        updatedAt: Value(DateTime.now()),
+      ),
     );
-
-    final workoutSetMaps = workoutSets
-        .map(
-          (set) => <String, dynamic>{
-            'weight': set.weight,
-            'reps': set.reps,
-          },
-        )
-        .toList();
-
-    final trainingLoad =
-        FitnessCalculationService.calculateTrainingLoad(
-      workoutSetMaps,
-    );
-
-    final calculatedEffort =
-        FitnessCalculationService.calculateEffort(
-      steps: steps.toDouble(),
-      stepTarget: stepTarget.toDouble(),
-      trainingLoad: trainingLoad,
-    );
-
-    final calculatedRecovery =
-        FitnessCalculationService.calculateRecovery(
-      steps: steps.toDouble(),
-      stepTarget: stepTarget.toDouble(),
-      trainingLoad: trainingLoad,
-    );
-
-    if (existing == null) {
-      await into(dailyData).insert(
-        DailyDataCompanion.insert(
-          userId: userId,
-          date: selectedDate,
-          calories: Value(calories),
-          calorieTarget: Value(calorieTarget),
-          steps: Value(steps),
-          stepTarget: Value(stepTarget),
-          recoveryScore: Value(calculatedRecovery),
-          effortScore: Value(calculatedEffort),
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
-    } else {
-      await (update(dailyData)
-            ..where((tbl) => tbl.id.equals(existing.id)))
-          .write(
-        DailyDataCompanion(
-          calories: Value(calories),
-          calorieTarget: Value(calorieTarget),
-          steps: Value(steps),
-          stepTarget: Value(stepTarget),
-          recoveryScore: Value(calculatedRecovery),
-          effortScore: Value(calculatedEffort),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-    }
   }
-
+}
   // ============================================================
   // DAILY DATA - HISTORY
   // ============================================================
@@ -1086,10 +1076,10 @@ class AppDatabase extends _$AppDatabase {
     int days = 7,
   }) async {
     final today = _dateOnly(DateTime.now());
-    final startDate =
-        today.subtract(Duration(days: days - 1));
-    final endDate =
-        today.add(const Duration(days: 1));
+
+    final startDate = today.subtract(Duration(days: days - 1));
+
+    final endDate = today.add(const Duration(days: 1));
 
     return (select(dailyData)
           ..where(
@@ -1098,9 +1088,7 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(startDate) &
                 tbl.date.isSmallerThanValue(endDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.date),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.date)]))
         .get();
   }
 
@@ -1122,9 +1110,7 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(selectedDate) &
                 tbl.date.isSmallerThanValue(nextDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.id),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
         .get();
   }
 
@@ -1140,10 +1126,8 @@ class AppDatabase extends _$AppDatabase {
     required double plannedQuantity,
     required String quantityUnit,
     required double plannedCalories,
-    double plannedProtein = 0,
     required double actualQuantity,
     required double actualCalories,
-    double actualProtein = 0,
     required bool eaten,
   }) async {
     final now = DateTime.now();
@@ -1157,10 +1141,8 @@ class AppDatabase extends _$AppDatabase {
         plannedQuantity: plannedQuantity,
         quantityUnit: quantityUnit,
         plannedCalories: plannedCalories,
-        plannedProtein: Value(plannedProtein),
         actualQuantity: Value(actualQuantity),
         actualCalories: Value(actualCalories),
-        actualProtein: Value(actualProtein),
         eaten: Value(eaten),
         createdAt: now,
         updatedAt: now,
@@ -1178,39 +1160,33 @@ class AppDatabase extends _$AppDatabase {
     required double actualCalories,
     required bool eaten,
     double? plannedCalories,
-    double? actualProtein,
   }) async {
-    return (update(dietEntries)
-          ..where((tbl) => tbl.id.equals(id)))
+    return (update(dietEntries)..where((tbl) => tbl.id.equals(id)))
         .write(
-      DietEntriesCompanion(
-        plannedCalories: plannedCalories == null
-            ? const Value.absent()
-            : Value(plannedCalories),
-        actualQuantity: Value(actualQuantity),
-        actualCalories: Value(actualCalories),
-        actualProtein: actualProtein == null
-            ? const Value.absent()
-            : Value(actualProtein),
-        eaten: Value(eaten),
-        updatedAt: Value(DateTime.now()),
-      ),
-    ).then((rows) => rows > 0);
+          DietEntriesCompanion(
+            plannedCalories: plannedCalories == null
+                ? const Value.absent()
+                : Value(plannedCalories),
+            actualQuantity: Value(actualQuantity),
+            actualCalories: Value(actualCalories),
+            eaten: Value(eaten),
+            updatedAt: Value(DateTime.now()),
+          ),
+        )
+        .then((rows) => rows > 0);
   }
-
   // ============================================================
   // DIET - DELETE ENTRY
   // ============================================================
 
   Future<bool> deleteDietEntry(int id) async {
-    return (delete(dietEntries)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go()
-        .then((rows) => rows > 0);
+    return (delete(
+      dietEntries,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
   }
 
   // ============================================================
-  // EXTRA CALORIES
+  // EXTRA CALORIES - GET
   // ============================================================
 
   Future<List<ExtraCaloriesEntry>> getExtraCalories({
@@ -1227,11 +1203,13 @@ class AppDatabase extends _$AppDatabase {
                 tbl.date.isBiggerOrEqualValue(selectedDate) &
                 tbl.date.isSmallerThanValue(nextDate),
           )
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.id),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
         .get();
   }
+
+  // ============================================================
+  // EXTRA CALORIES - SAVE
+  // ============================================================
 
   Future<int> saveExtraCalories({
     required String userId,
@@ -1244,17 +1222,20 @@ class AppDatabase extends _$AppDatabase {
         userId: userId,
         date: _dateOnly(date),
         calories: calories,
-        extraDescription: Value(description),
+        description: Value(description),
         createdAt: DateTime.now(),
       ),
     );
   }
 
+  // ============================================================
+  // EXTRA CALORIES - DELETE
+  // ============================================================
+
   Future<bool> deleteExtraCalories(int id) async {
-    return (delete(extraCaloriesEntries)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go()
-        .then((rows) => rows > 0);
+    return (delete(
+      extraCaloriesEntries,
+    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
   }
 
   // ============================================================
@@ -1265,15 +1246,9 @@ class AppDatabase extends _$AppDatabase {
     required String userId,
     required DateTime date,
   }) async {
-    final dietRows = await getDietEntries(
-      userId: userId,
-      date: date,
-    );
+    final dietRows = await getDietEntries(userId: userId, date: date);
 
-    final extraRows = await getExtraCalories(
-      userId: userId,
-      date: date,
-    );
+    final extraRows = await getExtraCalories(userId: userId, date: date);
 
     double total = 0;
 
@@ -1290,14 +1265,15 @@ class AppDatabase extends _$AppDatabase {
     return total;
   }
 
+  // ============================================================
+  // DIET - PLANNED CALORIES TOTAL
+  // ============================================================
+
   Future<double> getPlannedCalories({
     required String userId,
     required DateTime date,
   }) async {
-    final dietRows = await getDietEntries(
-      userId: userId,
-      date: date,
-    );
+    final dietRows = await getDietEntries(userId: userId, date: date);
 
     double total = 0;
 
@@ -1306,10 +1282,11 @@ class AppDatabase extends _$AppDatabase {
     }
 
     return total;
-  }
 
-  // ============================================================
-  // WEEKLY DIET PLANS
+    
+  }
+    // ============================================================
+  // WEEKLY DIET PLANS - GET
   // ============================================================
 
   Future<List<WeeklyDietPlan>> getWeeklyDietPlans({
@@ -1336,6 +1313,10 @@ class AppDatabase extends _$AppDatabase {
           ..limit(1))
         .getSingleOrNull();
   }
+
+  // ============================================================
+  // WEEKLY DIET PLAN - SAVE / UPDATE
+  // ============================================================
 
   Future<int> saveWeeklyDietPlan({
     required String userId,
@@ -1376,6 +1357,10 @@ class AppDatabase extends _$AppDatabase {
     return existing.id;
   }
 
+  // ============================================================
+  // WEEKLY DIET PLAN - DELETE
+  // ============================================================
+
   Future<bool> deleteWeeklyDietPlan({
     required int id,
   }) async {
@@ -1391,7 +1376,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ============================================================
-  // WEEKLY DIET ITEMS
+  // WEEKLY DIET ITEMS - GET
   // ============================================================
 
   Future<List<WeeklyDietItem>> getWeeklyDietItems({
@@ -1404,6 +1389,10 @@ class AppDatabase extends _$AppDatabase {
           ]))
         .get();
   }
+
+  // ============================================================
+  // WEEKLY DIET ITEM - ADD
+  // ============================================================
 
   Future<int> saveWeeklyDietItem({
     required int planId,
@@ -1423,13 +1412,17 @@ class AppDatabase extends _$AppDatabase {
         foodName: foodName,
         quantity: quantity,
         quantityUnit: quantityUnit,
-        calories: Value(calories),
+        calories: calories,
         protein: Value(protein),
         createdAt: now,
         updatedAt: now,
       ),
     );
   }
+
+  // ============================================================
+  // WEEKLY DIET ITEM - UPDATE
+  // ============================================================
 
   Future<bool> updateWeeklyDietItem({
     required int id,
@@ -1455,6 +1448,10 @@ class AppDatabase extends _$AppDatabase {
     ).then((rows) => rows > 0);
   }
 
+  // ============================================================
+  // WEEKLY DIET ITEM - DELETE
+  // ============================================================
+
   Future<bool> deleteWeeklyDietItem({
     required int id,
   }) async {
@@ -1464,12 +1461,14 @@ class AppDatabase extends _$AppDatabase {
         .then((rows) => rows > 0);
   }
 
+  // ============================================================
+  // WEEKLY DIET - DELETE ENTIRE WEEK
+  // ============================================================
+
   Future<void> deleteAllWeeklyDietPlans({
     required String userId,
   }) async {
-    final plans = await getWeeklyDietPlans(
-      userId: userId,
-    );
+    final plans = await getWeeklyDietPlans(userId: userId);
 
     for (final plan in plans) {
       await (delete(weeklyDietItems)
@@ -1484,28 +1483,14 @@ class AppDatabase extends _$AppDatabase {
 }
 
 // ============================================================
-// EXTRA CALORIES DESCRIPTION COMPATIBILITY
-// ============================================================
-
-extension ExtraCaloriesEntryDescription on ExtraCaloriesEntry {
-  String get description => extraDescription;
-}
-
-// ============================================================
 // DATABASE CONNECTION
 // ============================================================
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    final directory =
-        await getApplicationDocumentsDirectory();
+    final directory = await getApplicationDocumentsDirectory();
 
-    final file = File(
-      p.join(
-        directory.path,
-        'fittrack.sqlite',
-      ),
-    );
+    final file = File(p.join(directory.path, 'fittrack.sqlite'));
 
     return NativeDatabase.createInBackground(file);
   });

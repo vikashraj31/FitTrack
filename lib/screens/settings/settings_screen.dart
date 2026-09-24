@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Variable;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:health/health.dart';
 
 import '../../services/database_service.dart';
 
@@ -11,14 +12,19 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
+  final Health _health = Health();
 
   String _exerciseUser = 'user1';
   String _weightUser = 'user1';
-  bool _loadingExercise = true;
+  bool _loadingExercise = false;
   bool _loadingStep = true;
   bool _loadingWeight = true;
+  bool _healthConnected = false;
+  bool _healthChecking = true;
+  bool _healthConnecting = false;
   List<double> _exerciseVolumes = List<double>.filled(30, 0);
   int _stepTarget = 10000;
   double? _currentWeight;
@@ -27,13 +33,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initialize();
+    _checkHealthConnection();
   }
 
   Future<void> _initialize() async {
     await _ensureWeightTable();
     await Future.wait([
-      _loadExerciseGraph(),
       _loadStepTarget(),
       _loadWeightData(),
     ]);
@@ -134,8 +141,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _checkHealthConnection() async {
+    try {
+      await _health.configure();
+
+      final types = <HealthDataType>[
+        HealthDataType.STEPS,
+        HealthDataType.SLEEP_ASLEEP,
+      ];
+
+      final permissions = <HealthDataAccess>[
+        HealthDataAccess.READ,
+        HealthDataAccess.READ,
+      ];
+
+      final hasPermissions = await _health.hasPermissions(
+        types,
+        permissions: permissions,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _healthConnected = hasPermissions ?? false;
+        _healthChecking = false;
+      });
+    } catch (e) {
+      debugPrint('Health Connect status check failed: $e');
+
+      if (!mounted) return;
+      setState(() {
+        _healthConnected = false;
+        _healthChecking = false;
+      });
+    }
+  }
+
+  Future<void> _connectHealth() async {
+    if (_healthConnecting) return;
+
+    setState(() => _healthConnecting = true);
+
+    try {
+      await _health.configure();
+
+      final types = <HealthDataType>[
+        HealthDataType.STEPS,
+        HealthDataType.SLEEP_ASLEEP,
+      ];
+
+      final permissions = <HealthDataAccess>[
+        HealthDataAccess.READ,
+        HealthDataAccess.READ,
+      ];
+
+      final authorized = await _health.requestAuthorization(
+        types,
+        permissions: permissions,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _healthConnected = authorized;
+        _healthConnecting = false;
+      });
+
+      if (!authorized) {
+        _showHealthMessage('Health Connect permission was not granted.');
+      }
+    } catch (e) {
+      debugPrint('Health Connect connection failed: $e');
+
+      if (!mounted) return;
+      setState(() {
+        _healthConnected = false;
+        _healthConnecting = false;
+      });
+
+      _showHealthMessage('Could not connect to Health Connect.');
+    }
+  }
+
+  void _showHealthMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkHealthConnection();
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _database.close();
     super.dispose();
   }
@@ -198,6 +304,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _exerciseGraphCard(),
               const SizedBox(height: 24),
               _sectionTitle('Tracking'),
+              const SizedBox(height: 10),
+              _selectorTile(
+                icon: Icons.health_and_safety_outlined,
+                title: 'Health Connect',
+                subtitle: _healthChecking
+                    ? 'Checking connection...'
+                    : _healthConnected
+                        ? 'Connected ✓ • Steps & sleep permissions'
+                        : 'Not connected • Tap to connect',
+                onTap: _connectHealth,
+              ),
               const SizedBox(height: 10),
               _selectorTile(
                 icon: Icons.directions_walk_outlined,
@@ -390,8 +507,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
 
-    if (selected == null || selected == _exerciseUser) return;
-    setState(() => _exerciseUser = selected);
+    if (selected == null) return;
+
+    if (!mounted) return;
+    setState(() {
+      _exerciseUser = selected;
+    });
+
     await _loadExerciseGraph();
   }
 

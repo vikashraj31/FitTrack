@@ -855,7 +855,6 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
             id: 0,
             routineId: widget.routine?.id ?? 0,
             exerciseName: exercise.exerciseName,
-            exerciseOrder: exerciseIndex,
             setNumber: setNumber,
             weight: weight,
             reps: reps,
@@ -886,7 +885,6 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
           await widget.database.saveRoutineSet(
             routineId: routineId,
             exerciseName: set.exerciseName,
-            exerciseOrder: set.exerciseOrder,
             setNumber: set.setNumber,
             weight: set.weight,
             reps: set.reps,

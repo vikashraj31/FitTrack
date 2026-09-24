@@ -1,101 +1,114 @@
 class FitnessCalculationService {
-  /// Calculates training load from workout sets.
-  ///
-  /// Training Load = sum of (weight × reps)
+  static double _clamp(double value, [double min = 0, double max = 100]) {
+    return value.clamp(min, max).toDouble();
+  }
+
+  /// Training load = total external volume for the recorded sets.
   static double calculateTrainingLoad(
     List<Map<String, dynamic>> workoutSets,
   ) {
-    double totalLoad = 0;
+    double total = 0;
 
     for (final set in workoutSets) {
       final weight = (set['weight'] as num?)?.toDouble() ?? 0;
       final reps = (set['reps'] as num?)?.toDouble() ?? 0;
 
-      totalLoad += weight * reps;
+      if (weight > 0 && reps > 0) {
+        total += weight * reps;
+      }
     }
 
-    return totalLoad;
+    return total;
   }
 
-  /// Converts a value into a percentage of its target.
-  static double calculateTargetPercentage({
-    required double value,
-    required double target,
-  }) {
-    if (target <= 0) return 0;
-
-    return (value / target) * 100;
-  }
-
-  /// Calculates Effort Score.
-  ///
-  /// Steps contribute 40%.
-  /// Training load contributes 60%.
+  /// EFFORT
+  /// 25% steps + 20% diet adherence + 55% workout.
+  /// Workout is normalized against the user's personal 30-day average.
   static double calculateEffort({
     required double steps,
     required double stepTarget,
+    double dietScore = 0,
     required double trainingLoad,
+    double trainingReference = 10000,
   }) {
-    final stepPercent = calculateTargetPercentage(
-      value: steps,
-      target: stepTarget,
+    if (stepTarget <= 0 || trainingReference <= 0) return 0;
+
+    final stepScore = _clamp((steps / stepTarget) * 100);
+    final workoutScore = _clamp(
+      (trainingLoad / trainingReference) * 100,
     );
+    final foodScore = _clamp(dietScore);
 
-    // 10,000 total training load is treated as 100%.
-    final trainingPercent = calculateTargetPercentage(
-      value: trainingLoad,
-      target: 10000,
+    return _clamp(
+      (stepScore * 0.25) +
+          (foodScore * 0.20) +
+          (workoutScore * 0.55),
     );
-
-    final effort =
-        (stepPercent * 0.40) +
-        (trainingPercent * 0.60);
-
-    return effort.clamp(0, 100).toDouble();
   }
 
-  /// Calculates Recovery Score.
+  /// RECOVERY — sleep is intentionally NOT used anywhere.
   ///
-  /// Activity recovery contributes 50%.
-  /// Training recovery contributes 50%.
+  /// 50% recent training recovery
+  /// 30% activity recovery
+  /// 20% rest recovery
+  ///
+  /// recentTrainingLoads = [today, yesterday, 2-days-ago]
   static double calculateRecovery({
     required double steps,
     required double stepTarget,
-    required double trainingLoad,
+    List<double>? recentTrainingLoads,
+    double trainingReference = 10000,
+    int recentWorkoutDays = 0,
+    double? trainingLoad,
+    double? sleepHours, // Kept only for source compatibility; never used.
   }) {
-    final stepPercent = calculateTargetPercentage(
-      value: steps,
-      target: stepTarget,
+    recentTrainingLoads ??= [trainingLoad ?? 0];
+    if (stepTarget <= 0 || trainingReference <= 0) return 0;
+
+    // Recent training load: today 50%, yesterday 30%, two days ago 20%.
+    final today = recentTrainingLoads.isNotEmpty
+        ? recentTrainingLoads[0]
+        : 0;
+    final yesterday = recentTrainingLoads.length > 1
+        ? recentTrainingLoads[1]
+        : 0;
+    final twoDaysAgo = recentTrainingLoads.length > 2
+        ? recentTrainingLoads[2]
+        : 0;
+
+    final weightedLoad =
+        (today * 0.50) +
+        (yesterday * 0.30) +
+        (twoDaysAgo * 0.20);
+
+    final recentTrainingScore = _clamp(
+      (weightedLoad / trainingReference) * 100,
     );
 
-    // Normal activity = full activity recovery.
-    double activityRecovery = 100;
-
-    // Excessive steps reduce recovery slightly.
-    if (stepPercent > 100) {
-      final excess = stepPercent - 100;
-      activityRecovery -= excess * 0.30;
-    }
-
-    activityRecovery =
-        activityRecovery.clamp(0, 100).toDouble();
-
-    // Higher training load reduces training recovery.
-    final trainingPercent = calculateTargetPercentage(
-      value: trainingLoad,
-      target: 10000,
+    final trainingRecovery = _clamp(
+      100 - (recentTrainingScore * 0.60),
     );
 
-    final trainingRecovery =
-        (100 - (trainingPercent * 0.65))
-            .clamp(0, 100)
-            .toDouble();
+    // Normal activity up to the step target does not reduce recovery.
+    final stepRatio = steps / stepTarget;
+    final activityRecovery = _clamp(
+      100 - ((stepRatio - 1).clamp(0, 1) * 30),
+      70,
+      100,
+    );
 
-    // Recovery is now completely independent of sleep.
-    final recovery =
-        (activityRecovery * 0.50) +
-        (trainingRecovery * 0.50);
+    // More consecutive workout days = less recovery.
+    final restRecovery = switch (recentWorkoutDays) {
+      0 => 100.0,
+      1 => 90.0,
+      2 => 75.0,
+      _ => 55.0,
+    };
 
-    return recovery.clamp(0, 100).toDouble();
+    return _clamp(
+      (trainingRecovery * 0.50) +
+          (activityRecovery * 0.30) +
+          (restRecovery * 0.20),
+    );
   }
 }

@@ -66,20 +66,24 @@ class _HomeScreenState extends State<HomeScreen>
   bool _healthSyncInProgress = false;
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    WidgetsBinding.instance.addObserver(this);
+  WidgetsBinding.instance.addObserver(this);
 
-    // Load immediately from Health Connect.
+  // Let the Home screen render first.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+
     _syncHealthAndLoadData();
 
-    // Keep today's step value as fresh as Health Connect allows.
+    // Refresh Health Connect data periodically without blocking startup.
     _stepRefreshTimer = Timer.periodic(
-      const Duration(seconds: 1),
+      const Duration(minutes: 1),
       (_) => _syncStepsAndLoadData(),
     );
-  }
+  });
+}
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -854,32 +858,64 @@ class _HomeScreenState extends State<HomeScreen>
 
       case 'Effort':
         final steps = _dailyData?.steps ?? 0;
+        final target = _dailyData?.stepTarget ?? 0;
         final trainingLoad = await _getTodayTrainingLoad();
+
+        final dietScore = await _database.getDietFollowScore(
+          userId: 'user1',
+          date: DateTime.now(),
+        );
 
         title = 'Effort';
 
         description =
-            'Your Effort score combines two contributors:\n\n'
-            '• Steps: 40%\n'
-            '• Training Load: 60%\n\n'
-            'Today’s steps: $steps\n'
+            'Your Effort score combines three contributors:\n\n'
+            '• Steps: 25%\n'
+            '• Diet Follow: 20%\n'
+            '• Workout: 55%\n\n'
+            'Today’s steps: $steps'
+            '${target > 0 ? ' / Target: $target' : ''}\n'
+            'Diet follow: ${dietScore.round()}%\n'
             'Training load: ${trainingLoad.round()}';
 
         break;
 
       case 'Recovery':
         final steps = _dailyData?.steps ?? 0;
-        final trainingLoad = await _getTodayTrainingLoad();
+        final target = _dailyData?.stepTarget ?? 0;
+
+        final recentLoads = await _database.getRecentTrainingLoads(
+          userId: 'user1',
+          date: DateTime.now(),
+        );
+
+        final recentWorkoutDays =
+            await _database.getRecentWorkoutDayCount(
+          userId: 'user1',
+          date: DateTime.now(),
+        );
+
+        final todayLoad =
+            recentLoads.isNotEmpty ? recentLoads[0] : 0;
+        final yesterdayLoad =
+            recentLoads.length > 1 ? recentLoads[1] : 0;
+        final twoDaysAgoLoad =
+            recentLoads.length > 2 ? recentLoads[2] : 0;
 
         title = 'Recovery';
 
         description =
-            'Your Recovery score is based on today’s activity '
-            'and training load.\n\n'
-            'Activity contribution: based on steps\n'
-            'Training contribution: based on training load\n\n'
-            'Today’s steps: $steps\n'
-            'Training load: ${trainingLoad.round()}';
+            'Your Recovery score combines three contributors:\n\n'
+            '• Recent Training Load: 50%\n'
+            '• Activity / Steps: 30%\n'
+            '• Rest Days: 20%\n\n'
+            'Today’s steps: $steps'
+            '${target > 0 ? ' / Target: $target' : ''}\n'
+            'Training load — Today: ${todayLoad.round()}\n'
+            'Yesterday: ${yesterdayLoad.round()}\n'
+            '2 days ago: ${twoDaysAgoLoad.round()}\n'
+            'Workout days in recent 3 days: $recentWorkoutDays\n\n'
+            'Sleep is not used in the Recovery calculation.';
 
         break;
 
