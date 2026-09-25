@@ -1687,6 +1687,7 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
     final calculatedCalories = _calculatedCalories;
 
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       backgroundColor: const Color(0xFF1A1D24),
       title: const Text('Add Food'),
       content: Form(
@@ -1754,6 +1755,7 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _unit,
                       decoration: const InputDecoration(labelText: 'Unit'),
                       items: const [
