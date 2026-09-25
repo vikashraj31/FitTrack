@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../services/database_service.dart';
 
-/// User 1 weekly diet plan.
+/// User 1 diet screen.
 ///
-/// IMPORTANT:
-/// The supplied diet chart gives quantities and daily/meal calorie ranges,
-/// but it does not give calories for every individual food item.
-/// Therefore item-level planned calories are intentionally stored as 0.
-/// Actual calories remain editable when the user logs what was really eaten.
+/// Planned calories are entered manually by the user for each food.
+/// The daily target shown in the summary is the sum of all planned
+/// calories added to the selected date. Actual calories are counted only
+/// for foods marked as eaten, plus any extra calories.
 class DietScreen extends StatefulWidget {
   final bool todayOnly;
 
@@ -235,7 +234,15 @@ class _DietScreenState extends State<DietScreen> {
     return total;
   }
 
-  double get _targetMidpoint => 0;
+  double get _targetMidpoint {
+    double total = 0;
+
+    for (final entry in _entries) {
+      total += entry.plannedCalories;
+    }
+
+    return total;
+  }
 
   double get _caloriePercentage {
     if (_targetMidpoint <= 0) return 0;
@@ -1489,8 +1496,12 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
 
     if (!mounted) return;
 
+    final mealFoods = foods
+        .where((food) => food.defaultMeal == widget.meal)
+        .toList();
+
     setState(() {
-      _foods = foods;
+      _foods = mealFoods;
       _loading = false;
     });
   }
@@ -1509,6 +1520,48 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
     }
   }
 
+  Future<void> _editFood(FoodLibraryData food) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => EditFoodLibraryDialog(
+        database: widget.database,
+        food: food,
+      ),
+    );
+
+    if (result == true) {
+      await _loadFoods();
+    }
+  }
+
+  Future<void> _deleteFood(FoodLibraryData food) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D24),
+        title: const Text('Delete saved food?'),
+        content: Text(
+          'Delete ${food.foodName} from your saved foods? This will not remove food entries already added to a diet day.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await widget.database.deleteFoodLibraryItem(id: food.id);
+    await _loadFoods();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -1522,11 +1575,11 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
                 child: Center(child: CircularProgressIndicator()),
               )
             : _foods.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Text(
-                      'No saved foods yet.',
-                      style: TextStyle(color: Colors.white54),
+                      'No saved foods for ${widget.meal} yet.',
+                      style: const TextStyle(color: Colors.white54),
                     ),
                   )
                 : ListView.separated(
@@ -1552,9 +1605,53 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
                           '${food.calories.toStringAsFixed(0)} kcal',
                           style: const TextStyle(color: Colors.white54),
                         ),
-                        trailing: const Icon(
-                          Icons.add_circle_outline,
-                          color: Colors.cyan,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: () => Navigator.pop(
+                                context,
+                                FoodLibraryPickerResult.food(food),
+                              ),
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                color: Colors.cyan,
+                              ),
+                              tooltip: 'Add',
+                            ),
+                            PopupMenuButton<String>(
+                              onSelected: (action) {
+                                if (action == 'edit') {
+                                  _editFood(food);
+                                } else if (action == 'delete') {
+                                  _deleteFood(food);
+                                }
+                              },
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(Icons.edit_outlined),
+                                    title: Text('Edit'),
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(Icons.delete_outline),
+                                    title: Text('Delete'),
+                                  ),
+                                ),
+                              ],
+                              icon: const Icon(
+                                Icons.more_vert,
+                                color: Colors.white54,
+                              ),
+                              tooltip: 'Food options',
+                            ),
+                          ],
                         ),
                         onTap: () => Navigator.pop(
                           context,
@@ -1588,6 +1685,218 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
 }
 
 // =================================================================
+// EDIT SAVED FOOD DIALOG
+// =================================================================
+
+class EditFoodLibraryDialog extends StatefulWidget {
+  final AppDatabase database;
+  final FoodLibraryData food;
+
+  const EditFoodLibraryDialog({
+    super.key,
+    required this.database,
+    required this.food,
+  });
+
+  @override
+  State<EditFoodLibraryDialog> createState() => _EditFoodLibraryDialogState();
+}
+
+class _EditFoodLibraryDialogState extends State<EditFoodLibraryDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _foodController;
+  late final TextEditingController _quantityController;
+  late final TextEditingController _caloriesController;
+
+  late String _meal;
+  late String _unit;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _foodController = TextEditingController(text: widget.food.foodName);
+    _quantityController =
+        TextEditingController(text: _formatKcal(widget.food.quantity));
+    _caloriesController =
+        TextEditingController(text: _formatKcal(widget.food.calories));
+    _meal = widget.food.defaultMeal;
+    _unit = widget.food.quantityUnit;
+  }
+
+  @override
+  void dispose() {
+    _foodController.dispose();
+    _quantityController.dispose();
+    _caloriesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _saving = true);
+
+    try {
+      await widget.database.updateFoodLibraryItem(
+        id: widget.food.id,
+        foodName: _foodController.text.trim(),
+        defaultMeal: _meal,
+        quantity: double.parse(_quantityController.text.trim()),
+        quantityUnit: _unit,
+        calories: double.parse(_caloriesController.text.trim()),
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update food: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      backgroundColor: const Color(0xFF1A1D24),
+      title: Text('Edit ${widget.food.foodName}'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _foodController,
+                decoration: const InputDecoration(labelText: 'Food name'),
+                validator: (value) =>
+                    value == null || value.trim().isEmpty
+                        ? 'Enter food name'
+                        : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _meal,
+                decoration: const InputDecoration(labelText: 'Default meal'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Breakfast',
+                    child: Text('Breakfast'),
+                  ),
+                  DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
+                  DropdownMenuItem(value: 'Evening', child: Text('Evening')),
+                  DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) {
+                        if (value != null) setState(() => _meal = value);
+                      },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _quantityController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Quantity',
+                      ),
+                      validator: (value) {
+                        final quantity =
+                            double.tryParse(value?.trim() ?? '');
+                        return quantity == null || quantity <= 0
+                            ? 'Invalid'
+                            : null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: _unit,
+                      decoration: const InputDecoration(labelText: 'Unit'),
+                      items: const [
+                        DropdownMenuItem(value: 'g', child: Text('g')),
+                        DropdownMenuItem(value: 'ml', child: Text('ml')),
+                        DropdownMenuItem(
+                          value: 'piece',
+                          child: Text('piece'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'slice',
+                          child: Text('slice'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'serving',
+                          child: Text('serving'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'scoop',
+                          child: Text('scoop'),
+                        ),
+                        DropdownMenuItem(value: 'cup', child: Text('cup')),
+                      ],
+                      onChanged: _saving
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() => _unit = value);
+                              }
+                            },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _caloriesController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Calories for this quantity',
+                  suffixText: 'kcal',
+                ),
+                validator: (value) {
+                  final calories = double.tryParse(value?.trim() ?? '');
+                  return calories == null || calories < 0 ? 'Invalid' : null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+// =================================================================
 // EXTRA CALORIES DIALOG
 // =================================================================
 
@@ -1609,12 +1918,11 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
   final _formKey = GlobalKey<FormState>();
   final _foodController = TextEditingController();
   final _quantityController = TextEditingController();
-  final _caloriesController = TextEditingController(text: '1');
+  final _caloriesController = TextEditingController();
 
   String _meal = 'Breakfast';
   String _unit = 'g';
   bool _saving = false;
-  bool _caloriesManuallyEdited = false;
 
   @override
   void initState() {
@@ -1630,34 +1938,16 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
     super.dispose();
   }
 
-  void _applySuggestedCalories() {
-    if (_caloriesManuallyEdited) return;
-
-    final suggestion = _defaultCaloriesFor(
-      _foodController.text,
-      _unit,
-    );
-
-    _caloriesController.text = _formatKcal(suggestion);
-  }
-
-  double get _caloriesValue =>
-      double.tryParse(_caloriesController.text.trim()) ?? 1;
-
-  double get _calculatedCalories {
-    final quantity = double.tryParse(_quantityController.text.trim()) ?? 0;
-
-    if (quantity <= 0) return 0;
-
-    return _calculateCalories(
-      quantity: quantity,
-      unit: _unit,
-      caloriesValue: _caloriesValue,
-    );
-  }
-
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final calories = double.tryParse(_caloriesController.text.trim());
+    if (calories == null || calories <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid calorie value')),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
 
@@ -1668,7 +1958,7 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
         defaultMeal: _meal,
         quantity: double.parse(_quantityController.text.trim()),
         quantityUnit: _unit,
-        calories: _calculatedCalories,
+        calories: calories,
       );
 
       if (!mounted) return;
@@ -1684,8 +1974,6 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final calculatedCalories = _calculatedCalories;
-
     return AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       backgroundColor: const Color(0xFF1A1D24),
@@ -1703,9 +1991,6 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                   labelText: 'Food name',
                   hintText: 'Example: Rice',
                 ),
-                onChanged: (_) {
-                  setState(_applySuggestedCalories);
-                },
                 validator: (value) =>
                     value == null || value.trim().isEmpty
                         ? 'Enter food name'
@@ -1773,7 +2058,6 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                               if (value != null) {
                                 setState(() {
                                   _unit = value;
-                                  _applySuggestedCalories();
                                 });
                               }
                             },
@@ -1787,32 +2071,15 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: InputDecoration(
-                  labelText: _calorieFieldLabel(_unit),
-                  hintText: 'Unknown food → 1',
+                decoration: const InputDecoration(
+                  labelText: 'Calories',
+                  hintText: 'Enter calories for this quantity',
                   suffixText: 'kcal',
                 ),
-                onChanged: (_) {
-                  _caloriesManuallyEdited = true;
-                  setState(() {});
-                },
                 validator: (value) {
                   final calories = double.tryParse(value?.trim() ?? '');
                   return calories == null || calories <= 0 ? 'Invalid' : null;
                 },
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Calculated calories: ${_formatKcal(calculatedCalories)} kcal',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'For g/ml, calories are per 100 g/ml. For other units, calories are per unit.',
-                style: TextStyle(color: Colors.white38, fontSize: 11),
               ),
             ],
           ),
