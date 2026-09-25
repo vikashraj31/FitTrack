@@ -268,7 +268,7 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -311,6 +311,14 @@ class AppDatabase extends _$AppDatabase {
 if (from < 14) {
   await m.addColumn(workoutSets, workoutSets.exerciseOrder);
 }
+
+      // ONE-TIME CLEANUP: clear all existing User 1 diet entries.
+      // Runs only when an existing database upgrades to schema version 15.
+      if (from < 15) {
+        await (delete(dietEntries)
+              ..where((tbl) => tbl.userId.equals('user1')))
+            .go();
+      }
     },
   );
 
@@ -1183,6 +1191,18 @@ if (from < 14) {
     return (delete(
       dietEntries,
     )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+  }
+
+  // ============================================================
+  // DIET - CLEAR ALL ENTRIES FOR USER
+  // ============================================================
+
+  Future<void> deleteAllDietEntries({
+    required String userId,
+  }) async {
+    await (delete(dietEntries)
+          ..where((tbl) => tbl.userId.equals(userId)))
+        .go();
   }
 
   // ============================================================
