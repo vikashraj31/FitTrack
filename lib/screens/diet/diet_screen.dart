@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../services/database_service.dart';
 
-/// User 1 diet screen.
+/// User 1 weekly diet plan.
 ///
-/// Planned calories are entered manually by the user for each food.
-/// The daily target shown in the summary is the sum of all planned
-/// calories added to the selected date. Actual calories are counted only
-/// for foods marked as eaten, plus any extra calories.
+/// IMPORTANT:
+/// The supplied diet chart gives quantities and daily/meal calorie ranges,
+/// but it does not give calories for every individual food item.
+/// Therefore item-level planned calories are intentionally stored as 0.
+/// Actual calories remain editable when the user logs what was really eaten.
 class DietScreen extends StatefulWidget {
   final bool todayOnly;
 
@@ -114,23 +115,29 @@ class _DietScreenState extends State<DietScreen> {
   // ==========================================================
 
   Future<void> _toggleEaten(DietEntry entry) async {
-    if (!entry.eaten) {
-      await _database.updateDietEntry(
-        id: entry.id,
-        actualQuantity: entry.plannedQuantity,
-        actualCalories: entry.plannedCalories,
-        eaten: true,
-      );
-    } else {
+    if (entry.eaten) {
       await _database.updateDietEntry(
         id: entry.id,
         actualQuantity: 0,
         actualCalories: 0,
         eaten: false,
       );
+      await _loadData();
+      return;
     }
 
-    await _loadData();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => EditDietDialog(
+        entry: entry,
+        database: _database,
+        startEaten: true,
+      ),
+    );
+
+    if (result == true) {
+      await _loadData();
+    }
   }
 
   Future<void> _editDietEntry(DietEntry entry) async {
@@ -234,15 +241,7 @@ class _DietScreenState extends State<DietScreen> {
     return total;
   }
 
-  double get _targetMidpoint {
-    double total = 0;
-
-    for (final entry in _entries) {
-      total += entry.plannedCalories;
-    }
-
-    return total;
-  }
+  double get _targetMidpoint => _entries.fold<double>(0, (sum, entry) => sum + entry.plannedCalories);
 
   double get _caloriePercentage {
     if (_targetMidpoint <= 0) return 0;
@@ -396,11 +395,11 @@ class _DietScreenState extends State<DietScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'No planned calories',
+                  '${_targetMidpoint.toStringAsFixed(0)} kcal planned',
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 Text(
-                  'Add food to create your plan',
+                  'Planned from today\'s saved diet items',
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
@@ -589,7 +588,8 @@ class _DietScreenState extends State<DietScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Planned: ${entry.quantityUnit}',
+                      'Planned: ${_formatQuantity(entry.plannedQuantity)} ${entry.quantityUnit} • '
+                      '${entry.plannedCalories.toStringAsFixed(0)} kcal',
                       style: const TextStyle(
                         color: Colors.white54,
                         fontSize: 12,
@@ -690,20 +690,19 @@ class _DietScreenState extends State<DietScreen> {
     final food = result.food;
     if (food == null) return;
 
-    await _database.saveDietEntry(
-      userId: 'user1',
-      date: _selectedDate,
-      meal: meal,
-      foodName: food.foodName,
-      plannedQuantity: food.quantity,
-      quantityUnit: food.quantityUnit,
-      plannedCalories: food.calories,
-      actualQuantity: 0,
-      actualCalories: 0,
-      eaten: false,
+    final entryResult = await showDialog<bool>(
+      context: context,
+      builder: (_) => AddDietEntryFromFoodDialog(
+        database: _database,
+        date: _selectedDate,
+        meal: meal,
+        food: food,
+      ),
     );
 
-    await _loadData();
+    if (entryResult == true) {
+      await _loadData();
+    }
   }
 
   // ==========================================================
@@ -1298,11 +1297,13 @@ class _AddDietDialogState extends State<AddDietDialog> {
 class EditDietDialog extends StatefulWidget {
   final DietEntry entry;
   final AppDatabase database;
+  final bool startEaten;
 
   const EditDietDialog({
     super.key,
     required this.entry,
     required this.database,
+    this.startEaten = false,
   });
 
   @override
@@ -1320,18 +1321,29 @@ class _EditDietDialogState extends State<EditDietDialog> {
     super.initState();
 
     _quantityController = TextEditingController(
-      text: widget.entry.actualQuantity == 0
-          ? ''
-          : widget.entry.actualQuantity.toString(),
+      text: (widget.startEaten && widget.entry.actualQuantity == 0)
+          ? _formatQuantity(widget.entry.plannedQuantity)
+          : widget.entry.actualQuantity == 0
+              ? ''
+              : _formatQuantity(widget.entry.actualQuantity),
     );
 
     _caloriesController = TextEditingController(
-      text: widget.entry.actualCalories == 0
-          ? ''
-          : widget.entry.actualCalories.toString(),
+      text: (widget.startEaten && widget.entry.actualCalories == 0)
+          ? widget.entry.plannedCalories.toStringAsFixed(0)
+          : widget.entry.actualCalories == 0
+              ? ''
+              : widget.entry.actualCalories.toStringAsFixed(0),
     );
 
-    _eaten = widget.entry.eaten;
+    _eaten = widget.startEaten || widget.entry.eaten;
+  }
+
+  String _formatQuantity(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(1);
   }
 
   @override
@@ -1346,15 +1358,22 @@ class _EditDietDialogState extends State<EditDietDialog> {
     final caloriesText = _caloriesController.text.trim();
 
     final quantity = quantityText.isEmpty ? 0.0 : double.tryParse(quantityText);
-    final calories = caloriesText.isEmpty ? 0.0 : double.tryParse(caloriesText);
+    double? calories = caloriesText.isEmpty ? null : double.tryParse(caloriesText);
 
-    if (quantity == null || calories == null || quantity < 0 || calories < 0) {
+    if (quantity == null || quantity < 0 || (calories != null && calories < 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Enter valid actual quantity and calories'),
         ),
       );
       return;
+    }
+
+    if (widget.startEaten && widget.entry.plannedQuantity > 0) {
+      calories = widget.entry.plannedCalories *
+          (quantity / widget.entry.plannedQuantity);
+    } else {
+      calories ??= 0;
     }
 
     setState(() {
@@ -1382,7 +1401,8 @@ class _EditDietDialogState extends State<EditDietDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Planned: ${widget.entry.quantityUnit}',
+              'Planned: ${_formatQuantity(widget.entry.plannedQuantity)} ${widget.entry.quantityUnit} • '
+              '${widget.entry.plannedCalories.toStringAsFixed(0)} kcal',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -1496,12 +1516,8 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
 
     if (!mounted) return;
 
-    final mealFoods = foods
-        .where((food) => food.defaultMeal == widget.meal)
-        .toList();
-
     setState(() {
-      _foods = mealFoods;
+      _foods = foods;
       _loading = false;
     });
   }
@@ -1575,11 +1591,11 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
                 child: Center(child: CircularProgressIndicator()),
               )
             : _foods.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
                     child: Text(
-                      'No saved foods for ${widget.meal} yet.',
-                      style: const TextStyle(color: Colors.white54),
+                      'No saved foods yet.',
+                      style: TextStyle(color: Colors.white54),
                     ),
                   )
                 : ListView.separated(
@@ -1600,10 +1616,9 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
                           food.foodName,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle: Text(
-                          '${food.quantity} ${food.quantityUnit} • '
-                          '${food.calories.toStringAsFixed(0)} kcal',
-                          style: const TextStyle(color: Colors.white54),
+                        subtitle: const Text(
+                          'Select to enter quantity and calories',
+                          style: TextStyle(color: Colors.white54),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1679,6 +1694,147 @@ class _FoodLibraryPickerDialogState extends State<FoodLibraryPickerDialog> {
             ),
             child: const Text('Add Manually'),
           ),
+      ],
+    );
+  }
+}
+
+// =================================================================
+// ADD DIET ENTRY FROM COMMON FOOD
+// =================================================================
+
+class AddDietEntryFromFoodDialog extends StatefulWidget {
+  final AppDatabase database;
+  final DateTime date;
+  final String meal;
+  final FoodLibraryData food;
+
+  const AddDietEntryFromFoodDialog({
+    super.key,
+    required this.database,
+    required this.date,
+    required this.meal,
+    required this.food,
+  });
+
+  @override
+  State<AddDietEntryFromFoodDialog> createState() =>
+      _AddDietEntryFromFoodDialogState();
+}
+
+class _AddDietEntryFromFoodDialogState
+    extends State<AddDietEntryFromFoodDialog> {
+  late final TextEditingController _quantityController;
+  late final TextEditingController _caloriesController;
+  late String _unit;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _unit = widget.food.quantityUnit.isEmpty ? 'serving' : widget.food.quantityUnit;
+    _quantityController = TextEditingController();
+    _caloriesController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _caloriesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final quantity = double.tryParse(_quantityController.text.trim());
+    final calories = double.tryParse(_caloriesController.text.trim());
+
+    if (quantity == null || quantity <= 0 || calories == null || calories < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter valid quantity and calories')),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    await widget.database.saveDietEntry(
+      userId: 'user1',
+      date: widget.date,
+      meal: widget.meal,
+      foodName: widget.food.foodName,
+      plannedQuantity: quantity,
+      quantityUnit: _unit,
+      plannedCalories: calories,
+      actualQuantity: 0,
+      actualCalories: 0,
+      eaten: false,
+    );
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1D24),
+      title: Text('Add ${widget.food.foodName} to ${widget.meal}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _quantityController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Quantity'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: _unit,
+              decoration: const InputDecoration(labelText: 'Unit'),
+              items: const [
+                DropdownMenuItem(value: 'g', child: Text('g')),
+                DropdownMenuItem(value: 'ml', child: Text('ml')),
+                DropdownMenuItem(value: 'piece', child: Text('piece')),
+                DropdownMenuItem(value: 'slice', child: Text('slice')),
+                DropdownMenuItem(value: 'serving', child: Text('serving')),
+                DropdownMenuItem(value: 'scoop', child: Text('scoop')),
+                DropdownMenuItem(value: 'cup', child: Text('cup')),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (value) {
+                      if (value != null) setState(() => _unit = value);
+                    },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _caloriesController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Planned calories',
+                suffixText: 'kcal',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
       ],
     );
   }
@@ -1917,37 +2073,18 @@ class AddFoodLibraryDialog extends StatefulWidget {
 class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
   final _formKey = GlobalKey<FormState>();
   final _foodController = TextEditingController();
-  final _quantityController = TextEditingController();
-  final _caloriesController = TextEditingController();
 
-  String _meal = 'Breakfast';
-  String _unit = 'g';
   bool _saving = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _meal = widget.initialMeal ?? 'Breakfast';
-  }
 
   @override
   void dispose() {
     _foodController.dispose();
-    _quantityController.dispose();
-    _caloriesController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final calories = double.tryParse(_caloriesController.text.trim());
-    if (calories == null || calories <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid calorie value')),
-      );
-      return;
-    }
 
     setState(() => _saving = true);
 
@@ -1955,10 +2092,10 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
       await widget.database.saveFoodLibraryItem(
         userId: 'user1',
         foodName: _foodController.text.trim(),
-        defaultMeal: _meal,
-        quantity: double.parse(_quantityController.text.trim()),
-        quantityUnit: _unit,
-        calories: calories,
+        defaultMeal: 'Common',
+        quantity: 1,
+        quantityUnit: 'serving',
+        calories: 0,
       );
 
       if (!mounted) return;
@@ -1996,91 +2133,7 @@ class _AddFoodLibraryDialogState extends State<AddFoodLibraryDialog> {
                         ? 'Enter food name'
                         : null,
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _meal,
-                decoration: const InputDecoration(labelText: 'Default meal'),
-                items: const [
-                  DropdownMenuItem(value: 'Breakfast', child: Text('Breakfast')),
-                  DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
-                  DropdownMenuItem(value: 'Evening', child: Text('Evening')),
-                  DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
-                ],
-                onChanged: _saving
-                    ? null
-                    : (value) {
-                        if (value != null) setState(() => _meal = value);
-                      },
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _quantityController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Quantity',
-                        hintText: _unitExample(_unit),
-                      ),
-                      onChanged: (_) => setState(() {}),
-                      validator: (value) {
-                        final quantity = double.tryParse(
-                          value?.trim() ?? '',
-                        );
-                        return quantity == null || quantity <= 0
-                            ? 'Invalid'
-                            : null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _unit,
-                      decoration: const InputDecoration(labelText: 'Unit'),
-                      items: const [
-                        DropdownMenuItem(value: 'g', child: Text('g')),
-                        DropdownMenuItem(value: 'ml', child: Text('ml')),
-                        DropdownMenuItem(value: 'piece', child: Text('piece')),
-                        DropdownMenuItem(value: 'slice', child: Text('slice')),
-                        DropdownMenuItem(value: 'serving', child: Text('serving')),
-                        DropdownMenuItem(value: 'scoop', child: Text('scoop')),
-                        DropdownMenuItem(value: 'cup', child: Text('cup')),
-                      ],
-                      onChanged: _saving
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setState(() {
-                                  _unit = value;
-                                });
-                              }
-                            },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _caloriesController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Calories',
-                  hintText: 'Enter calories for this quantity',
-                  suffixText: 'kcal',
-                ),
-                validator: (value) {
-                  final calories = double.tryParse(value?.trim() ?? '');
-                  return calories == null || calories <= 0 ? 'Invalid' : null;
-                },
-              ),
+
             ],
           ),
         ),
