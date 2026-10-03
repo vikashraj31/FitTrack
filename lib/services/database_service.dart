@@ -268,7 +268,7 @@ class AppDatabase extends _$AppDatabase {
   // ==========================================================
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -311,14 +311,6 @@ class AppDatabase extends _$AppDatabase {
 if (from < 14) {
   await m.addColumn(workoutSets, workoutSets.exerciseOrder);
 }
-
-      // ONE-TIME CLEANUP: clear all existing User 1 diet entries.
-      // Runs only when an existing database upgrades to schema version 15.
-      if (from < 15) {
-        await (delete(dietEntries)
-              ..where((tbl) => tbl.userId.equals('user1')))
-            .go();
-      }
     },
   );
 
@@ -1194,15 +1186,95 @@ if (from < 14) {
   }
 
   // ============================================================
-  // DIET - CLEAR ALL ENTRIES FOR USER
+  // DIET - UPDATE ONLY TODAY'S ACTUAL DATA
   // ============================================================
 
-  Future<void> deleteAllDietEntries({
-    required String userId,
+  Future<bool> updateDietActual({
+    required int entryId,
+    required double actualQuantity,
+    required double actualCalories,
+    required bool eaten,
   }) async {
-    await (delete(dietEntries)
-          ..where((tbl) => tbl.userId.equals(userId)))
-        .go();
+    return (update(dietEntries)..where((tbl) => tbl.id.equals(entryId)))
+        .write(
+      DietEntriesCompanion(
+        actualQuantity: Value(actualQuantity),
+        actualCalories: Value(actualCalories),
+        eaten: Value(eaten),
+        updatedAt: Value(DateTime.now()),
+      ),
+    )
+        .then((rows) => rows > 0);
+  }
+
+  // ============================================================
+  // DIET - UPDATE PLANNED FOOD FOR ALL SAVED DAYS
+  // ============================================================
+
+  Future<void> updateDietPlanForFood({
+    required String userId,
+    required String meal,
+    required String foodName,
+    required double plannedQuantity,
+    required String quantityUnit,
+    required double plannedCalories,
+  }) async {
+    await (update(dietEntries)
+          ..where(
+            (tbl) =>
+                tbl.userId.equals(userId) &
+                tbl.meal.equals(meal) &
+                tbl.foodName.equals(foodName),
+          ))
+        .write(
+      DietEntriesCompanion(
+        plannedQuantity: Value(plannedQuantity),
+        quantityUnit: Value(quantityUnit),
+        plannedCalories: Value(plannedCalories),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  // Update the weekly template item for one weekday without touching
+  // any already-recorded actual/eaten values in DietEntries.
+  Future<bool> updateWeeklyDietItemForDay({
+    required String userId,
+    required int dayOfWeek,
+    required String meal,
+    required String foodName,
+    required double quantity,
+    required String quantityUnit,
+    required double calories,
+  }) async {
+    final plan = await getWeeklyDietPlan(
+      userId: userId,
+      dayOfWeek: dayOfWeek,
+    );
+
+    if (plan == null) return false;
+
+    final item = await (select(weeklyDietItems)
+          ..where(
+            (tbl) =>
+                tbl.planId.equals(plan.id) &
+                tbl.meal.equals(meal) &
+                tbl.foodName.equals(foodName),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (item == null) return false;
+
+    return updateWeeklyDietItem(
+      id: item.id,
+      meal: meal,
+      foodName: foodName,
+      quantity: quantity,
+      quantityUnit: quantityUnit,
+      calories: calories,
+      protein: item.protein,
+    );
   }
 
   // ============================================================
