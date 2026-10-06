@@ -20,10 +20,151 @@ class _DietScreenState extends State<DietScreen> {
 
   static const List<String> _meals = [
     'Breakfast',
+    'Mid-morning',
     'Lunch',
+    'Afternoon',
+    'Post-workout',
+    'Snack',
     'Evening',
     'Dinner',
+    'Night',
   ];
+
+  static const String _newPlanMarker = '__FITTRACK_FINAL_MUSCLE_DIET_V3__';
+  static final DateTime _dietStartDate = DateTime(2026, 10, 3);
+
+  // FINAL MUSCLE BUILDING DIET — starts 3 October 2026.
+  // Item calories/quantities below follow the user's final diet exactly.
+  // Daily targets are taken from the TOTAL lines in the final diet plan.
+  // Individual food calories remain the exact values listed in the plan.
+  static const Map<int, double> _dailyTargets = {
+    DateTime.monday: 2675,
+    DateTime.tuesday: 2725,
+    DateTime.wednesday: 2660,
+    DateTime.thursday: 2760,
+    DateTime.friday: 2705,
+    DateTime.saturday: 2705,
+    DateTime.sunday: 2685,
+  };
+
+  static const Map<int, List<_NewDietItem>> _newWeeklyPlan = {
+    DateTime.monday: [
+      _NewDietItem('Breakfast', 'Cornflakes', 60, 'g', 220),
+      _NewDietItem('Breakfast', 'Milk', 60, 'ml', 35),
+      _NewDietItem('Breakfast', 'Banana', 2, 'bananas', 210),
+      _NewDietItem('Breakfast', 'Tea', 1, 'serving', 50),
+      _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Lunch', 'Rice', 200, 'g', 260),
+      _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Lunch', 'Mix dal tadka', 2, 'karchul', 180),
+      _NewDietItem('Lunch', 'Masala aloo bhujia', 1, 'small serving', 100),
+      _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+      _NewDietItem('Dinner', 'Rice', 150, 'g', 195),
+      _NewDietItem('Dinner', 'Roti', 3, 'roti', 330),
+      _NewDietItem('Dinner', 'Dal', 2, 'karchul', 180),
+      _NewDietItem('Dinner', 'Manchurian', 1, 'small serving', 150),
+    ],
+    DateTime.tuesday: [
+      _NewDietItem('Breakfast', 'Paratha', 2, 'paratha', 500),
+      _NewDietItem('Breakfast', 'Bhujia', 1, 'small serving', 100),
+      _NewDietItem('Breakfast', 'Coffee', 1, 'serving', 50),
+      _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Lunch', 'Rice', 150, 'g', 195),
+      _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
+      _NewDietItem('Lunch', 'Soybean-aloo curry', 1, 'bowl', 220),
+      _NewDietItem('Snack', 'Corn chaat', 1, 'small serving', 150),
+      _NewDietItem('Snack', 'Tea', 1, 'serving', 50),
+      _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+      _NewDietItem('Dinner', 'Veg biryani', 200, 'g', 300),
+      _NewDietItem('Dinner', 'Chole-paneer sabji', 1, 'serving', 220),
+    ],
+    DateTime.wednesday: [
+      _NewDietItem('Breakfast', 'Bread', 3, 'slices', 210),
+      _NewDietItem('Breakfast', 'Mess boiled eggs', 2, 'eggs', 140),
+      _NewDietItem('Breakfast', 'Tea', 1, 'serving', 50),
+      _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Lunch', 'Rice', 200, 'g', 260),
+      _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Lunch', 'Dal', 1, 'karchul', 90),
+      _NewDietItem('Lunch', 'Fish curry', 2, 'pieces', 250),
+      _NewDietItem('Lunch', 'Salad', 1, 'serving', 30),
+      _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+      _NewDietItem('Dinner', 'Jeera rice', 200, 'g', 260),
+      _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Dinner', 'Dal', 1, 'karchul', 90),
+      _NewDietItem('Dinner', 'Chicken kasa', 4, 'pieces', 300),
+    ],
+    DateTime.thursday: [
+      _NewDietItem('Breakfast', 'Puri', 2, 'puri', 260),
+      _NewDietItem('Breakfast', 'Gugni', 1, 'small bowl', 180),
+      _NewDietItem('Breakfast', 'Tea', 1, 'serving', 50),
+      _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Lunch', 'Rice', 100, 'g', 130),
+      _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
+      _NewDietItem('Lunch', 'Besan sabji', 1, 'serving', 180),
+      _NewDietItem('Lunch', 'Dahi', 1, 'small bowl', 80),
+      _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+      _NewDietItem('Dinner', 'Rice', 200, 'g', 260),
+      _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Dinner', 'Dal fry', 2, 'karchul', 180),
+      _NewDietItem('Dinner', 'Paneer bhurji', 1, 'small serving', 180),
+      _NewDietItem('Dinner', 'Small ice-cream cone', 1, 'cone', 100),
+    ],
+    DateTime.friday: [
+      _NewDietItem('Breakfast', 'Poha + Aloo-Tamatar Sabji', 200, 'g', 280),
+      _NewDietItem('Breakfast', 'Mess boiled eggs', 2, 'eggs', 140),
+      _NewDietItem('Breakfast', 'Coffee', 1, 'serving', 50),
+      _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Lunch', 'Rice', 200, 'g', 260),
+      _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
+      _NewDietItem('Lunch', 'Fish curry', 2, 'pieces', 250),
+      _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+      _NewDietItem('Dinner', 'Chicken biryani', 275, 'g (250–300 g)', 525),
+      _NewDietItem('Dinner', 'Raita', 1, 'small serving', 60),
+      _NewDietItem('Dinner', 'Gulab jamun', 1, 'piece', 100),
+      _NewDietItem('Snack', 'Small biscuit packet', 1, 'packet (optional)', 100),
+    ],
+    DateTime.saturday: [
+      _NewDietItem('Lunch', 'Rice', 250, 'g', 325),
+      _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
+      _NewDietItem('Lunch', 'Dahi kadhi', 1, 'serving', 130),
+      _NewDietItem('Lunch', 'Kala chana', 1, 'small bowl', 150),
+      _NewDietItem('Afternoon', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Snack', 'Maggi', 1, 'small serving', 250),
+      _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+      _NewDietItem('Dinner', 'Rice', 200, 'g', 260),
+      _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Dinner', 'Dal fry', 2, 'karchul', 180),
+      _NewDietItem('Dinner', 'Chicken Mughlai', 4, 'pieces', 350),
+      _NewDietItem('Night', 'Whole eggs', 3, 'eggs', 210),
+    ],
+    DateTime.sunday: [
+      _NewDietItem('Lunch', 'Green Pea Pulao', 300, 'g', 450),
+      _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Lunch', 'Dal fry', 2, 'karchul', 180),
+      _NewDietItem('Lunch', 'Egg curry', 2, 'mess eggs', 220),
+      _NewDietItem('Lunch', 'Tomato chutney', 1, 'serving', 20),
+      _NewDietItem('Afternoon', 'Whole eggs', 3, 'eggs', 210),
+      _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+      _NewDietItem('Snack', 'Pakoda', 1, 'small serving', 200),
+      _NewDietItem('Snack', 'Ginger milk tea', 1, 'serving', 60),
+      _NewDietItem('Snack', 'Tomato sauce', 1, 'serving', 20),
+      _NewDietItem('Dinner', 'Rice', 250, 'g', 325),
+      _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
+      _NewDietItem('Dinner', 'Dal', 2, 'karchul', 180),
+      _NewDietItem('Dinner', 'Chicken chilli/curry', 4, 'pieces', 300),
+      _NewDietItem('Night', 'Whole eggs', 3, 'eggs', 210),
+    ],
+  };
 
   @override
   void initState() {
@@ -56,6 +197,8 @@ class _DietScreenState extends State<DietScreen> {
       });
     }
 
+    await _ensureNewPlanForSelectedDate();
+
     final entries = await _database.getDietEntries(
       userId: 'user1',
       date: _selectedDate,
@@ -68,11 +211,100 @@ class _DietScreenState extends State<DietScreen> {
 
     if (!mounted) return;
 
+    final visibleEntries = entries.where((entry) {
+      return entry.meal != '__META__' && entry.foodName != _newPlanMarker;
+    }).toList();
+
+    _sortEntriesForPlan(visibleEntries);
+
     setState(() {
-      _entries = entries;
+      _entries = visibleEntries;
       _extraCalories = extra;
       _loading = false;
     });
+  }
+
+  String _planKey(String meal, String foodName) => '$meal|$foodName';
+
+  List<_NewDietItem> get _currentPlan =>
+      _newWeeklyPlan[_selectedDate.weekday] ?? const <_NewDietItem>[];
+
+  void _sortEntriesForPlan(List<DietEntry> entries) {
+    final planOrder = <String, int>{};
+
+    for (var i = 0; i < _currentPlan.length; i++) {
+      planOrder[_planKey(_currentPlan[i].meal, _currentPlan[i].foodName)] = i;
+    }
+
+    final mealOrder = <String, int>{
+      for (var i = 0; i < _meals.length; i++) _meals[i]: i,
+    };
+
+    entries.sort((a, b) {
+      final aMeal = mealOrder[a.meal] ?? 999;
+      final bMeal = mealOrder[b.meal] ?? 999;
+
+      if (aMeal != bMeal) return aMeal.compareTo(bMeal);
+
+      final aPlan = planOrder[_planKey(a.meal, a.foodName)];
+      final bPlan = planOrder[_planKey(b.meal, b.foodName)];
+
+      if (aPlan != null && bPlan != null) return aPlan.compareTo(bPlan);
+      if (aPlan != null) return -1;
+      if (bPlan != null) return 1;
+
+      return a.id.compareTo(b.id);
+    });
+  }
+
+  Future<void> _ensureNewPlanForSelectedDate() async {
+    if (_selectedDate.isBefore(_dietStartDate)) return;
+
+    final plan = _currentPlan;
+    final existing = await _database.getDietEntries(
+      userId: 'user1',
+      date: _selectedDate,
+    );
+
+    final alreadyApplied = existing.any(
+      (entry) => entry.foodName == _newPlanMarker,
+    );
+
+    if (alreadyApplied) return;
+
+    // One-time migration for this date: remove the old diet completely,
+    // then seed only the final muscle-building plan supplied by the user.
+    for (final entry in existing) {
+      await _database.deleteDietEntry(entry.id);
+    }
+
+    for (final item in plan) {
+      await _database.saveDietEntry(
+        userId: 'user1',
+        date: _selectedDate,
+        meal: item.meal,
+        foodName: item.foodName,
+        plannedQuantity: item.quantity,
+        quantityUnit: item.unit,
+        plannedCalories: item.calories,
+        actualQuantity: 0,
+        actualCalories: 0,
+        eaten: false,
+      );
+    }
+
+    await _database.saveDietEntry(
+      userId: 'user1',
+      date: _selectedDate,
+      meal: '__META__',
+      foodName: _newPlanMarker,
+      plannedQuantity: 0,
+      quantityUnit: '',
+      plannedCalories: 0,
+      actualQuantity: 0,
+      actualCalories: 0,
+      eaten: false,
+    );
   }
 
   Future<void> _selectDate() async {
@@ -539,13 +771,7 @@ class _DietScreenState extends State<DietScreen> {
   }
 
   double get _plannedCalories {
-    double total = 0;
-
-    for (final entry in _entries) {
-      total += entry.plannedCalories;
-    }
-
-    return total;
+    return _dailyTargets[_selectedDate.weekday] ?? 2700;
   }
 
   double get _caloriePercentage {
@@ -827,6 +1053,26 @@ class _DietScreenState extends State<DietScreen> {
     _database.close();
     super.dispose();
   }
+}
+
+// ================================================================
+// NEW DIET PLAN MODEL
+// ================================================================
+
+class _NewDietItem {
+  final String meal;
+  final String foodName;
+  final double quantity;
+  final String unit;
+  final double calories;
+
+  const _NewDietItem(
+    this.meal,
+    this.foodName,
+    this.quantity,
+    this.unit,
+    this.calories,
+  );
 }
 
 // ================================================================
