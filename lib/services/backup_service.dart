@@ -20,22 +20,27 @@ class BackupService {
     'weekly_diet_plans',
     'weekly_diet_items',
     'user_weights',
+    'fittrack_exercise_order',
+    'fittrack_hidden_exercises',
   ];
 
-  static const List<String> _clearOrder = [
-    'weekly_diet_items',
-    'weekly_diet_plans',
-    'routine_sets',
-    'workout_routines',
-    'diet_entries',
-    'extra_calories_entries',
-    'workout_sets',
-    'exercise_library',
-    'daily_data',
-    'daily_targets',
-    'food_library',
-    'user_weights',
-  ];
+  static Future<void> _ensureAuxiliaryTables(AppDatabase database) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS fittrack_exercise_order (
+        user_id TEXT NOT NULL,
+        exercise_name TEXT NOT NULL,
+        order_index INTEGER NOT NULL,
+        PRIMARY KEY (user_id, exercise_name)
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS fittrack_hidden_exercises (
+        user_id TEXT NOT NULL,
+        exercise_name TEXT NOT NULL,
+        PRIMARY KEY (user_id, exercise_name)
+      )
+    ''');
+  }
 
   static Future<void> _ensureWeightTable(AppDatabase database) async {
     await database.customStatement('''
@@ -52,6 +57,7 @@ class BackupService {
     AppDatabase database,
   ) async {
     await _ensureWeightTable(database);
+    await _ensureAuxiliaryTables(database);
 
     final tableData = <String, dynamic>{};
 
@@ -125,14 +131,13 @@ class BackupService {
     }
 
     await _ensureWeightTable(database);
+    await _ensureAuxiliaryTables(database);
 
     final restoredCounts = <String, int>{};
 
+    // Restore is a merge: never clear existing local data. Rows whose primary
+    // keys already exist are left untouched rather than overwritten.
     await database.transaction(() async {
-      for (final table in _clearOrder) {
-        await database.customStatement('DELETE FROM $table');
-      }
-
       for (final table in _tables) {
         final rows = tables[table];
         if (rows is! List || rows.isEmpty) {
@@ -144,13 +149,11 @@ class BackupService {
 
         for (final rawRow in rows) {
           final row = Map<String, dynamic>.from(rawRow as Map);
-
           if (row.isEmpty) continue;
 
           final columns = row.keys
               .where(_isSafeIdentifier)
               .toList(growable: false);
-
           if (columns.isEmpty) continue;
 
           final placeholders = List.filled(columns.length, '?').join(', ');
@@ -160,11 +163,17 @@ class BackupService {
               .toList();
 
           await database.customStatement(
-            'INSERT INTO $table ($columnSql) VALUES ($placeholders)',
+            'INSERT OR IGNORE INTO $table ($columnSql) VALUES ($placeholders)',
             values,
           );
 
-          count++;
+          final changeRows = await database.customSelect(
+            'SELECT changes() AS inserted_count',
+          ).get();
+          if (changeRows.isNotEmpty &&
+              changeRows.first.read<int>('inserted_count') > 0) {
+            count++;
+          }
         }
 
         restoredCounts[table] = count;

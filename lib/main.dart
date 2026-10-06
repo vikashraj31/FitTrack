@@ -401,7 +401,7 @@ void initState() {
                     'Today',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.45),
+                      color: Color(0x73FFFFFF),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -450,56 +450,58 @@ void initState() {
       ),
     );
 
+    final steps = _dailyData?.steps ?? 0;
+    final stepTarget = _dailyData?.stepTarget ?? 10000;
+    final calories = _dailyData?.calories ?? 0;
+    final calorieTarget = _dailyData?.calorieTarget ?? 0;
+    final calorieProgress = calorieTarget > 0
+        ? _clamp((calories / calorieTarget) * 100)
+        : 0.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFF050B18),
-
-      // ======================================================
-      // BODY
-      // ======================================================
-
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF08285C),
-              Color(0xFF061A3B),
+              Color(0xFF0A2D63),
+              Color(0xFF071D43),
               Color(0xFF050B18),
             ],
-            stops: [0.0, 0.38, 1.0],
+            stops: [0.0, 0.34, 1.0],
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // =================================================
+                // =====================================================
                 // HEADER
-                // =================================================
-
+                // =====================================================
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const Text(
+                            'FitTrack',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
                           Text(
                             _formatHomeDate(DateTime.now()),
                             style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Today',
-                            style: TextStyle(
                               fontSize: 13,
                               color: Colors.white60,
                             ),
@@ -507,32 +509,119 @@ void initState() {
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: _showTodaysInsight,
-                      tooltip: 'Today’s Insight',
-                      icon: const Icon(
-                        Icons.insights_outlined,
-                        color: Colors.white70,
-                        size: 23,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
+                    Material(
+                      color: Colors.white.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        onTap: _showTodaysInsight,
+                        borderRadius: BorderRadius.circular(16),
+                        child: const SizedBox(
+                          width: 46,
+                          height: 46,
+                          child: Icon(
+                            Icons.insights_outlined,
+                            color: Colors.white70,
+                            size: 22,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
 
+                const SizedBox(height: 20),
+
+                // =====================================================
+                // TODAY SUMMARY
+                // =====================================================
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.14),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Today',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white54,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _summaryStat(
+                              label: 'Steps',
+                              value: '$steps',
+                              subtext: stepTarget > 0
+                                  ? 'Target $stepTarget'
+                                  : 'Today',
+                              icon: Icons.directions_walk_outlined,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 54,
+                            color: Colors.white12,
+                          ),
+                          Expanded(
+                            child: _summaryStat(
+                              label: 'Calories',
+                              value: calories.toStringAsFixed(0),
+                              subtext: calorieTarget > 0
+                                  ? 'of ${calorieTarget.toStringAsFixed(0)} kcal'
+                                  : 'logged today',
+                              icon: Icons.local_fire_department_outlined,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
                 const SizedBox(height: 18),
 
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Steps - left
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 32),
+                // =====================================================
+                // SCORE RINGS
+                // =====================================================
+                const Text(
+                  'Daily Score',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.11),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
                         child: _metricRing(
                           value: _stepsPercent(),
                           label: 'Steps',
@@ -542,26 +631,19 @@ void initState() {
                           color: const Color(0xFFB66CFF),
                         ),
                       ),
-                    ),
-
-                    // Recovery - center, slightly higher
-                    Expanded(
-                      child: _metricRing(
-                        value: _recoveryPercent(),
-                        label: 'Recovery',
-                        displayValue:
-                            _dailyData == null ||
-                                    _dailyData!.recoveryScore <= 0
-                                ? '0'
-                                : '${_recoveryPercent().round()}',
-                        color: const Color(0xFF39D98A),
+                      Expanded(
+                        child: _metricRing(
+                          value: _recoveryPercent(),
+                          label: 'Recovery',
+                          displayValue:
+                              _dailyData == null ||
+                                      _dailyData!.recoveryScore <= 0
+                                  ? '0'
+                                  : '${_recoveryPercent().round()}',
+                          color: const Color(0xFF39D98A),
+                        ),
                       ),
-                    ),
-
-                    // Effort - right
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 32),
+                      Expanded(
                         child: _metricRing(
                           value: _effortPercent(),
                           label: 'Effort',
@@ -570,84 +652,127 @@ void initState() {
                                       _dailyData!.effortScore <= 0
                                   ? '0'
                                   : '${_effortPercent().round()}',
-                          color: const Color(0xFFFF7A21),
+                          color: const Color(0xFFFF8A3D),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 42),
-
-                // =================================================
-                // DAILY DATA
-                // =================================================
-
-                const Text(
-                  'Daily Data',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
-                const SizedBox(height: 30),
+                // =====================================================
+                // CALORIE PROGRESS
+                // =====================================================
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.055),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.local_fire_department_outlined,
+                            color: Colors.white70,
+                            size: 21,
+                          ),
+                          const SizedBox(width: 9),
+                          const Expanded(
+                            child: Text(
+                              'Calorie Progress',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${calorieProgress.round()}%',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: LinearProgressIndicator(
+                          minHeight: 8,
+                          value: (calorieProgress / 100).clamp(0.0, 1.0),
+                          backgroundColor: Colors.white10,
+                          valueColor: const AlwaysStoppedAnimation(
+                            Color(0xFFFF7A21),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
+                const SizedBox(height: 22),
+
+                // =====================================================
+                // QUICK ACTIONS
+                // =====================================================
+                const Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: _actionCard(
-                        icon: Icons.fitness_center,
+                        icon: Icons.fitness_center_outlined,
                         title: 'Exercises',
-                        subtitle: 'Workout',
+                        subtitle: 'Track workout',
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const User1HomeExerciseScreen(),
+                              builder: (_) =>
+                                  const User1HomeExerciseScreen(),
                             ),
                           );
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: _actionCard(
-                        icon: Icons.restaurant_menu,
+                        icon: Icons.restaurant_menu_outlined,
                         title: 'Diet',
-                        subtitle: 'Meals',
+                        subtitle: 'Track meals',
                         onTap: _openDiet,
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 18),
-
-                // =================================================
-                // USERS
-                // =================================================
-
-                const Text(
-                  'Users',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
+                const SizedBox(height: 10),
 
                 Row(
                   children: [
                     Expanded(
-                      child: _userCard(
-                        'Stats',
-                        'Long-term progress',
-                        Icons.bar_chart,
-                        () {
+                      child: _actionCard(
+                        icon: Icons.bar_chart_outlined,
+                        title: 'Stats',
+                        subtitle: 'View progress',
+                        onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -657,39 +782,69 @@ void initState() {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: _userCard(
-                        'User 2',
-                        'Exercise',
-                        Icons.person_outline,
-                        _openUser2,
+                      child: _actionCard(
+                        icon: Icons.person_outline,
+                        title: 'User 2',
+                        subtitle: 'Exercise + weight',
+                        onTap: _openUser2,
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
+
+                // =====================================================
+                // BOTTOM NAVIGATION PREVIEW / INFO
+                // =====================================================
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.04),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.touch_app_outlined,
+                        size: 18,
+                        color: Colors.white38,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Tap any score ring to see its breakdown.',
+                          style: TextStyle(
+                            fontSize: 12,
+                           color: Color(0x73FFFFFF),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
-
-      // ========================================================
-      // BOTTOM NAVIGATION
-      // ========================================================
-
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF071329),
-        indicatorColor:
-            const Color(0xFF8F5CFF).withValues(alpha: 0.30),
+        indicatorColor: const Color(0xFF8F5CFF).withValues(alpha: 0.30),
         selectedIndex: 0,
         onDestinationSelected: (index) {
           switch (index) {
             case 0:
               break;
-
             case 1:
               Navigator.push(
                 context,
@@ -698,7 +853,6 @@ void initState() {
                 ),
               );
               break;
-
             case 2:
               Navigator.push(
                 context,
@@ -724,6 +878,63 @@ void initState() {
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryStat({
+    required String label,
+    required String value,
+    required String subtext,
+    required IconData icon,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.07),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white70, size: 19),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.white54,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtext,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white38,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1061,54 +1272,6 @@ void initState() {
   // USER CARD
   // ============================================================
 
-  Widget _userCard(
-    String name,
-    String subtitle,
-    IconData icon,
-    VoidCallback? onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 135),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.055),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.06),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              icon,
-              size: 25,
-              color: Colors.white70,
-            ),
-            const SizedBox(height: 15),
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.50),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ============================================================

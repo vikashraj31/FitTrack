@@ -49,10 +49,7 @@ class _User2ScreenState extends State<User2Screen> {
     try {
       final today = _dateOnly(DateTime.now());
 
-      final sets = await _database.getSetsByDate(
-        userId: 'user2',
-        date: today,
-      );
+      final sets = await _database.getSetsByDate(userId: 'user2', date: today);
 
       final otherUserSets = await _database.getSetsByDate(
         userId: 'user1',
@@ -65,7 +62,9 @@ class _User2ScreenState extends State<User2Screen> {
 
       final names = <String>[];
       for (final set in sets) {
-        if (!names.any((name) => name.toLowerCase() == set.exerciseName.toLowerCase())) {
+        if (!names.any(
+          (name) => name.toLowerCase() == set.exerciseName.toLowerCase(),
+        )) {
           names.add(set.exerciseName);
         }
       }
@@ -118,9 +117,7 @@ class _User2ScreenState extends State<User2Screen> {
     }
 
     for (final name in currentNames) {
-      if (!result.any(
-        (item) => item.toLowerCase() == name.toLowerCase(),
-      )) {
+      if (!result.any((item) => item.toLowerCase() == name.toLowerCase())) {
         result.add(name);
       }
     }
@@ -160,6 +157,135 @@ class _User2ScreenState extends State<User2Screen> {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const User2CalendarScreen()),
+    );
+
+    await _loadTodayWorkout();
+  }
+
+  Widget _addExerciseCard() {
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+        leading: const Icon(
+          Icons.add_circle_outline,
+          size: 20,
+          color: Colors.cyanAccent,
+        ),
+        title: const Text(
+          'ADD EXERCISE',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          size: 20,
+          color: Colors.white54,
+        ),
+        onTap: _showExercisePicker,
+      ),
+    );
+  }
+
+  Future<void> _showExercisePicker() async {
+    final allExercises = await _database.getAllExerciseNames(
+      userId: 'user2',
+      defaultExercises: ExerciseCatalog.defaultExercises,
+    );
+
+    if (!mounted) return;
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF101C32),
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.80,
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'SELECT EXERCISE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: allExercises.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No exercises available.',
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: allExercises.length,
+                          itemBuilder: (_, index) {
+                            final exercise = allExercises[index];
+                            return ListTile(
+                              title: Text(
+                                exercise,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              subtitle: const Text(
+                                'Exercise',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              trailing: const Icon(
+                                Icons.chevron_right,
+                                color: Colors.white54,
+                              ),
+                              onTap: () => Navigator.pop(ctx, exercise),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null) return;
+
+    if (!mounted) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExerciseDetailScreen(
+          userId: 'user2',
+          exerciseName: selected,
+          target: 'Recorded workout',
+        ),
+      ),
     );
 
     await _loadTodayWorkout();
@@ -257,7 +383,6 @@ class _User2ScreenState extends State<User2Screen> {
     }
   }
 
-
   Future<void> _saveCurrentExerciseOrder(List<String> orderedToday) async {
     final all = await _database.getAllExerciseNames(
       userId: 'user2',
@@ -266,9 +391,7 @@ class _User2ScreenState extends State<User2Screen> {
 
     final fullOrder = <String>[...orderedToday];
     for (final name in all) {
-      if (!fullOrder.any(
-        (item) => item.toLowerCase() == name.toLowerCase(),
-      )) {
+      if (!fullOrder.any((item) => item.toLowerCase() == name.toLowerCase())) {
         fullOrder.add(name);
       }
     }
@@ -329,13 +452,7 @@ class _User2ScreenState extends State<User2Screen> {
     );
   }
 
-
-
-  Widget _exerciseCard(
-    String exerciseName, {
-    Key? key,
-    int? index,
-  }) {
+  Widget _exerciseCard(String exerciseName, {Key? key, int? index}) {
     final count = _setCountForExercise(exerciseName);
     final isAlsoDoneByOtherUser = _otherUserTodayExerciseNames.contains(
       exerciseName.toLowerCase(),
@@ -433,8 +550,6 @@ class _User2ScreenState extends State<User2Screen> {
     );
   }
 
-
-
   Widget _copyWorkoutCard() {
     return Container(
       margin: const EdgeInsets.only(top: 10),
@@ -507,7 +622,6 @@ class _User2ScreenState extends State<User2Screen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final todayExercises = _todayExercises();
@@ -558,7 +672,8 @@ class _User2ScreenState extends State<User2Screen> {
                     _emptyToday()
                   else
                     _todayExerciseList(todayExercises),
-                                _copyWorkoutCard(),
+                  _addExerciseCard(),
+                  _copyWorkoutCard(),
                   _deleteTodayCard(),
                   const SizedBox(height: 30),
                 ],
@@ -819,7 +934,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Text(
                       'Set ${index + 1}    ${set.weight} kg × ${set.reps}',
-                      style: const TextStyle(color: Colors.white60, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
                     ),
                   );
                 }),
@@ -830,7 +948,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
       ],
     );
   }
-
 
   void _clearControllers() {
     for (final controller in _weightControllers) {

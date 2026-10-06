@@ -258,54 +258,57 @@ class _DietScreenState extends State<DietScreen> {
   }
 
   Future<void> _ensureNewPlanForSelectedDate() async {
-    if (_selectedDate.isBefore(_dietStartDate)) return;
+  if (_selectedDate.isBefore(_dietStartDate)) return;
 
-    final plan = _currentPlan;
-    final existing = await _database.getDietEntries(
-      userId: 'user1',
-      date: _selectedDate,
-    );
+  final plan = _currentPlan;
 
-    final alreadyApplied = existing.any(
-      (entry) => entry.foodName == _newPlanMarker,
-    );
+  final existing = await _database.getDietEntries(
+    userId: 'user1',
+    date: _selectedDate,
+  );
 
-    if (alreadyApplied) return;
+  final hasRealEntries = existing.any(
+    (entry) =>
+        entry.meal != '__META__' &&
+        entry.foodName != _newPlanMarker,
+  );
 
-    // One-time migration for this date: remove the old diet completely,
-    // then seed only the final muscle-building plan supplied by the user.
-    for (final entry in existing) {
-      await _database.deleteDietEntry(entry.id);
-    }
+  final alreadyApplied = existing.any(
+    (entry) => entry.foodName == _newPlanMarker,
+  );
 
-    for (final item in plan) {
-      await _database.saveDietEntry(
-        userId: 'user1',
-        date: _selectedDate,
-        meal: item.meal,
-        foodName: item.foodName,
-        plannedQuantity: item.quantity,
-        quantityUnit: item.unit,
-        plannedCalories: item.calories,
-        actualQuantity: 0,
-        actualCalories: 0,
-        eaten: false,
-      );
-    }
+  // Never overwrite or delete an existing user's diet data.
+  // A new plan is seeded only when the date is completely empty.
+  if (hasRealEntries || alreadyApplied) return;
 
+  for (final item in plan) {
     await _database.saveDietEntry(
       userId: 'user1',
       date: _selectedDate,
-      meal: '__META__',
-      foodName: _newPlanMarker,
-      plannedQuantity: 0,
-      quantityUnit: '',
-      plannedCalories: 0,
+      meal: item.meal,
+      foodName: item.foodName,
+      plannedQuantity: item.quantity,
+      quantityUnit: item.unit,
+      plannedCalories: item.calories,
       actualQuantity: 0,
       actualCalories: 0,
       eaten: false,
     );
   }
+
+  await _database.saveDietEntry(
+    userId: 'user1',
+    date: _selectedDate,
+    meal: '__META__',
+    foodName: _newPlanMarker,
+    plannedQuantity: 0,
+    quantityUnit: '',
+    plannedCalories: 0,
+    actualQuantity: 0,
+    actualCalories: 0,
+    eaten: false,
+  );
+}
 
   Future<void> _selectDate() async {
     final picked = await showDatePicker(
