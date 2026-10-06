@@ -16,6 +16,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
 
   List<WorkoutSet> _todaySets = [];
   List<String> _exerciseOrder = [];
+  Set<String> _otherUserTodayExerciseNames = {};
   bool _loading = true;
 
   @override
@@ -53,6 +54,15 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
         date: today,
       );
 
+      final otherUserSets = await _database.getSetsByDate(
+        userId: 'user2',
+        date: today,
+      );
+
+      final otherUserTodayNames = <String>{
+        for (final set in otherUserSets) set.exerciseName.toLowerCase(),
+      };
+
       final names = <String>[];
       for (final set in sets) {
         if (!names.any((name) => name.toLowerCase() == set.exerciseName.toLowerCase())) {
@@ -70,6 +80,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
       setState(() {
         _todaySets = sets;
         _exerciseOrder = ordered;
+        _otherUserTodayExerciseNames = otherUserTodayNames;
         _loading = false;
       });
     } catch (e) {
@@ -154,55 +165,98 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     await _loadTodayWorkout();
   }
 
-  Future<void> _deleteAllTodayExercises() async {
+  Future<void> _deleteSelectedTodayExercises() async {
     if (_todaySets.isEmpty) {
       _showMessage('There is no workout to delete today.');
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final exerciseNames = _todayExercises();
+    final selected = <String>{};
+
+    final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
-          title: const Text(
-            'Delete Today\'s Workout?',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Text(
-            'This will delete all User 1 exercises and sets recorded today. Previous workout dates will not be affected.',
-            style: TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCEL'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('DELETE ALL'),
-            ),
-          ],
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF101C32),
+              title: const Text(
+                "Delete Today's Exercises",
+                style: TextStyle(color: Colors.white),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: exerciseNames.length,
+                  itemBuilder: (_, index) {
+                    final exercise = exerciseNames[index];
+                    final isSelected = selected.contains(exercise);
+                    return CheckboxListTile(
+                      value: isSelected,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          if (value == true) {
+                            selected.add(exercise);
+                          } else {
+                            selected.remove(exercise);
+                          }
+                        });
+                      },
+                      activeColor: Colors.redAccent,
+                      checkColor: Colors.white,
+                      title: Text(
+                        exercise,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('CANCEL'),
+                ),
+                ElevatedButton(
+                  onPressed: selected.isEmpty
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                  ),
+                  child: const Text('DELETE SELECTED'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
-    if (confirmed != true) return;
+    if (shouldDelete != true || selected.isEmpty) return;
 
     try {
-      await _database.deleteAllSetsByDate(
-        userId: 'user1',
-        date: _dateOnly(DateTime.now()),
-      );
+      final todaySets = List<WorkoutSet>.from(_todaySets);
+
+      for (final set in todaySets) {
+        if (selected.contains(set.exerciseName)) {
+          await _database.deleteSet(set.id);
+        }
+      }
 
       await _loadTodayWorkout();
-
-      _showMessage('Today\'s workout deleted.');
+      _showMessage(
+        "${selected.length} exercise${selected.length == 1 ? '' : 's'} deleted from today.",
+      );
     } catch (e) {
-      debugPrint('Error deleting User 1 workout: $e');
-      _showMessage('Could not delete today\'s workout.');
+      debugPrint('Error deleting selected exercises: $e');
+      _showMessage('Could not delete selected exercises.');
     }
   }
+
 
   Future<void> _saveCurrentExerciseOrder(List<String> orderedToday) async {
     final all = await _database.getAllExerciseNames(
@@ -275,124 +329,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     );
   }
 
-  Future<void> _showExerciseReorder() async {
-    final exercises = await _database.getAllExerciseNames(
-      userId: 'user1',
-      defaultExercises: ExerciseCatalog.defaultExercises,
-    );
 
-    if (!mounted) return;
-
-    final working = [...exercises];
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF101C32),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(sheetContext).size.height * 0.82,
-            child: Column(
-              children: [
-                const SizedBox(height: 14),
-                Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'EXERCISE ORDER',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Drag exercises to set their permanent order.',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: StatefulBuilder(
-                    builder: (context, modalSetState) {
-                      return ReorderableListView.builder(
-                        padding: const EdgeInsets.fromLTRB(14, 6, 14, 14),
-                        itemCount: working.length,
-                        onReorderItem: (oldIndex, newIndex) {
-                                                modalSetState(() {
-                            final item = working.removeAt(oldIndex);
-                            working.insert(newIndex, item);
-                          });
-                        },
-                        itemBuilder: (_, index) {
-                          final name = working[index];
-                          return Container(
-                            key: ValueKey('library-user1-${name.toLowerCase()}'),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111D34),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Colors.white10,
-                                child: Text(
-                                  '${index + 1}',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                                ),
-                              ),
-                              title: Text(
-                                name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.drag_handle, color: Colors.white54),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await _database.saveExerciseOrder(
-                          userId: 'user1',
-                          orderedExerciseNames: working,
-                        );
-                        if (sheetContext.mounted) Navigator.pop(sheetContext);
-                        await _loadTodayWorkout();
-                      },
-                      child: const Text('SAVE ORDER'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _exerciseCard(
     String exerciseName, {
@@ -400,14 +337,23 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     int? index,
   }) {
     final count = _setCountForExercise(exerciseName);
+    final isAlsoDoneByOtherUser = _otherUserTodayExerciseNames.contains(
+      exerciseName.toLowerCase(),
+    );
 
     return Container(
       key: key,
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF111D34),
+        color: isAlsoDoneByOtherUser
+            ? Colors.cyanAccent.withValues(alpha: 0.045)
+            : const Color(0xFF111D34),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        border: Border.all(
+          color: isAlsoDoneByOtherUser
+              ? Colors.cyanAccent.withValues(alpha: 0.32)
+              : Colors.white.withValues(alpha: 0.07),
+        ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -422,8 +368,15 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Text(
-            '$count ${count == 1 ? 'set' : 'sets'}',
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            isAlsoDoneByOtherUser
+                ? '$count ${count == 1 ? 'set' : 'sets'} • User 2 also did this today'
+                : '$count ${count == 1 ? 'set' : 'sets'}',
+            style: TextStyle(
+              color: isAlsoDoneByOtherUser
+                  ? Colors.cyanAccent.withValues(alpha: 0.82)
+                  : Colors.white54,
+              fontSize: 12,
+            ),
           ),
         ),
         trailing: Row(
@@ -480,35 +433,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     );
   }
 
-  Widget _reorderExerciseCard() {
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-        leading: const Icon(Icons.sort, size: 20, color: Colors.orangeAccent),
-        title: const Text(
-          'REORDER EXERCISES',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: const Text(
-          'Set your permanent exercise order',
-          style: TextStyle(color: Colors.white38, fontSize: 10),
-        ),
-        trailing: const Icon(Icons.chevron_right, size: 20, color: Colors.white54),
-        onTap: _showExerciseReorder,
-      ),
-    );
-  }
+
 
   Widget _copyWorkoutCard() {
     return Container(
@@ -577,7 +502,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
           size: 20,
           color: Colors.white54,
         ),
-        onTap: _deleteAllTodayExercises,
+        onTap: _deleteSelectedTodayExercises,
       ),
     );
   }
@@ -633,8 +558,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
                     _emptyToday()
                   else
                     _todayExerciseList(todayExercises),
-                  _reorderExerciseCard(),
-                  _copyWorkoutCard(),
+                                _copyWorkoutCard(),
                   _deleteTodayCard(),
                   const SizedBox(height: 30),
                 ],
@@ -843,6 +767,31 @@ class _User1HomeExerciseDetailScreenState extends State<User1HomeExerciseDetailS
             ],
           ),
         ),
+        if (_otherUserHistory.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            child: SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => User1HomeExerciseDetailScreen(
+                        userId: 'user2',
+                        exerciseName: widget.exerciseName,
+                        target: 'Recorded workout',
+                      ),
+                    ),
+                  );
+                  await _loadData();
+                },
+                icon: const Icon(Icons.edit_note, size: 19),
+                label: const Text('USER 2 TRACK THIS EXERCISE'),
+              ),
+            ),
+          ),
         ...dates.map((date) {
           final sets = grouped[date]!;
           return Container(
