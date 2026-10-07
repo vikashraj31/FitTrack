@@ -20,8 +20,7 @@ class WorkoutSets extends Table {
 
   TextColumn get exerciseName => text()();
 
-  IntColumn get exerciseOrder =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get exerciseOrder => integer().withDefault(const Constant(0))();
 
   RealColumn get weight => real()();
 
@@ -94,7 +93,6 @@ class DailyData extends Table {
   IntColumn get steps => integer().withDefault(const Constant(0))();
 
   IntColumn get stepTarget => integer().withDefault(const Constant(10000))();
-
 
   RealColumn get recoveryScore => real().withDefault(const Constant(0))();
 
@@ -235,7 +233,6 @@ class DailyTargets extends Table {
 
   IntColumn get stepTarget => integer().withDefault(const Constant(10000))();
 
-
   DateTimeColumn get createdAt => dateTime()();
 
   DateTimeColumn get updatedAt => dateTime()();
@@ -303,14 +300,14 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(weeklyDietItems);
       }
       if (from < 13) {
-  await customStatement(
-    'ALTER TABLE daily_targets DROP COLUMN sleep_target',
-  );
-}
+        await customStatement(
+          'ALTER TABLE daily_targets DROP COLUMN sleep_target',
+        );
+      }
 
-if (from < 14) {
-  await m.addColumn(workoutSets, workoutSets.exerciseOrder);
-}
+      if (from < 14) {
+        await m.addColumn(workoutSets, workoutSets.exerciseOrder);
+      }
     },
   );
 
@@ -407,15 +404,15 @@ if (from < 14) {
     await _ensureExerciseOrderTable();
 
     return transaction(() async {
-      final item = await (select(exerciseLibrary)
-            ..where((tbl) => tbl.id.equals(id)))
-          .getSingleOrNull();
+      final item = await (select(
+        exerciseLibrary,
+      )..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
 
       if (item == null) return false;
 
-      final deleted = await (delete(exerciseLibrary)
-            ..where((tbl) => tbl.id.equals(id)))
-          .go();
+      final deleted = await (delete(
+        exerciseLibrary,
+      )..where((tbl) => tbl.id.equals(id))).go();
 
       if (deleted == 0) return false;
 
@@ -433,16 +430,16 @@ if (from < 14) {
   // ==========================================================
 
   Future<void> _ensureHiddenExerciseTable() async {
-    await customStatement('''CREATE TABLE IF NOT EXISTS fittrack_hidden_exercises (
+    await customStatement(
+      '''CREATE TABLE IF NOT EXISTS fittrack_hidden_exercises (
       user_id TEXT NOT NULL,
       exercise_name TEXT NOT NULL,
       PRIMARY KEY (user_id, exercise_name)
-    )''');
+    )''',
+    );
   }
 
-  Future<List<String>> getHiddenExerciseNames({
-    required String userId,
-  }) async {
+  Future<List<String>> getHiddenExerciseNames({required String userId}) async {
     await _ensureHiddenExerciseTable();
 
     final rows = await customSelect(
@@ -551,17 +548,13 @@ if (from < 14) {
 
       if (!savedOrder.containsKey(key)) {
         await customStatement(
-  '''
+          '''
   INSERT OR REPLACE INTO fittrack_exercise_order
   (user_id, exercise_name, order_index)
   VALUES (?, ?, ?)
   ''',
-  [
-    userId,
-    name,
-    nextIndex,
-  ],
-);
+          [userId, name, nextIndex],
+        );
 
         savedOrder[key] = nextIndex;
         nextIndex++;
@@ -583,42 +576,39 @@ if (from < 14) {
   }
 
   Future<List<String>> getAllExerciseNames({
-  required String userId,
-  required List<String> defaultExercises,
-}) async {
-  final library = await getExerciseLibrary(userId: userId);
-  final hidden = await getHiddenExerciseNames(userId: userId);
+    required String userId,
+    required List<String> defaultExercises,
+  }) async {
+    final library = await getExerciseLibrary(userId: userId);
+    final hidden = await getHiddenExerciseNames(userId: userId);
 
-  final names = <String>[];
-  final seen = <String>{};
+    final names = <String>[];
+    final seen = <String>{};
 
-  void addUnique(String name) {
-    final normalized = name.trim();
-    if (normalized.isEmpty) return;
+    void addUnique(String name) {
+      final normalized = name.trim();
+      if (normalized.isEmpty) return;
 
-    final key = normalized.toLowerCase();
+      final key = normalized.toLowerCase();
 
-    // Hidden exercises should not appear in the picker.
-    if (hidden.contains(key)) return;
+      // Hidden exercises should not appear in the picker.
+      if (hidden.contains(key)) return;
 
-    if (seen.add(key)) {
-      names.add(normalized);
+      if (seen.add(key)) {
+        names.add(normalized);
+      }
     }
-  }
 
-  for (final exercise in defaultExercises) {
-    addUnique(exercise);
-  }
+    for (final exercise in defaultExercises) {
+      addUnique(exercise);
+    }
 
-  for (final exercise in library) {
-    addUnique(exercise.exerciseName);
-  }
+    for (final exercise in library) {
+      addUnique(exercise.exerciseName);
+    }
 
-  return getExercisesInSavedOrder(
-    userId: userId,
-    exerciseNames: names,
-  );
-}
+    return getExercisesInSavedOrder(userId: userId, exerciseNames: names);
+  }
 
   Future<void> saveExerciseOrder({
     required String userId,
@@ -700,11 +690,22 @@ if (from < 14) {
 
   Future<int> saveRoutineSet({
     required int routineId,
+    required String userId,
     required String exerciseName,
     required int setNumber,
     required double weight,
     required int reps,
   }) async {
+    final routine =
+        await (select(workoutRoutines)..where(
+              (tbl) => tbl.id.equals(routineId) & tbl.userId.equals(userId),
+            ))
+            .getSingleOrNull();
+
+    if (routine == null) {
+      throw Exception('Routine not found for this user');
+    }
+
     return into(routineSets).insert(
       RoutineSetsCompanion.insert(
         routineId: routineId,
@@ -715,50 +716,73 @@ if (from < 14) {
       ),
     );
   }
-  
+
   Future<bool> updateWorkoutRoutine({
-  required int id,
-  required DateTime date,
-  required String routineName,
-  required List<RoutineSet> sets,
-}) async {
-  try {
-    await transaction(() async {
-      await (update(workoutRoutines)..where(
-        (tbl) => tbl.id.equals(id),
-      )).write(
-        WorkoutRoutinesCompanion(
-          date: Value(_dateOnly(date)),
-          routineName: Value(routineName),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
+    required int id,
+    required String userId,
+    required DateTime date,
+    required String routineName,
+    required List<RoutineSet> sets,
+  }) async {
+    try {
+      await transaction(() async {
+        final routine =
+            await (select(workoutRoutines)..where(
+                  (tbl) => tbl.id.equals(id) & tbl.userId.equals(userId),
+                ))
+                .getSingleOrNull();
 
-      await (delete(routineSets)..where(
-        (tbl) => tbl.routineId.equals(id),
-      )).go();
-
-      for (final set in sets) {
-        await into(routineSets).insert(
-          RoutineSetsCompanion.insert(
-            routineId: id,
-            exerciseName: set.exerciseName,
-            setNumber: set.setNumber,
-            weight: set.weight,
-            reps: set.reps,
+        if (routine == null) {
+          throw Exception('Routine not found for this user');
+        }
+        await (update(
+          workoutRoutines,
+        )..where((tbl) => tbl.id.equals(id))).write(
+          WorkoutRoutinesCompanion(
+            date: Value(_dateOnly(date)),
+            routineName: Value(routineName),
+            updatedAt: Value(DateTime.now()),
           ),
         );
-      }
-    });
 
-    return true;
-  } catch (e) {
-  // Error updating workout routine.
-  return false;
-}
-}
+        await (delete(
+          routineSets,
+        )..where((tbl) => tbl.routineId.equals(id))).go();
 
-  Future<List<RoutineSet>> getRoutineSets({required int routineId}) async {
+        for (final set in sets) {
+          await into(routineSets).insert(
+            RoutineSetsCompanion.insert(
+              routineId: id,
+              exerciseName: set.exerciseName,
+              setNumber: set.setNumber,
+              weight: set.weight,
+              reps: set.reps,
+            ),
+          );
+        }
+      });
+
+      return true;
+    } catch (e) {
+      // Error updating workout routine.
+      return false;
+    }
+  }
+
+  Future<List<RoutineSet>> getRoutineSets({
+    required int routineId,
+    required String userId,
+  }) async {
+    final routine =
+        await (select(workoutRoutines)..where(
+              (tbl) => tbl.id.equals(routineId) & tbl.userId.equals(userId),
+            ))
+            .getSingleOrNull();
+
+    if (routine == null) {
+      return [];
+    }
+
     return (select(routineSets)
           ..where((tbl) => tbl.routineId.equals(routineId))
           ..orderBy([
@@ -773,31 +797,72 @@ if (from < 14) {
 
   Future<bool> updateRoutineSet({
     required int id,
+    required String userId,
     required double weight,
     required int reps,
   }) async {
-    return (update(routineSets)..where((tbl) => tbl.id.equals(id)))
-        .write(RoutineSetsCompanion(weight: Value(weight), reps: Value(reps)))
-        .then((rows) => rows > 0);
+    return transaction(() async {
+      final query =
+          select(routineSets).join([
+            innerJoin(
+              workoutRoutines,
+              workoutRoutines.id.equalsExp(routineSets.routineId),
+            ),
+          ])..where(
+            routineSets.id.equals(id) & workoutRoutines.userId.equals(userId),
+          );
+
+      final row = await query.getSingleOrNull();
+
+      if (row == null) {
+        return false;
+      }
+
+      final rows = await (update(routineSets)
+      ..where(
+        (tbl) => tbl.id.equals(id),
+      ))
+    .write(
+            RoutineSetsCompanion(weight: Value(weight), reps: Value(reps)),
+          );
+
+      return rows > 0;
+    });
   }
 
-  Future<bool> deleteWorkoutRoutine({required int id}) async {
-    await (delete(routineSets)..where((tbl) => tbl.routineId.equals(id))).go();
-    final rows = await (delete(
-      workoutRoutines,
-    )..where((tbl) => tbl.id.equals(id))).go();
-    return rows > 0;
+  Future<bool> deleteWorkoutRoutine({
+    required int id,
+    required String userId,
+  }) async {
+    return transaction(() async {
+      final routine =
+          await (select(workoutRoutines)
+                ..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId)))
+              .getSingleOrNull();
+
+      if (routine == null) {
+        return false;
+      }
+
+      await (delete(
+        routineSets,
+      )..where((tbl) => tbl.routineId.equals(id))).go();
+
+      final rows = await (delete(
+        workoutRoutines,
+      )..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))).go();
+
+      return rows > 0;
+    });
   }
 
-  Future<void> deleteAllWorkoutRoutines({
-  required String userId,
-}) async {
-  final routines = await getWorkoutRoutines(userId: userId);
+  Future<void> deleteAllWorkoutRoutines({required String userId}) async {
+    final routines = await getWorkoutRoutines(userId: userId);
 
-  for (final routine in routines) {
-    await deleteWorkoutRoutine(id: routine.id);
+    for (final routine in routines) {
+      await deleteWorkoutRoutine(id: routine.id, userId: userId);
+    }
   }
-}
 
   // ==========================================================
   // DATE HELPERS
@@ -818,23 +883,23 @@ if (from < 14) {
   // ==========================================================
 
   Future<int> saveSet({
-  required String userId,
-  required String exerciseName,
-  required double weight,
-  required int reps,
-  required DateTime date,
-  int exerciseOrder = 0,
-}) async {
+    required String userId,
+    required String exerciseName,
+    required double weight,
+    required int reps,
+    required DateTime date,
+    int exerciseOrder = 0,
+  }) async {
     return into(workoutSets).insert(
       WorkoutSetsCompanion.insert(
-  userId: userId,
-  exerciseName: exerciseName,
-  exerciseOrder: Value(exerciseOrder),
-  weight: weight,
-  reps: reps,
-  date: _dateOnly(date),
-  createdAt: DateTime.now(),
-),
+        userId: userId,
+        exerciseName: exerciseName,
+        exerciseOrder: Value(exerciseOrder),
+        weight: weight,
+        reps: reps,
+        date: _dateOnly(date),
+        createdAt: DateTime.now(),
+      ),
     );
   }
 
@@ -844,29 +909,35 @@ if (from < 14) {
 
   Future<bool> updateSet({
     required int id,
+    required String userId,
     required String exerciseName,
     required double weight,
     required int reps,
   }) async {
-    return (update(workoutSets)..where((tbl) => tbl.id.equals(id)))
-        .write(
+    final rows =
+        await (update(
+          workoutSets,
+        )..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))).write(
           WorkoutSetsCompanion(
             exerciseName: Value(exerciseName),
             weight: Value(weight),
             reps: Value(reps),
           ),
-        )
-        .then((rows) => rows > 0);
+        );
+
+    return rows > 0;
   }
 
   // ==========================================================
   // WORKOUT - DELETE SET
   // ==========================================================
 
-  Future<bool> deleteSet(int id) async {
-    return (delete(
+  Future<bool> deleteSet({required int id, required String userId}) async {
+    final rows = await (delete(
       workoutSets,
-    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+    )..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))).go();
+
+    return rows > 0;
   }
 
   // ==========================================================
@@ -880,7 +951,7 @@ if (from < 14) {
     final sets = await getSetsByDate(userId: userId, date: date);
 
     for (final set in sets) {
-      await deleteSet(set.id);
+      await deleteSet(id: set.id, userId: userId);
     }
   }
 
@@ -900,9 +971,9 @@ if (from < 14) {
                 tbl.date.isSmallerThanValue(nextDate),
           )
           ..orderBy([
-  (tbl) => OrderingTerm.asc(tbl.exerciseOrder),
-  (tbl) => OrderingTerm.asc(tbl.createdAt),
-]))
+            (tbl) => OrderingTerm.asc(tbl.exerciseOrder),
+            (tbl) => OrderingTerm.asc(tbl.createdAt),
+          ]))
         .get();
   }
 
@@ -956,29 +1027,23 @@ if (from < 14) {
   // ==========================================================
 
   Future<void> updateExerciseOrder({
-  required String userId,
-  required DateTime date,
-  required Map<String, int> exerciseOrders,
-}) async {
-  final sets = await getSetsByDate(
-    userId: userId,
-    date: date,
-  );
+    required String userId,
+    required DateTime date,
+    required Map<String, int> exerciseOrders,
+  }) async {
+    final sets = await getSetsByDate(userId: userId, date: date);
 
-  for (final set in sets) {
-    final order = exerciseOrders[set.exerciseName];
+    for (final set in sets) {
+      final order = exerciseOrders[set.exerciseName];
 
-    if (order == null) continue;
+      if (order == null) continue;
 
-    await (update(workoutSets)
-          ..where((tbl) => tbl.id.equals(set.id)))
-        .write(
-      WorkoutSetsCompanion(
-        exerciseOrder: Value(order),
-      ),
-    );
+      await (update(workoutSets)
+            ..where((tbl) => tbl.id.equals(set.id) & tbl.userId.equals(userId)))
+          .write(WorkoutSetsCompanion(exerciseOrder: Value(order)));
+    }
   }
-}
+
   Future<List<WorkoutSet>> getSetsByDate({
     required String userId,
     required DateTime date,
@@ -1021,15 +1086,16 @@ if (from < 14) {
         ),
       );
     } else {
-      await (update(
-        dailyTargets,
-      )..where((tbl) => tbl.id.equals(existing.id))).write(
-        DailyTargetsCompanion(
-          calorieTarget: Value(calorieTarget),
-          stepTarget: Value(stepTarget),
-          updatedAt: Value(now),
-        ),
-      );
+      await (update(dailyTargets)..where(
+            (tbl) => tbl.id.equals(existing.id) & tbl.userId.equals(userId),
+          ))
+          .write(
+            DailyTargetsCompanion(
+              calorieTarget: Value(calorieTarget),
+              stepTarget: Value(stepTarget),
+              updatedAt: Value(now),
+            ),
+          );
     }
   }
   // ============================================================
@@ -1042,10 +1108,7 @@ if (from < 14) {
   }) async {
     final sets = await getTodaySets(userId, date);
     final maps = sets
-        .map((set) => <String, dynamic>{
-              'weight': set.weight,
-              'reps': set.reps,
-            })
+        .map((set) => <String, dynamic>{'weight': set.weight, 'reps': set.reps})
         .toList();
 
     return FitnessCalculationService.calculateTrainingLoad(maps);
@@ -1062,10 +1125,7 @@ if (from < 14) {
 
     for (int i = 1; i <= days; i++) {
       final day = selectedDate.subtract(Duration(days: i));
-      final load = await getTrainingLoadForDate(
-        userId: userId,
-        date: day,
-      );
+      final load = await getTrainingLoadForDate(userId: userId, date: day);
 
       if (load > 0) {
         total += load;
@@ -1088,10 +1148,7 @@ if (from < 14) {
 
     for (int i = 0; i < days; i++) {
       final day = selectedDate.subtract(Duration(days: i));
-      loads.add(await getTrainingLoadForDate(
-        userId: userId,
-        date: day,
-      ));
+      loads.add(await getTrainingLoadForDate(userId: userId, date: day));
     }
 
     return loads;
@@ -1114,10 +1171,7 @@ if (from < 14) {
     required String userId,
     required DateTime date,
   }) async {
-    final entries = await getDietEntries(
-      userId: userId,
-      date: date,
-    );
+    final entries = await getDietEntries(userId: userId, date: date);
 
     if (entries.isEmpty) return 0;
 
@@ -1130,182 +1184,181 @@ if (from < 14) {
   // ============================================================
 
   Future<DailyDataData?> getDailyData({
-  required String userId,
-  required DateTime date,
-}) async {
-  final selectedDate = _dateOnly(date);
-  final nextDate = _nextDate(date);
+    required String userId,
+    required DateTime date,
+  }) async {
+    final selectedDate = _dateOnly(date);
+    final nextDate = _nextDate(date);
 
-  final query = select(dailyData)
-    ..where(
-      (tbl) =>
-          tbl.userId.equals(userId) &
-          tbl.date.isBiggerOrEqualValue(selectedDate) &
-          tbl.date.isSmallerThanValue(nextDate),
-    )
-    ..limit(1);
+    final query = select(dailyData)
+      ..where(
+        (tbl) =>
+            tbl.userId.equals(userId) &
+            tbl.date.isBiggerOrEqualValue(selectedDate) &
+            tbl.date.isSmallerThanValue(nextDate),
+      )
+      ..limit(1);
 
-  final data = await query.getSingleOrNull();
+    final data = await query.getSingleOrNull();
 
-  if (data == null) {
-    return null;
-  }
+    if (data == null) {
+      return null;
+    }
 
-  final trainingLoad = await getTrainingLoadForDate(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final trainingReference = await getTrainingReference(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final dietScore = await getDietFollowScore(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final recentTrainingLoads = await getRecentTrainingLoads(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final recentWorkoutDays = await getRecentWorkoutDayCount(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final calculatedEffort = FitnessCalculationService.calculateEffort(
-    steps: data.steps.toDouble(),
-    stepTarget: data.stepTarget.toDouble(),
-    dietScore: dietScore,
-    trainingLoad: trainingLoad,
-    trainingReference: trainingReference,
-  );
-
-  final calculatedRecovery = FitnessCalculationService.calculateRecovery(
-    steps: data.steps.toDouble(),
-    stepTarget: data.stepTarget.toDouble(),
-    recentTrainingLoads: recentTrainingLoads,
-    trainingReference: trainingReference,
-    recentWorkoutDays: recentWorkoutDays,
-  );
-
-  if ((data.effortScore - calculatedEffort).abs() > 0.01 ||
-      (data.recoveryScore - calculatedRecovery).abs() > 0.01) {
-    await (update(dailyData)..where(
-      (tbl) => tbl.id.equals(data.id),
-    )).write(
-      DailyDataCompanion(
-        effortScore: Value(calculatedEffort),
-        recoveryScore: Value(calculatedRecovery),
-        updatedAt: Value(DateTime.now()),
-      ),
+    final trainingLoad = await getTrainingLoadForDate(
+      userId: userId,
+      date: selectedDate,
     );
 
-    return data.copyWith(
-      effortScore: calculatedEffort,
-      recoveryScore: calculatedRecovery,
-      updatedAt: DateTime.now(),
+    final trainingReference = await getTrainingReference(
+      userId: userId,
+      date: selectedDate,
     );
-  }
 
-  return data;
-}
+    final dietScore = await getDietFollowScore(
+      userId: userId,
+      date: selectedDate,
+    );
+
+    final recentTrainingLoads = await getRecentTrainingLoads(
+      userId: userId,
+      date: selectedDate,
+    );
+
+    final recentWorkoutDays = await getRecentWorkoutDayCount(
+      userId: userId,
+      date: selectedDate,
+    );
+
+    final calculatedEffort = FitnessCalculationService.calculateEffort(
+      steps: data.steps.toDouble(),
+      stepTarget: data.stepTarget.toDouble(),
+      dietScore: dietScore,
+      trainingLoad: trainingLoad,
+      trainingReference: trainingReference,
+    );
+
+    final calculatedRecovery = FitnessCalculationService.calculateRecovery(
+      steps: data.steps.toDouble(),
+      stepTarget: data.stepTarget.toDouble(),
+      recentTrainingLoads: recentTrainingLoads,
+      trainingReference: trainingReference,
+      recentWorkoutDays: recentWorkoutDays,
+    );
+
+    if ((data.effortScore - calculatedEffort).abs() > 0.01 ||
+        (data.recoveryScore - calculatedRecovery).abs() > 0.01) {
+      await (update(
+            dailyData,
+          )..where((tbl) => tbl.id.equals(data.id) & tbl.userId.equals(userId)))
+          .write(
+            DailyDataCompanion(
+              effortScore: Value(calculatedEffort),
+              recoveryScore: Value(calculatedRecovery),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+
+      return data.copyWith(
+        effortScore: calculatedEffort,
+        recoveryScore: calculatedRecovery,
+        updatedAt: DateTime.now(),
+      );
+    }
+
+    return data;
+  }
   // ============================================================
   // DAILY DATA - SAVE / UPDATE
   // ============================================================
 
- Future<void> saveDailyData({
-  required String userId,
-  required DateTime date,
-  required double calories,
-  required double calorieTarget,
-  required int steps,
-  required int stepTarget,
-  required double recoveryScore,
-  required double effortScore,
-}) async {
-  final selectedDate = _dateOnly(date);
+  Future<void> saveDailyData({
+    required String userId,
+    required DateTime date,
+    required double calories,
+    required double calorieTarget,
+    required int steps,
+    required int stepTarget,
+    required double recoveryScore,
+    required double effortScore,
+  }) async {
+    final selectedDate = _dateOnly(date);
 
-  final existing = await getDailyData(
-    userId: userId,
-    date: selectedDate,
-  );
+    final existing = await getDailyData(userId: userId, date: selectedDate);
 
-  final trainingLoad = await getTrainingLoadForDate(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final trainingReference = await getTrainingReference(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final dietScore = await getDietFollowScore(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final recentTrainingLoads = await getRecentTrainingLoads(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final recentWorkoutDays = await getRecentWorkoutDayCount(
-    userId: userId,
-    date: selectedDate,
-  );
-
-  final calculatedEffort = FitnessCalculationService.calculateEffort(
-    steps: steps.toDouble(),
-    stepTarget: stepTarget.toDouble(),
-    dietScore: dietScore,
-    trainingLoad: trainingLoad,
-    trainingReference: trainingReference,
-  );
-
-  final calculatedRecovery = FitnessCalculationService.calculateRecovery(
-    steps: steps.toDouble(),
-    stepTarget: stepTarget.toDouble(),
-    recentTrainingLoads: recentTrainingLoads,
-    trainingReference: trainingReference,
-    recentWorkoutDays: recentWorkoutDays,
-  );
-
-  if (existing == null) {
-    await into(dailyData).insert(
-      DailyDataCompanion.insert(
-        userId: userId,
-        date: selectedDate,
-        calories: Value(calories),
-        calorieTarget: Value(calorieTarget),
-        steps: Value(steps),
-        stepTarget: Value(stepTarget),
-        recoveryScore: Value(calculatedRecovery),
-        effortScore: Value(calculatedEffort),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
+    final trainingLoad = await getTrainingLoadForDate(
+      userId: userId,
+      date: selectedDate,
     );
-  } else {
-    await (update(
-      dailyData,
-    )..where((tbl) => tbl.id.equals(existing.id))).write(
-      DailyDataCompanion(
-        calories: Value(calories),
-        calorieTarget: Value(calorieTarget),
-        steps: Value(steps),
-        stepTarget: Value(stepTarget),
-        recoveryScore: Value(calculatedRecovery),
-        effortScore: Value(calculatedEffort),
-        updatedAt: Value(DateTime.now()),
-      ),
+
+    final trainingReference = await getTrainingReference(
+      userId: userId,
+      date: selectedDate,
     );
+
+    final dietScore = await getDietFollowScore(
+      userId: userId,
+      date: selectedDate,
+    );
+
+    final recentTrainingLoads = await getRecentTrainingLoads(
+      userId: userId,
+      date: selectedDate,
+    );
+
+    final recentWorkoutDays = await getRecentWorkoutDayCount(
+      userId: userId,
+      date: selectedDate,
+    );
+
+    final calculatedEffort = FitnessCalculationService.calculateEffort(
+      steps: steps.toDouble(),
+      stepTarget: stepTarget.toDouble(),
+      dietScore: dietScore,
+      trainingLoad: trainingLoad,
+      trainingReference: trainingReference,
+    );
+
+    final calculatedRecovery = FitnessCalculationService.calculateRecovery(
+      steps: steps.toDouble(),
+      stepTarget: stepTarget.toDouble(),
+      recentTrainingLoads: recentTrainingLoads,
+      trainingReference: trainingReference,
+      recentWorkoutDays: recentWorkoutDays,
+    );
+
+    if (existing == null) {
+      await into(dailyData).insert(
+        DailyDataCompanion.insert(
+          userId: userId,
+          date: selectedDate,
+          calories: Value(calories),
+          calorieTarget: Value(calorieTarget),
+          steps: Value(steps),
+          stepTarget: Value(stepTarget),
+          recoveryScore: Value(calculatedRecovery),
+          effortScore: Value(calculatedEffort),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+    } else {
+      await (update(dailyData)..where(
+            (tbl) => tbl.id.equals(existing.id) & tbl.userId.equals(userId),
+          ))
+          .write(
+            DailyDataCompanion(
+              calories: Value(calories),
+              calorieTarget: Value(calorieTarget),
+              steps: Value(steps),
+              stepTarget: Value(stepTarget),
+              recoveryScore: Value(calculatedRecovery),
+              effortScore: Value(calculatedEffort),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+    }
   }
-}
   // ============================================================
   // DAILY DATA - HISTORY
   // ============================================================
@@ -1395,13 +1448,16 @@ if (from < 14) {
 
   Future<bool> updateDietEntry({
     required int id,
+    required String userId,
     required double actualQuantity,
     required double actualCalories,
     required bool eaten,
     double? plannedCalories,
   }) async {
-    return (update(dietEntries)..where((tbl) => tbl.id.equals(id)))
-        .write(
+    final rows =
+        await (update(
+          dietEntries,
+        )..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))).write(
           DietEntriesCompanion(
             plannedCalories: plannedCalories == null
                 ? const Value.absent()
@@ -1411,17 +1467,23 @@ if (from < 14) {
             eaten: Value(eaten),
             updatedAt: Value(DateTime.now()),
           ),
-        )
-        .then((rows) => rows > 0);
+        );
+
+    return rows > 0;
   }
   // ============================================================
   // DIET - DELETE ENTRY
   // ============================================================
 
-  Future<bool> deleteDietEntry(int id) async {
-    return (delete(
+  Future<bool> deleteDietEntry({
+    required int id,
+    required String userId,
+  }) async {
+    final rows = await (delete(
       dietEntries,
-    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+    )..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))).go();
+
+    return rows > 0;
   }
 
   // ============================================================
@@ -1430,22 +1492,26 @@ if (from < 14) {
 
   Future<bool> updateDietActual({
     required int entryId,
+    required String userId,
     required double actualQuantity,
     required double actualCalories,
     required bool eaten,
   }) async {
-    return (update(dietEntries)..where((tbl) => tbl.id.equals(entryId)))
-        .write(
-      DietEntriesCompanion(
-        actualQuantity: Value(actualQuantity),
-        actualCalories: Value(actualCalories),
-        eaten: Value(eaten),
-        updatedAt: Value(DateTime.now()),
-      ),
-    )
-        .then((rows) => rows > 0);
-  }
+    final rows =
+        await (update(dietEntries)..where(
+              (tbl) => tbl.id.equals(entryId) & tbl.userId.equals(userId),
+            ))
+            .write(
+              DietEntriesCompanion(
+                actualQuantity: Value(actualQuantity),
+                actualCalories: Value(actualCalories),
+                eaten: Value(eaten),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
 
+    return rows > 0;
+  }
   // ============================================================
   // DIET - UPDATE PLANNED FOOD FOR ALL SAVED DAYS
   // ============================================================
@@ -1458,21 +1524,20 @@ if (from < 14) {
     required String quantityUnit,
     required double plannedCalories,
   }) async {
-    await (update(dietEntries)
-          ..where(
-            (tbl) =>
-                tbl.userId.equals(userId) &
-                tbl.meal.equals(meal) &
-                tbl.foodName.equals(foodName),
-          ))
+    await (update(dietEntries)..where(
+          (tbl) =>
+              tbl.userId.equals(userId) &
+              tbl.meal.equals(meal) &
+              tbl.foodName.equals(foodName),
+        ))
         .write(
-      DietEntriesCompanion(
-        plannedQuantity: Value(plannedQuantity),
-        quantityUnit: Value(quantityUnit),
-        plannedCalories: Value(plannedCalories),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+          DietEntriesCompanion(
+            plannedQuantity: Value(plannedQuantity),
+            quantityUnit: Value(quantityUnit),
+            plannedCalories: Value(plannedCalories),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
   }
 
   // Update the weekly template item for one weekday without touching
@@ -1486,27 +1551,26 @@ if (from < 14) {
     required String quantityUnit,
     required double calories,
   }) async {
-    final plan = await getWeeklyDietPlan(
-      userId: userId,
-      dayOfWeek: dayOfWeek,
-    );
+    final plan = await getWeeklyDietPlan(userId: userId, dayOfWeek: dayOfWeek);
 
     if (plan == null) return false;
 
-    final item = await (select(weeklyDietItems)
-          ..where(
-            (tbl) =>
-                tbl.planId.equals(plan.id) &
-                tbl.meal.equals(meal) &
-                tbl.foodName.equals(foodName),
-          )
-          ..limit(1))
-        .getSingleOrNull();
+    final item =
+        await (select(weeklyDietItems)
+              ..where(
+                (tbl) =>
+                    tbl.planId.equals(plan.id) &
+                    tbl.meal.equals(meal) &
+                    tbl.foodName.equals(foodName),
+              )
+              ..limit(1))
+            .getSingleOrNull();
 
     if (item == null) return false;
 
     return updateWeeklyDietItem(
       id: item.id,
+      userId: userId,
       meal: meal,
       foodName: foodName,
       quantity: quantity,
@@ -1563,10 +1627,15 @@ if (from < 14) {
   // EXTRA CALORIES - DELETE
   // ============================================================
 
-  Future<bool> deleteExtraCalories(int id) async {
-    return (delete(
+  Future<bool> deleteExtraCalories({
+    required int id,
+    required String userId,
+  }) async {
+    final rows = await (delete(
       extraCaloriesEntries,
-    )..where((tbl) => tbl.id.equals(id))).go().then((rows) => rows > 0);
+    )..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))).go();
+
+    return rows > 0;
   }
 
   // ============================================================
@@ -1613,10 +1682,8 @@ if (from < 14) {
     }
 
     return total;
-
-    
   }
-    // ============================================================
+  // ============================================================
   // WEEKLY DIET PLANS - GET
   // ============================================================
 
@@ -1625,9 +1692,7 @@ if (from < 14) {
   }) async {
     return (select(weeklyDietPlans)
           ..where((tbl) => tbl.userId.equals(userId))
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.dayOfWeek),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.dayOfWeek)]))
         .get();
   }
 
@@ -1638,8 +1703,7 @@ if (from < 14) {
     return (select(weeklyDietPlans)
           ..where(
             (tbl) =>
-                tbl.userId.equals(userId) &
-                tbl.dayOfWeek.equals(dayOfWeek),
+                tbl.userId.equals(userId) & tbl.dayOfWeek.equals(dayOfWeek),
           )
           ..limit(1))
         .getSingleOrNull();
@@ -1675,15 +1739,16 @@ if (from < 14) {
       );
     }
 
-    await (update(weeklyDietPlans)
-          ..where((tbl) => tbl.id.equals(existing.id)))
+    await (update(weeklyDietPlans)..where(
+          (tbl) => tbl.id.equals(existing.id) & tbl.userId.equals(userId),
+        ))
         .write(
-      WeeklyDietPlansCompanion(
-        targetCalories: Value(targetCalories),
-        targetProtein: Value(targetProtein),
-        updatedAt: Value(now),
-      ),
-    );
+          WeeklyDietPlansCompanion(
+            targetCalories: Value(targetCalories),
+            targetProtein: Value(targetProtein),
+            updatedAt: Value(now),
+          ),
+        );
 
     return existing.id;
   }
@@ -1694,14 +1759,21 @@ if (from < 14) {
 
   Future<bool> deleteWeeklyDietPlan({
     required int id,
+    required String userId,
   }) async {
-    await (delete(weeklyDietItems)
-          ..where((tbl) => tbl.planId.equals(id)))
-        .go();
+    final plan =
+        await (select(weeklyDietPlans)
+              ..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))
+              ..limit(1))
+            .getSingleOrNull();
 
-    final rows = await (delete(weeklyDietPlans)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go();
+    if (plan == null) return false;
+
+    await (delete(weeklyDietItems)..where((tbl) => tbl.planId.equals(id))).go();
+
+    final rows = await (delete(
+      weeklyDietPlans,
+    )..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(userId))).go();
 
     return rows > 0;
   }
@@ -1712,12 +1784,21 @@ if (from < 14) {
 
   Future<List<WeeklyDietItem>> getWeeklyDietItems({
     required int planId,
+    required String userId,
   }) async {
+    final plan =
+        await (select(weeklyDietPlans)
+              ..where(
+                (tbl) => tbl.id.equals(planId) & tbl.userId.equals(userId),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+
+    if (plan == null) return [];
+
     return (select(weeklyDietItems)
           ..where((tbl) => tbl.planId.equals(planId))
-          ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.id),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
         .get();
   }
 
@@ -1725,8 +1806,9 @@ if (from < 14) {
   // WEEKLY DIET ITEM - ADD
   // ============================================================
 
-  Future<int> saveWeeklyDietItem({
+  Future<int?> saveWeeklyDietItem({
     required int planId,
+    required String userId,
     required String meal,
     required String foodName,
     required double quantity,
@@ -1734,6 +1816,16 @@ if (from < 14) {
     required double calories,
     required double protein,
   }) async {
+    final plan =
+        await (select(weeklyDietPlans)
+              ..where(
+                (tbl) => tbl.id.equals(planId) & tbl.userId.equals(userId),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+
+    if (plan == null) return null;
+
     final now = DateTime.now();
 
     return into(weeklyDietItems).insert(
@@ -1757,6 +1849,7 @@ if (from < 14) {
 
   Future<bool> updateWeeklyDietItem({
     required int id,
+    required String userId,
     required String meal,
     required String foodName,
     required double quantity,
@@ -1764,19 +1857,36 @@ if (from < 14) {
     required double calories,
     required double protein,
   }) async {
-    return (update(weeklyDietItems)
-          ..where((tbl) => tbl.id.equals(id)))
-        .write(
-      WeeklyDietItemsCompanion(
-        meal: Value(meal),
-        foodName: Value(foodName),
-        quantity: Value(quantity),
-        quantityUnit: Value(quantityUnit),
-        calories: Value(calories),
-        protein: Value(protein),
-        updatedAt: Value(DateTime.now()),
-      ),
-    ).then((rows) => rows > 0);
+    final query =
+        select(weeklyDietItems).join([
+          innerJoin(
+            weeklyDietPlans,
+            weeklyDietPlans.id.equalsExp(weeklyDietItems.planId),
+          ),
+        ])..where(
+          weeklyDietItems.id.equals(id) & weeklyDietPlans.userId.equals(userId),
+        );
+
+    final row = await query.getSingleOrNull();
+
+    if (row == null) return false;
+
+    final rows =
+        await (update(
+          weeklyDietItems,
+        )..where((tbl) => tbl.id.equals(id))).write(
+          WeeklyDietItemsCompanion(
+            meal: Value(meal),
+            foodName: Value(foodName),
+            quantity: Value(quantity),
+            quantityUnit: Value(quantityUnit),
+            calories: Value(calories),
+            protein: Value(protein),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+
+    return rows > 0;
   }
 
   // ============================================================
@@ -1785,31 +1895,39 @@ if (from < 14) {
 
   Future<bool> deleteWeeklyDietItem({
     required int id,
+    required String userId,
   }) async {
-    return (delete(weeklyDietItems)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go()
-        .then((rows) => rows > 0);
+    final query =
+        select(weeklyDietItems).join([
+          innerJoin(
+            weeklyDietPlans,
+            weeklyDietPlans.id.equalsExp(weeklyDietItems.planId),
+          ),
+        ])..where(
+          weeklyDietItems.id.equals(id) & weeklyDietPlans.userId.equals(userId),
+        );
+
+    final row = await query.getSingleOrNull();
+
+    if (row == null) return false;
+
+    final rows = await (delete(
+      weeklyDietItems,
+    )..where((tbl) => tbl.id.equals(id))).go();
+
+    return rows > 0;
   }
 
   // ============================================================
   // WEEKLY DIET - DELETE ENTIRE WEEK
   // ============================================================
 
-  Future<void> deleteAllWeeklyDietPlans({
-    required String userId,
-  }) async {
+  Future<void> deleteAllWeeklyDietPlans({required String userId}) async {
     final plans = await getWeeklyDietPlans(userId: userId);
 
     for (final plan in plans) {
-      await (delete(weeklyDietItems)
-            ..where((tbl) => tbl.planId.equals(plan.id)))
-          .go();
+      await deleteWeeklyDietPlan(id: plan.id, userId: userId);
     }
-
-    await (delete(weeklyDietPlans)
-          ..where((tbl) => tbl.userId.equals(userId)))
-        .go();
   }
 }
 

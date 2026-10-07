@@ -349,7 +349,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
     try {
       for (final set in exerciseSets) {
-        await _database.deleteSet(set.id);
+        await _database.deleteSet(id: set.id, userId: widget.userId);
       }
 
       await _loadTodayWorkout();
@@ -805,6 +805,7 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
       final routine = widget.routine!;
       final routineSets = await widget.database.getRoutineSets(
         routineId: routine.id,
+        userId: widget.userId,
       );
 
       final grouped = <String, List<RoutineSet>>{};
@@ -1019,12 +1020,13 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
 
         for (final set in routineSets) {
           await widget.database.saveRoutineSet(
-            routineId: routineId,
-            exerciseName: set.exerciseName,
-            setNumber: set.setNumber,
-            weight: set.weight,
-            reps: set.reps,
-          );
+  routineId: routineId,
+  userId: widget.userId,
+  exerciseName: set.exerciseName,
+  setNumber: set.setNumber,
+  weight: set.weight,
+  reps: set.reps,
+);
         }
 
         if (!mounted) return;
@@ -1038,6 +1040,7 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
         // EDIT MODE
         final success = await widget.database.updateWorkoutRoutine(
           id: widget.routine!.id,
+          userId: widget.userId,
           date: _selectedDate,
           routineName: name,
           sets: routineSets,
@@ -1407,7 +1410,10 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
       ),
     );
     if (confirmed != true) return;
-    await widget.database.deleteWorkoutRoutine(id: routine.id);
+    await widget.database.deleteWorkoutRoutine(
+  id: routine.id,
+  userId: widget.userId,
+);
     await _load();
   }
 
@@ -1582,7 +1588,10 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
   Widget _routineCard(WorkoutRoutine routine) {
     final isExpanded = _expanded.contains(routine.id);
     return FutureBuilder<List<RoutineSet>>(
-      future: widget.database.getRoutineSets(routineId: routine.id),
+      future: widget.database.getRoutineSets(
+        routineId: routine.id,
+        userId: widget.userId,
+      ),
       builder: (context, snapshot) {
         final sets = snapshot.data ?? const <RoutineSet>[];
         final exercises = <String>[];
@@ -1826,6 +1835,7 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
     try {
       final planned = await widget.database.getRoutineSets(
         routineId: widget.routine.id,
+        userId: widget.userId,
       );
 
       final drafts = planned
@@ -1906,6 +1916,7 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
 
         await widget.database.updateRoutineSet(
           id: value.routineSetId,
+          userId: widget.userId,
           weight: value.weight,
           reps: value.reps,
         );
@@ -2461,9 +2472,9 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
       );
 
       for (final set in currentToday.where(
-        (set) => set.exerciseName == widget.exerciseName,
+        (s) => s.exerciseName == widget.exerciseName,
       )) {
-        await _database.deleteSet(set.id);
+        await _database.deleteSet(id: set.id, userId: 'user1');
       }
 
       for (var i = 0; i < values.length; i++) {
@@ -2554,6 +2565,7 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
 
                 await _database.updateSet(
                   id: set.id,
+                  userId: 'user1',
                   exerciseName: set.exerciseName,
                   weight: weight,
                   reps: reps,
@@ -2605,7 +2617,7 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
 
     if (confirmed != true) return;
 
-    await _database.deleteSet(set.id);
+    await _database.deleteSet(id: set.id, userId: 'user1');
     await _loadData();
   }
 
@@ -3057,7 +3069,10 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
     final routineSets = <RoutineSet>[];
 
     for (final routine in routines) {
-      final sets = await widget.database.getRoutineSets(routineId: routine.id);
+      final sets = await widget.database.getRoutineSets(
+        routineId: routine.id,
+        userId: widget.userId,
+      );
       routineSets.addAll(sets);
     }
 

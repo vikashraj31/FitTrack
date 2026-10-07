@@ -369,7 +369,7 @@ class _User2ScreenState extends State<User2Screen> {
 
       for (final set in todaySets) {
         if (selected.contains(set.exerciseName)) {
-          await _database.deleteSet(set.id);
+          await _database.deleteSet(id: set.id, userId: 'user2');
         }
       }
 
@@ -734,7 +734,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
   bool _saving = false;
 
   List<WorkoutSet> _history = [];
-  List<WorkoutSet> _otherUserHistory = [];
 
   final List<TextEditingController> _weightControllers = [];
   final List<TextEditingController> _repsControllers = [];
@@ -745,7 +744,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
   void initState() {
     super.initState();
 
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
 
     _loadData();
   }
@@ -785,12 +784,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
         exerciseName: widget.exerciseName,
       );
 
-      final otherUserId = widget.userId == 'user1' ? 'user2' : 'user1';
-      final otherUserHistory = await _database.getExerciseHistory(
-        userId: otherUserId,
-        exerciseName: widget.exerciseName,
-      );
-
       final todaySets = sets
           .where((set) => set.exerciseName == widget.exerciseName)
           .toList();
@@ -811,7 +804,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
 
       setState(() {
         _history = history;
-        _otherUserHistory = otherUserHistory;
         _loading = false;
       });
     } catch (e) {
@@ -825,128 +817,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
 
       _showMessage('Could not load exercise.');
     }
-  }
-
-  Widget _otherUserHistoryTab() {
-    final otherUserId = widget.userId == 'user1' ? 'user2' : 'user1';
-    final label = otherUserId == 'user1' ? 'User 1' : 'User 2';
-
-    if (_otherUserHistory.isEmpty) {
-      return Center(
-        child: Text(
-          'No $label history for this exercise.',
-          style: const TextStyle(color: Colors.white54),
-        ),
-      );
-    }
-
-    final grouped = <DateTime, List<WorkoutSet>>{};
-    for (final set in _otherUserHistory) {
-      final date = _dateOnly(set.date);
-      grouped.putIfAbsent(date, () => []).add(set);
-    }
-
-    final dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
-
-    return ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.045),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.person_outline, color: Colors.cyanAccent),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '$label • ${widget.exerciseName}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Text(
-                'READ ONLY',
-                style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (_otherUserHistory.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            child: SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ExerciseDetailScreen(
-                        userId: 'user1',
-                        exerciseName: widget.exerciseName,
-                        target: 'Recorded workout',
-                      ),
-                    ),
-                  );
-                  await _loadData();
-                },
-                icon: const Icon(Icons.edit_note, size: 19),
-                label: const Text('USER 1 TRACK THIS EXERCISE'),
-              ),
-            ),
-          ),
-        ...dates.map((date) {
-          final sets = grouped[date]!;
-          return Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111D34),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _formatDate(date),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ...List.generate(sets.length, (index) {
-                  final set = sets[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(
-                      'Set ${index + 1}    ${set.weight} kg × ${set.reps}',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 13,
-                      ),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
   }
 
   void _clearControllers() {
@@ -1002,7 +872,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
 
       for (final set in existingToday) {
         if (set.exerciseName == widget.exerciseName) {
-          await _database.deleteSet(set.id);
+          await _database.deleteSet(id: set.id, userId: 'user2');
         }
       }
 
@@ -1098,7 +968,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
 
   Future<void> _deleteHistorySet(WorkoutSet set) async {
     try {
-      await _database.deleteSet(set.id);
+      await _database.deleteSet(id: set.id, userId: 'user2');
 
       await _loadData();
 
@@ -1340,7 +1210,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
           tabs: const [
             Tab(text: 'TRACK'),
             Tab(text: 'HISTORY'),
-            Tab(text: 'OTHER USER'),
           ],
         ),
       ),
@@ -1348,7 +1217,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
-              children: [_trackTab(), _historyTab(), _otherUserHistoryTab()],
+              children: [_trackTab(), _historyTab()],
             ),
     );
   }

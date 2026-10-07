@@ -370,7 +370,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
 
       for (final set in todaySets) {
         if (selected.contains(set.exerciseName)) {
-          await _database.deleteSet(set.id);
+          await _database.deleteSet(id: set.id, userId: 'user1');
         }
       }
 
@@ -1005,7 +1005,7 @@ class _User1HomeExerciseDetailScreenState
 
       for (final set in existingToday) {
         if (set.exerciseName == widget.exerciseName) {
-          await _database.deleteSet(set.id);
+          await _database.deleteSet(id: set.id, userId: 'user1');
         }
       }
 
@@ -1101,7 +1101,7 @@ class _User1HomeExerciseDetailScreenState
 
   Future<void> _deleteHistorySet(WorkoutSet set) async {
     try {
-      await _database.deleteSet(set.id);
+      await _database.deleteSet(id: set.id, userId: 'user1');
 
       await _loadData();
 

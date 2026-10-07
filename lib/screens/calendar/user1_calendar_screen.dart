@@ -101,8 +101,9 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
       final routineSets = <int, List<RoutineSet>>{};
       for (final routine in routines) {
         routineSets[routine.id] = await _database.getRoutineSets(
-          routineId: routine.id,
-        );
+  routineId: routine.id,
+  userId: 'user1',
+);
       }
 
       final calories = await _database.getActualCalories(
