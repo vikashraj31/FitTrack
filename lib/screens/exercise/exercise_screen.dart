@@ -299,13 +299,29 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Future<void> _openCopyPreviousExercise() async {
-    await Navigator.push(
+    final result = await Navigator.push<Map<String, List<_CopiedSetDraft>>>(
       context,
       MaterialPageRoute(
         builder: (_) => CopyPreviousWorkoutScreen(
           userId: widget.userId,
           database: _database,
           title: 'Copy Previous Workout',
+        ),
+      ),
+    );
+
+    if (!mounted || result == null || result.isEmpty) {
+      return;
+    }
+
+    // Copying prepares a draft only. It does not create WorkoutSets.
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _CopiedWorkoutDraftScreen(
+          userId: widget.userId,
+          database: _database,
+          copiedSets: result,
         ),
       ),
     );
@@ -3078,15 +3094,11 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
 
     if (!mounted) return;
 
-    final exerciseNames = <String>{
-      for (final set in workoutSets) set.exerciseName,
-      for (final set in routineSets) set.exerciseName,
-    };
-
     setState(() {
       _selectedDaySets = workoutSets;
       _selectedRoutineSets = routineSets;
-      _selectedExerciseNames = exerciseNames;
+      // Nothing is selected automatically. The user chooses exercises.
+      _selectedExerciseNames = {};
       _loadingSets = false;
     });
   }
@@ -3129,19 +3141,19 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
     }
 
     final totalSets = selectedWorkoutSets.length + selectedRoutineSets.length;
-
     final selectedExerciseCount = _selectedExerciseNames.length;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF101C32),
-        title: const Text('Copy to Today?'),
+        title: const Text('Prepare Workout?'),
         content: Text(
-          'Copy $selectedExerciseCount exercise'
-          '${selectedExerciseCount == 1 ? '' : 's'} '
-          '($totalSets sets) from '
-          '${_formatDate(_selectedDay!)} to today?',
+          "Prepare $selectedExerciseCount exercise"
+          "${selectedExerciseCount == 1 ? '' : 's'} "
+          "($totalSets sets) from '${_formatDate(_selectedDay!)}' for today?\n\n"
+          "This only pre-fills the workout. It will NOT count as today's "
+          "workout until you press SAVE WORKOUT.",
         ),
         actions: [
           TextButton(
@@ -3150,7 +3162,7 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('COPY'),
+            child: const Text('PREPARE'),
           ),
         ],
       ),
@@ -3161,43 +3173,29 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
     setState(() => _copying = true);
 
     try {
-      // Copy actual workout sets.
+      final drafts = <String, List<_CopiedSetDraft>>{};
+
       for (final set in selectedWorkoutSets) {
-        await widget.database.saveSet(
-          userId: widget.userId,
-          exerciseName: set.exerciseName,
-          weight: set.weight,
-          reps: set.reps,
-          date: DateTime.now(),
+        drafts.putIfAbsent(set.exerciseName, () => []).add(
+          _CopiedSetDraft(weight: set.weight, reps: set.reps),
         );
       }
 
-      // Copy planned routine sets as today's workout sets.
       for (final set in selectedRoutineSets) {
-        await widget.database.saveSet(
-          userId: widget.userId,
-          exerciseName: set.exerciseName,
-          weight: set.weight,
-          reps: set.reps,
-          date: DateTime.now(),
+        drafts.putIfAbsent(set.exerciseName, () => []).add(
+          _CopiedSetDraft(weight: set.weight, reps: set.reps),
         );
       }
-
-      if (!mounted) return;
-
-      _showMessage('Selected exercises copied to today.');
-
-      await Future<void>.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
-        Navigator.pop(context, true);
+        Navigator.pop(context, drafts);
       }
     } catch (e) {
-      debugPrint('Error copying workout: $e');
+      debugPrint('Error preparing copied workout: $e');
 
       if (mounted) {
         setState(() => _copying = false);
-        _showMessage('Could not copy workout.');
+        _showMessage('Could not prepare workout.');
       }
     }
   }
@@ -3294,14 +3292,12 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed:
-                            (_selectedDaySets.isEmpty &&
-                                    _selectedRoutineSets.isEmpty) ||
-                                _copying
-                            ? null
-                            : _copyToToday,
+                            _selectedExerciseNames.isEmpty || _copying
+                                ? null
+                                : _copyToToday,
                         child: _copying
                             ? const CircularProgressIndicator()
-                            : const Text('COPY TO TODAY'),
+                            : const Text('PREPARE FOR TODAY'),
                       ),
                     ),
                   ),
@@ -3343,7 +3339,8 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Select the exercises you want to copy. All are selected by default.',
+            'Select the exercises you want to prepare for today. '
+            'Nothing is logged until you save the workout.',
             style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
           const SizedBox(height: 8),
@@ -3452,6 +3449,359 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
   @override
   void dispose() {
     super.dispose();
+  }
+}
+
+
+class _CopiedSetDraft {
+  final double weight;
+  final int reps;
+
+  const _CopiedSetDraft({
+    required this.weight,
+    required this.reps,
+  });
+}
+
+class _DraftSetControllers {
+  final TextEditingController weightController;
+  final TextEditingController repsController;
+
+  _DraftSetControllers({
+    String weight = '',
+    String reps = '',
+  })  : weightController = TextEditingController(text: weight),
+        repsController = TextEditingController(text: reps);
+
+  void dispose() {
+    weightController.dispose();
+    repsController.dispose();
+  }
+}
+
+class _DraftExercise {
+  final String exerciseName;
+  final List<_DraftSetControllers> sets;
+
+  _DraftExercise({
+    required this.exerciseName,
+    required this.sets,
+  });
+
+  void dispose() {
+    for (final set in sets) {
+      set.dispose();
+    }
+  }
+}
+
+class _CopiedWorkoutDraftScreen extends StatefulWidget {
+  final String userId;
+  final AppDatabase database;
+  final Map<String, List<_CopiedSetDraft>> copiedSets;
+
+  const _CopiedWorkoutDraftScreen({
+    required this.userId,
+    required this.database,
+    required this.copiedSets,
+  });
+
+  @override
+  State<_CopiedWorkoutDraftScreen> createState() =>
+      _CopiedWorkoutDraftScreenState();
+}
+
+class _CopiedWorkoutDraftScreenState extends State<_CopiedWorkoutDraftScreen> {
+  late final List<_DraftExercise> _exercises;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _exercises = widget.copiedSets.entries.map((entry) {
+      return _DraftExercise(
+        exerciseName: entry.key,
+        sets: entry.value
+            .map(
+              (set) => _DraftSetControllers(
+                weight: _formatNumber(set.weight),
+                reps: set.reps.toString(),
+              ),
+            )
+            .toList(),
+      );
+    }).toList();
+  }
+
+  String _formatNumber(num value) {
+    final d = value.toDouble();
+    return d == d.roundToDouble() ? d.toStringAsFixed(0) : d.toString();
+  }
+
+  void _addSet(_DraftExercise exercise) {
+    setState(() {
+      exercise.sets.add(_DraftSetControllers());
+    });
+  }
+
+  void _removeSet(_DraftExercise exercise, int index) {
+    if (exercise.sets.length <= 1) return;
+
+    final set = exercise.sets.removeAt(index);
+    set.dispose();
+    setState(() {});
+  }
+
+  Future<void> _saveWorkout() async {
+    if (_saving) return;
+
+    final values = <({String exerciseName, double weight, int reps})>[];
+
+    for (final exercise in _exercises) {
+      for (var i = 0; i < exercise.sets.length; i++) {
+        final set = exercise.sets[i];
+        final weightText = set.weightController.text.trim();
+        final repsText = set.repsController.text.trim();
+
+        if (weightText.isEmpty && repsText.isEmpty) {
+          continue;
+        }
+
+        final weight = double.tryParse(weightText);
+        final reps = int.tryParse(repsText);
+
+        if (weight == null || weight < 0 || reps == null || reps <= 0) {
+          _showMessage(
+            'Enter valid weight and reps for ${exercise.exerciseName}, '
+            'Set ${i + 1}.',
+          );
+          return;
+        }
+
+        values.add(
+          (
+            exerciseName: exercise.exerciseName,
+            weight: weight,
+            reps: reps,
+          ),
+        );
+      }
+    }
+
+    if (values.isEmpty) {
+      _showMessage('Enter at least one set.');
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      final today = DateTime.now();
+
+      // Only this explicit action creates real WorkoutSets. Until now,
+      // copying was only a local draft and could not count as a workout day.
+      for (final value in values) {
+        await widget.database.saveSet(
+          userId: widget.userId,
+          exerciseName: value.exerciseName,
+          weight: value.weight,
+          reps: value.reps,
+          date: today,
+        );
+      }
+
+      if (!mounted) return;
+
+      _showMessage('Workout saved successfully.');
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      debugPrint('Error saving prepared workout: $e');
+
+      if (mounted) {
+        setState(() => _saving = false);
+        _showMessage('Could not save workout.');
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    for (final exercise in _exercises) {
+      exercise.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF050B18),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF071329),
+        elevation: 0,
+        title: const Text('Prepared Workout'),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF08285C),
+              Color(0xFF061A3B),
+              Color(0xFF050B18),
+            ],
+          ),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 24),
+                children: [
+                  const Text(
+                    "TODAY'S PREPARED WORKOUT",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'These sets are only prepared. Save the workout when you '
+                    'actually perform it.',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  ..._exercises.map(_exerciseCard),
+                ],
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _saveWorkout,
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(
+                            'SAVE WORKOUT',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exerciseCard(_DraftExercise exercise) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            exercise.exerciseName,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...exercise.sets.asMap().entries.map((entry) {
+            final index = entry.key;
+            final set = entry.value;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 45,
+                    child: Text(
+                      'Set ${index + 1}',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: set.weightController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Weight kg',
+                        filled: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: set.repsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Reps',
+                        filled: true,
+                      ),
+                    ),
+                  ),
+                  if (exercise.sets.length > 1)
+                    IconButton(
+                      onPressed: () => _removeSet(exercise, index),
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                        color: Colors.white54,
+                        size: 19,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+          TextButton.icon(
+            onPressed: () => _addSet(exercise),
+            icon: const Icon(Icons.add, size: 17),
+            label: const Text('ADD SET'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

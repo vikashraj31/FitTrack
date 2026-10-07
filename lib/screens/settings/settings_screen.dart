@@ -244,7 +244,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 
   Future<void> _showStepTargetEditor() async {
-    final controller = TextEditingController(text: '$_stepTarget');
+    // Use a plain string instead of a TextEditingController here. This keeps
+    // the field independent from the bottom-sheet lifecycle and avoids the
+    // Flutter assertion that can occur when a controller is disposed while
+    // the TextField still has dependents/listeners.
+    var targetText = '$_stepTarget';
 
     await showModalBottomSheet<void>(
       context: context,
@@ -278,10 +282,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextStyle(color: Colors.white54, fontSize: 12),
             ),
             const SizedBox(height: 18),
-            TextField(
-              controller: controller,
+            TextFormField(
+              initialValue: '$_stepTarget',
+              autofocus: true,
               keyboardType: TextInputType.number,
               style: const TextStyle(color: Colors.white),
+              onChanged: (value) {
+                targetText = value;
+              },
               decoration: _inputDecoration('Daily steps'),
             ),
             const SizedBox(height: 16),
@@ -289,16 +297,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
-                  final target = int.tryParse(controller.text.trim());
+                  final target = int.tryParse(targetText.trim());
                   if (target == null || target <= 0) return;
+
                   await _saveStepTarget(target);
+
+                  if (!mounted) return;
+
+                  setState(() {
+                    _stepTarget = target;
+                  });
 
                   if (sheetContext.mounted) {
                     Navigator.pop(sheetContext);
-                  }
-
-                  if (mounted) {
-                    setState(() => _stepTarget = target);
                   }
                 },
                 child: const Text('SAVE STEP TARGET'),
@@ -308,7 +319,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
-    controller.dispose();
   }
 
   Future<void> _showWeightSheet() async {

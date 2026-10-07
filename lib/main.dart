@@ -198,15 +198,66 @@ void initState() {
 
   Future<void> _loadDailyData() async {
     try {
+      final now = DateTime.now();
+
       final data = await _database.getDailyData(
         userId: 'user1',
-        date: DateTime.now(),
+        date: now,
       );
+
+      if (data == null) {
+        if (!mounted) return;
+
+        setState(() {
+          _dailyData = null;
+        });
+        return;
+      }
+
+      // Calories come from the current Diet data.
+      final actualCalories = await _database.getActualCalories(
+        userId: 'user1',
+        date: now,
+      );
+
+      // Step Target comes from Settings / DailyTargets. Do not rely only on
+      // the cached DailyData.stepTarget value because Settings can update the
+      // target while this HomeScreen remains alive underneath the route.
+      final targets = await _database.getDailyTargets(
+        userId: 'user1',
+      );
+
+      final currentStepTarget =
+          targets?.stepTarget ?? data.stepTarget;
+
+      final refreshedData = data.copyWith(
+        calories: actualCalories,
+        stepTarget: currentStepTarget,
+      );
+
+      // Keep DailyData synchronized with the current Diet calories and the
+      // current Step Target so all Home calculations use the same values.
+      final caloriesChanged =
+          (data.calories - actualCalories).abs() > 0.001;
+      final stepTargetChanged = data.stepTarget != currentStepTarget;
+
+      if (caloriesChanged || stepTargetChanged) {
+        await _database.saveDailyData(
+          userId: 'user1',
+          date: now,
+          calories: actualCalories,
+          calorieTarget: data.calorieTarget,
+          steps: data.steps,
+          stepTarget: currentStepTarget,
+          recoveryScore: data.recoveryScore,
+          effortScore: data.effortScore,
+        );
+      }
 
       if (!mounted) return;
 
       setState(() {
-        _dailyData = data;
+        _dailyData = refreshedData;
       });
     } catch (e) {
       debugPrint('Error loading daily data: $e');
@@ -454,9 +505,6 @@ void initState() {
     final stepTarget = _dailyData?.stepTarget ?? 10000;
     final calories = _dailyData?.calories ?? 0;
     final calorieTarget = _dailyData?.calorieTarget ?? 0;
-    final calorieProgress = calorieTarget > 0
-        ? _clamp((calories / calorieTarget) * 100)
-        : 0.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFF050B18),
@@ -659,67 +707,6 @@ void initState() {
                   ),
                 ),
 
-                const SizedBox(height: 20),
-
-                // =====================================================
-                // CALORIE PROGRESS
-                // =====================================================
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.055),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.06),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.local_fire_department_outlined,
-                            color: Colors.white70,
-                            size: 21,
-                          ),
-                          const SizedBox(width: 9),
-                          const Expanded(
-                            child: Text(
-                              'Calorie Progress',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '${calorieProgress.round()}%',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: LinearProgressIndicator(
-                          minHeight: 8,
-                          value: (calorieProgress / 100).clamp(0.0, 1.0),
-                          backgroundColor: Colors.white10,
-                          valueColor: const AlwaysStoppedAnimation(
-                            Color(0xFFFF7A21),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 const SizedBox(height: 22),
 
                 // =====================================================
@@ -754,10 +741,10 @@ void initState() {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _actionCard(
-                        icon: Icons.restaurant_menu_outlined,
-                        title: 'Diet',
-                        subtitle: 'Track meals',
-                        onTap: _openDiet,
+                        icon: Icons.person_outline,
+                        title: 'User 2',
+                        subtitle: 'Track Workout',
+                        onTap: _openUser2,
                       ),
                     ),
                   ],
@@ -785,10 +772,10 @@ void initState() {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _actionCard(
-                        icon: Icons.person_outline,
-                        title: 'User 2',
-                        subtitle: 'Exercise + weight',
-                        onTap: _openUser2,
+                        icon: Icons.restaurant_menu_outlined,
+                        title: 'Diet',
+                        subtitle: 'Track meals',
+                        onTap: _openDiet,
                       ),
                     ),
                   ],
@@ -841,12 +828,12 @@ void initState() {
         backgroundColor: const Color(0xFF071329),
         indicatorColor: const Color(0xFF8F5CFF).withValues(alpha: 0.30),
         selectedIndex: 0,
-        onDestinationSelected: (index) {
+        onDestinationSelected: (index) async {
           switch (index) {
             case 0:
               break;
             case 1:
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const User1CalendarScreen(),
@@ -854,12 +841,15 @@ void initState() {
               );
               break;
             case 2:
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const SettingsScreen(),
                 ),
               );
+
+              // Refresh Home immediately after a Settings change.
+              await _loadDailyData();
               break;
           }
         },

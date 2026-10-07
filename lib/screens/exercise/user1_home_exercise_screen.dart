@@ -2,7 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../services/database_service.dart';
+import '../../services/prepared_workout_storage.dart';
 import '../../utils/exercise_catalog.dart';
+
+class PreparedWorkoutSet {
+  final double weight;
+  final int reps;
+
+  const PreparedWorkoutSet({
+    required this.weight,
+    required this.reps,
+  });
+}
 
 class User1HomeExerciseScreen extends StatefulWidget {
   const User1HomeExerciseScreen({super.key});
@@ -18,6 +29,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
   List<WorkoutSet> _todaySets = [];
   List<String> _exerciseOrder = [];
   Set<String> _otherUserTodayExerciseNames = {};
+  Map<String, List<PreparedWorkoutSet>> _pendingTodaySets = {};
   bool _loading = true;
 
   @override
@@ -77,10 +89,42 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
 
       if (!mounted) return;
 
+      final actualNames = {
+        for (final set in sets) set.exerciseName.toLowerCase(),
+      };
+
+      final storedPending = await PreparedWorkoutStorage.load(
+        userId: 'user1',
+        date: today,
+      );
+
+      storedPending.removeWhere(
+        (name, _) => actualNames.contains(name.toLowerCase()),
+      );
+
+      await PreparedWorkoutStorage.save(
+        userId: 'user1',
+        date: today,
+        sets: storedPending,
+      );
+
       setState(() {
         _todaySets = sets;
         _exerciseOrder = ordered;
         _otherUserTodayExerciseNames = otherUserTodayNames;
+        _pendingTodaySets = storedPending.map(
+          (name, sets) => MapEntry(
+            name,
+            sets
+                .map(
+                  (set) => PreparedWorkoutSet(
+                    weight: (set['weight'] as num).toDouble(),
+                    reps: (set['reps'] as num).toInt(),
+                  ),
+                )
+                .toList(),
+          ),
+        );
         _loading = false;
       });
     } catch (e) {
@@ -107,6 +151,14 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
       }
     }
 
+    for (final name in _pendingTodaySets.keys) {
+      if (!currentNames.any(
+        (item) => item.toLowerCase() == name.toLowerCase(),
+      )) {
+        currentNames.add(name);
+      }
+    }
+
     final result = <String>[];
 
     for (final name in _exerciseOrder) {
@@ -127,29 +179,88 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
   }
 
   int _setCountForExercise(String exerciseName) {
-    return _todaySets.where((set) => set.exerciseName == exerciseName).length;
+    final actualCount = _todaySets
+        .where(
+          (set) =>
+              set.exerciseName.toLowerCase() == exerciseName.toLowerCase(),
+        )
+        .length;
+
+    if (actualCount > 0) {
+      return actualCount;
+    }
+
+    return _pendingSetsForExercise(exerciseName).length;
   }
 
   Future<void> _openExercise(String exerciseName) async {
-    await Navigator.push(
+    final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => User1HomeExerciseDetailScreen(
           userId: 'user1',
           exerciseName: exerciseName,
           target: 'Recorded workout',
+          initialSets: _pendingSetsForExercise(exerciseName),
         ),
       ),
     );
 
+    if (saved == true) {
+      _pendingTodaySets.removeWhere(
+        (name, _) => name.toLowerCase() == exerciseName.toLowerCase(),
+      );
+
+      await _savePendingTodaySets();
+    }
+
     await _loadTodayWorkout();
   }
 
+  List<PreparedWorkoutSet> _pendingSetsForExercise(String exerciseName) {
+    for (final entry in _pendingTodaySets.entries) {
+      if (entry.key.toLowerCase() == exerciseName.toLowerCase()) {
+        return List<PreparedWorkoutSet>.from(entry.value);
+      }
+    }
+
+    return const [];
+  }
+
+  Future<void> _savePendingTodaySets() async {
+    final serialized = <String, List<Map<String, dynamic>>>{};
+
+    for (final entry in _pendingTodaySets.entries) {
+      serialized[entry.key] = entry.value
+          .map(
+            (set) => <String, dynamic>{
+              'weight': set.weight,
+              'reps': set.reps,
+            },
+          )
+          .toList();
+    }
+
+    await PreparedWorkoutStorage.save(
+      userId: 'user1',
+      date: _dateOnly(DateTime.now()),
+      sets: serialized,
+    );
+  }
+
   Future<void> _openCopyWorkout() async {
-    await Navigator.push(
+    final result = await Navigator.push<Map<String, List<PreparedWorkoutSet>>>(
       context,
       MaterialPageRoute(builder: (_) => const User1HomeCalendarScreen()),
     );
+
+    if (result != null && mounted) {
+      setState(() {
+        _pendingTodaySets = result;
+      });
+
+      await _savePendingTodaySets();
+    }
 
     await _loadTodayWorkout();
   }
@@ -292,95 +403,67 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     await _loadTodayWorkout();
   }
 
-  Future<void> _deleteSelectedTodayExercises() async {
-    if (_todaySets.isEmpty) {
+  Future<void> _deleteTodayWorkout() async {
+    final hasActualWorkout = _todaySets.isNotEmpty;
+    final hasPreparedWorkout = _pendingTodaySets.isNotEmpty;
+
+    if (!hasActualWorkout && !hasPreparedWorkout) {
       _showMessage('There is no workout to delete today.');
       return;
     }
 
-    final exerciseNames = _todayExercises();
-    final selected = <String>{};
-
-    final shouldDelete = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF101C32),
-              title: const Text(
-                "Delete Today's Exercises",
-                style: TextStyle(color: Colors.white),
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF101C32),
+          title: const Text(
+            "Delete Today's Workout?",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            "This will remove today's recorded workout and any prepared "
+            "workout that has not been saved yet. Previous workout dates "
+            "will not be affected.",
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
               ),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: exerciseNames.length,
-                  itemBuilder: (_, index) {
-                    final exercise = exerciseNames[index];
-                    final isSelected = selected.contains(exercise);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      onChanged: (value) {
-                        setDialogState(() {
-                          if (value == true) {
-                            selected.add(exercise);
-                          } else {
-                            selected.remove(exercise);
-                          }
-                        });
-                      },
-                      activeColor: Colors.redAccent,
-                      checkColor: Colors.white,
-                      title: Text(
-                        exercise,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('CANCEL'),
-                ),
-                ElevatedButton(
-                  onPressed: selected.isEmpty
-                      ? null
-                      : () => Navigator.pop(dialogContext, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                  ),
-                  child: const Text('DELETE SELECTED'),
-                ),
-              ],
-            );
-          },
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('DELETE'),
+            ),
+          ],
         );
       },
     );
 
-    if (shouldDelete != true || selected.isEmpty) return;
+    if (confirmed != true) return;
 
     try {
-      final todaySets = List<WorkoutSet>.from(_todaySets);
-
-      for (final set in todaySets) {
-        if (selected.contains(set.exerciseName)) {
-          await _database.deleteSet(id: set.id, userId: 'user1');
-        }
+      if (hasActualWorkout) {
+        await _database.deleteAllSetsByDate(
+          userId: 'user1',
+          date: DateTime.now(),
+        );
       }
 
+      _pendingTodaySets.clear();
+      await PreparedWorkoutStorage.clear(userId: 'user1');
       await _loadTodayWorkout();
-      _showMessage(
-        "${selected.length} exercise${selected.length == 1 ? '' : 's'} deleted from today.",
-      );
+
+      if (mounted) {
+        _showMessage("Today's workout deleted.");
+      }
     } catch (e) {
-      debugPrint('Error deleting selected exercises: $e');
-      _showMessage('Could not delete selected exercises.');
+      debugPrint("Error deleting today's workout: $e");
+      _showMessage("Could not delete today's workout.");
     }
   }
 
@@ -455,6 +538,11 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
 
   Widget _exerciseCard(String exerciseName, {Key? key, int? index}) {
     final count = _setCountForExercise(exerciseName);
+    final hasActualSets = _todaySets.any(
+      (set) => set.exerciseName.toLowerCase() == exerciseName.toLowerCase(),
+    );
+    final isPrepared = !hasActualSets &&
+        _pendingSetsForExercise(exerciseName).isNotEmpty;
     final isAlsoDoneByOtherUser = _otherUserTodayExerciseNames.contains(
       exerciseName.toLowerCase(),
     );
@@ -463,14 +551,18 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
       key: key,
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isAlsoDoneByOtherUser
-            ? Colors.cyanAccent.withValues(alpha: 0.045)
-            : const Color(0xFF111D34),
+        color: isPrepared
+            ? const Color(0xFF18253D)
+            : isAlsoDoneByOtherUser
+                ? Colors.cyanAccent.withValues(alpha: 0.045)
+                : const Color(0xFF111D34),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isAlsoDoneByOtherUser
-              ? Colors.cyanAccent.withValues(alpha: 0.32)
-              : Colors.white.withValues(alpha: 0.07),
+          color: isPrepared
+              ? Colors.white.withValues(alpha: 0.10)
+              : isAlsoDoneByOtherUser
+                  ? Colors.cyanAccent.withValues(alpha: 0.32)
+                  : Colors.white.withValues(alpha: 0.07),
         ),
       ),
       child: ListTile(
@@ -486,11 +578,15 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Text(
-            isAlsoDoneByOtherUser
-                ? '$count ${count == 1 ? 'set' : 'sets'} • User 2 also did this today'
-                : '$count ${count == 1 ? 'set' : 'sets'}',
+            hasActualSets
+                ? (isAlsoDoneByOtherUser
+                    ? '$count ${count == 1 ? 'set' : 'sets'} • User 2 also did this today'
+                    : '$count ${count == 1 ? 'set' : 'sets'}')
+                : isPrepared
+                    ? '$count ${count == 1 ? 'set' : 'sets'} • Prepared, not saved'
+                    : '$count ${count == 1 ? 'set' : 'sets'}',
             style: TextStyle(
-              color: isAlsoDoneByOtherUser
+              color: hasActualSets && isAlsoDoneByOtherUser
                   ? Colors.cyanAccent.withValues(alpha: 0.82)
                   : Colors.white54,
               fontSize: 12,
@@ -500,7 +596,18 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: Colors.greenAccent, size: 19),
+            if (hasActualSets)
+              const Icon(
+                Icons.check_circle,
+                color: Colors.greenAccent,
+                size: 19,
+              ),
+            if (isPrepared)
+              const Icon(
+                Icons.radio_button_unchecked,
+                color: Colors.white38,
+                size: 19,
+              ),
             if (index != null)
               ReorderableDragStartListener(
                 index: index,
@@ -586,7 +693,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
   }
 
   Widget _deleteTodayCard() {
-    if (_todaySets.isEmpty) {
+    if (_todaySets.isEmpty && _pendingTodaySets.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -618,7 +725,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
           size: 20,
           color: Colors.white54,
         ),
-        onTap: _deleteSelectedTodayExercises,
+        onTap: _deleteTodayWorkout,
       ),
     );
   }
@@ -712,6 +819,7 @@ class User1HomeExerciseDetailScreen extends StatefulWidget {
   final String exerciseName;
   final String target;
   final DateTime? workoutDate;
+  final List<PreparedWorkoutSet> initialSets;
 
   const User1HomeExerciseDetailScreen({
     super.key,
@@ -719,6 +827,7 @@ class User1HomeExerciseDetailScreen extends StatefulWidget {
     required this.exerciseName,
     required this.target,
     this.workoutDate,
+    this.initialSets = const [],
   });
 
   @override
@@ -800,7 +909,11 @@ class _User1HomeExerciseDetailScreenState
 
       _clearControllers();
 
-      if (todaySets.isEmpty) {
+      if (todaySets.isEmpty && widget.initialSets.isNotEmpty) {
+        for (final set in widget.initialSets) {
+          _addSet(weight: set.weight, reps: set.reps);
+        }
+      } else if (todaySets.isEmpty) {
         _addEmptySet();
         _addEmptySet();
         _addEmptySet();
@@ -1084,6 +1197,12 @@ class _User1HomeExerciseDetailScreenState
       if (!mounted) return;
 
       _showMessage('Workout saved.');
+
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
     } catch (e) {
       debugPrint('Error saving exercise: $e');
 
@@ -1472,34 +1591,20 @@ class _User1HomeCopyWorkoutScreenState
       return;
     }
 
-    final today = _dateOnly(DateTime.now());
+    final drafts = <String, List<PreparedWorkoutSet>>{};
 
-    try {
-      await _database.deleteAllSetsByDate(userId: 'user1', date: today);
-
-      for (final set in _selectedSets) {
-        await _database.saveSet(
-          userId: 'user1',
-          exerciseName: set.exerciseName,
+    for (final set in _selectedSets) {
+      drafts.putIfAbsent(set.exerciseName, () => []).add(
+        PreparedWorkoutSet(
           weight: set.weight,
           reps: set.reps,
-          date: today,
-        );
-      }
-
-      if (!mounted) return;
-
-      _showMessage('Workout copied to today.');
-
-      await Future.delayed(const Duration(milliseconds: 400));
-
-      if (!mounted) return;
-
-      Navigator.pop(context);
-    } catch (e) {
-      debugPrint('Error copying User 1 workout: $e');
-      _showMessage('Could not copy workout.');
+        ),
+      );
     }
+
+    if (!mounted) return;
+
+    Navigator.pop(context, drafts);
   }
 
   void _showMessage(String message) {
@@ -2004,7 +2109,7 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
       ...{for (final set in _selectedSets) set.exerciseName},
     ]..sort();
 
-    final selectedExercises = <String>{...exerciseNames};
+    final selectedExercises = <String>{};
 
     final selected = await showModalBottomSheet<Set<String>>(
       context: context,
@@ -2160,13 +2265,14 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
         return AlertDialog(
           backgroundColor: const Color(0xFF101C32),
           title: const Text(
-            'Copy Workout?',
+            'Prepare Workout?',
             style: TextStyle(color: Colors.white),
           ),
           content: Text(
-            'Copy ${selected.length} selected exercise${selected.length == 1 ? '' : 's'} '
-            'from ${_formatDate(sourceDate)} to today?\n\n'
-            '${setsToCopy.length} sets will be copied.',
+            'Prepare ${selected.length} selected exercise${selected.length == 1 ? '' : 's'} '
+            'from ${_formatDate(sourceDate)} for today?\n\n'
+            '${setsToCopy.length} sets will be prepared. Nothing will be logged '
+            'until you open an exercise and press SAVE WORKOUT.',
             style: const TextStyle(color: Colors.white70),
           ),
           actions: [
@@ -2176,7 +2282,7 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('COPY'),
+              child: const Text('PREPARE'),
             ),
           ],
         );
@@ -2185,29 +2291,20 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
 
     if (confirmed != true) return;
 
-    try {
-      for (final set in setsToCopy) {
-        await _database.saveSet(
-          userId: 'user1',
-          exerciseName: set.exerciseName,
+    final prepared = <String, List<PreparedWorkoutSet>>{};
+
+    for (final set in setsToCopy) {
+      prepared.putIfAbsent(set.exerciseName, () => []).add(
+        PreparedWorkoutSet(
           weight: set.weight,
           reps: set.reps,
-          date: today,
-        );
-      }
-
-      if (!mounted) return;
-
-      _showMessage(
-        '${selected.length} exercise${selected.length == 1 ? '' : 's'} copied to today.',
+        ),
       );
-
-      await _loadCalendar();
-    } catch (e) {
-      debugPrint('Error copying selected User 1 workout: $e');
-
-      _showMessage('Could not copy workout.');
     }
+
+    if (!mounted) return;
+
+    Navigator.pop(context, prepared);
   }
 
   Future<void> _deleteWorkoutForSelectedDate() async {
