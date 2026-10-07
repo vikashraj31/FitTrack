@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-
+import 'theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -32,11 +32,7 @@ class FitTrackApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'FitTrack',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF050B18),
-      ),
+      theme: AppTheme.darkTheme,
       home: const HomeScreen(),
     );
   }
@@ -57,42 +53,41 @@ class HomeScreen extends StatefulWidget {
 // HOME STATE
 // ============================================================
 
-class _HomeScreenState extends State<HomeScreen>
-    with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
 
   DailyDataData? _dailyData;
   Timer? _stepRefreshTimer;
   bool _healthSyncInProgress = false;
   static const Map<int, double> _dailyCalorieTargets = {
-  DateTime.monday: 2675,
-  DateTime.tuesday: 2725,
-  DateTime.wednesday: 2660,
-  DateTime.thursday: 2760,
-  DateTime.friday: 2705,
-  DateTime.saturday: 2705,
-  DateTime.sunday: 2685,
-};
+    DateTime.monday: 2675,
+    DateTime.tuesday: 2725,
+    DateTime.wednesday: 2660,
+    DateTime.thursday: 2760,
+    DateTime.friday: 2705,
+    DateTime.saturday: 2705,
+    DateTime.sunday: 2685,
+  };
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
 
-  // Let the Home screen render first.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!mounted) return;
+    // Let the Home screen render first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-    _syncHealthAndLoadData();
+      _syncHealthAndLoadData();
 
-    // Refresh Health Connect data periodically without blocking startup.
-    _stepRefreshTimer = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => _syncStepsAndLoadData(),
-    );
-  });
-}
+      // Refresh Health Connect data periodically without blocking startup.
+      _stepRefreshTimer = Timer.periodic(
+        const Duration(minutes: 1),
+        (_) => _syncStepsAndLoadData(),
+      );
+    });
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -121,9 +116,7 @@ void initState() {
           date: DateTime.now(),
         );
 
-        final targets = await _database.getDailyTargets(
-          userId: 'user1',
-        );
+        final targets = await _database.getDailyTargets(userId: 'user1');
 
         final steps = (healthData['steps'] as num?)?.toInt() ?? 0;
 
@@ -136,8 +129,7 @@ void initState() {
             ? plannedCalories
             : (existing?.calorieTarget ?? 0);
 
-        final stepTarget =
-            targets?.stepTarget ?? existing?.stepTarget ?? 10000;
+        final stepTarget = targets?.stepTarget ?? existing?.stepTarget ?? 10000;
 
         await _database.saveDailyData(
           userId: 'user1',
@@ -178,9 +170,7 @@ void initState() {
         date: DateTime.now(),
       );
 
-      final targets = await _database.getDailyTargets(
-        userId: 'user1',
-      );
+      final targets = await _database.getDailyTargets(userId: 'user1');
 
       await _database.saveDailyData(
         userId: 'user1',
@@ -209,10 +199,7 @@ void initState() {
     try {
       final now = DateTime.now();
 
-      final data = await _database.getDailyData(
-        userId: 'user1',
-        date: now,
-      );
+      final data = await _database.getDailyData(userId: 'user1', date: now);
 
       if (data == null) {
         if (!mounted) return;
@@ -223,66 +210,59 @@ void initState() {
         return;
       }
 
-   // ==========================================================
-// CALORIES — SAME TARGET AS DIET SCREEN
-// ==========================================================
+      // ==========================================================
+      // CALORIES — SAME TARGET AS DIET SCREEN
+      // ==========================================================
 
-final actualCalories = await _database.getActualCalories(
-  userId: 'user1',
-  date: now,
-);
+      final actualCalories = await _database.getActualCalories(
+        userId: 'user1',
+        date: now,
+      );
 
-final currentCalorieTarget =
-    _dailyCalorieTargets[now.weekday] ?? data.calorieTarget;
+      final currentCalorieTarget =
+          _dailyCalorieTargets[now.weekday] ?? data.calorieTarget;
 
-// ==========================================================
-// STEP TARGET — ALWAYS SYNC WITH SETTINGS
-// ==========================================================
+      // ==========================================================
+      // STEP TARGET — ALWAYS SYNC WITH SETTINGS
+      // ==========================================================
 
-final targets = await _database.getDailyTargets(
-  userId: 'user1',
-);
+      final targets = await _database.getDailyTargets(userId: 'user1');
 
-final currentStepTarget =
-    targets?.stepTarget ?? data.stepTarget;
+      final currentStepTarget = targets?.stepTarget ?? data.stepTarget;
 
-// ==========================================================
-// REFRESH HOME DATA
-// ==========================================================
+      // ==========================================================
+      // REFRESH HOME DATA
+      // ==========================================================
 
-final refreshedData = data.copyWith(
-  calories: actualCalories,
-  calorieTarget: currentCalorieTarget,
-  stepTarget: currentStepTarget,
-);
+      final refreshedData = data.copyWith(
+        calories: actualCalories,
+        calorieTarget: currentCalorieTarget,
+        stepTarget: currentStepTarget,
+      );
 
-// ==========================================================
-// KEEP DAILY DATA CACHE IN SYNC
-// ==========================================================
+      // ==========================================================
+      // KEEP DAILY DATA CACHE IN SYNC
+      // ==========================================================
 
-final caloriesChanged =
-    (data.calories - actualCalories).abs() > 0.001;
+      final caloriesChanged = (data.calories - actualCalories).abs() > 0.001;
 
-final calorieTargetChanged =
-    (data.calorieTarget - currentCalorieTarget).abs() > 0.001;
+      final calorieTargetChanged =
+          (data.calorieTarget - currentCalorieTarget).abs() > 0.001;
 
-final stepTargetChanged =
-    data.stepTarget != currentStepTarget;
+      final stepTargetChanged = data.stepTarget != currentStepTarget;
 
-if (caloriesChanged ||
-    calorieTargetChanged ||
-    stepTargetChanged) {
-  await _database.saveDailyData(
-    userId: 'user1',
-    date: now,
-    calories: actualCalories,
-    calorieTarget: currentCalorieTarget,
-    steps: data.steps,
-    stepTarget: currentStepTarget,
-    recoveryScore: data.recoveryScore,
-    effortScore: data.effortScore,
-  );
-}
+      if (caloriesChanged || calorieTargetChanged || stepTargetChanged) {
+        await _database.saveDailyData(
+          userId: 'user1',
+          date: now,
+          calories: actualCalories,
+          calorieTarget: currentCalorieTarget,
+          steps: data.steps,
+          stepTarget: currentStepTarget,
+          recoveryScore: data.recoveryScore,
+          effortScore: data.effortScore,
+        );
+      }
 
       if (!mounted) return;
 
@@ -307,9 +287,7 @@ if (caloriesChanged ||
   Future<void> _openUser2() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const User2Screen(),
-      ),
+      MaterialPageRoute(builder: (_) => const User2Screen()),
     );
   }
 
@@ -320,9 +298,7 @@ if (caloriesChanged ||
   Future<void> _openDiet() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const DietScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const DietScreen()),
     );
 
     await _loadDailyData();
@@ -343,9 +319,7 @@ if (caloriesChanged ||
       return 0;
     }
 
-    return _clamp(
-      (_dailyData!.steps / target) * 100,
-    );
+    return _clamp((_dailyData!.steps / target) * 100);
   }
 
   // ==========================================================
@@ -431,9 +405,7 @@ if (caloriesChanged ||
       context: context,
       backgroundColor: const Color(0xFF0A1730),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(22),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (context) {
         return SafeArea(
@@ -480,20 +452,14 @@ if (caloriesChanged ||
                   const SizedBox(height: 16),
                   Text(
                     'Today',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0x73FFFFFF),
-                    ),
+                    style: TextStyle(fontSize: 12, color: Color(0x73FFFFFF)),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '$steps steps'
                     '${stepTarget > 0 ? '  •  Target $stepTarget' : ''}'
                     '  •  Recovery ${recovery.round()}%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white60,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.white60),
                   ),
                 ],
               ],
@@ -543,12 +509,8 @@ if (caloriesChanged ||
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0A2D63),
-              Color(0xFF071D43),
-              Color(0xFF050B18),
-            ],
-            stops: [0.0, 0.34, 1.0],
+            colors: [Color(0xFF0C1424), Color(0xFF090F1C), Color(0xFF070B14)],
+            stops: [0.0, 0.42, 1.0],
           ),
         ),
         child: SafeArea(
@@ -571,9 +533,8 @@ if (caloriesChanged ||
                           const Text(
                             'FitTrack',
                             style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.1,
+                              fontSize: 26,
+fontWeight: FontWeight.w700,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -614,18 +575,18 @@ if (caloriesChanged ||
                 // =====================================================
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                  padding: const EdgeInsets.fromLTRB(18, 17, 18, 19),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.07),
-                    borderRadius: BorderRadius.circular(24),
+                    color: const Color(0xFF101724),
+                    borderRadius: BorderRadius.circular(22),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: Colors.white.withValues(alpha: 0.06),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.14),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
+                        color: Colors.black.withValues(alpha: 0.22),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),
@@ -681,20 +642,17 @@ if (caloriesChanged ||
                 // =====================================================
                 const Text(
                   'Daily Score',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
+                  padding: const EdgeInsets.fromLTRB(6, 16, 6, 14),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.11),
-                    borderRadius: BorderRadius.circular(24),
+                    color: const Color(0xFF0D1421),
+                    borderRadius: BorderRadius.circular(22),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
+                      color: Colors.white.withValues(alpha: 0.055),
                     ),
                   ),
                   child: Row(
@@ -706,7 +664,7 @@ if (caloriesChanged ||
                           displayValue: _dailyData == null
                               ? '0'
                               : '${_stepsPercent().round()}',
-                          color: const Color(0xFFB66CFF),
+                          color: const Color(0xFF8B6CFF),
                         ),
                       ),
                       Expanded(
@@ -715,9 +673,9 @@ if (caloriesChanged ||
                           label: 'Recovery',
                           displayValue:
                               _dailyData == null ||
-                                      _dailyData!.recoveryScore <= 0
-                                  ? '0'
-                                  : '${_recoveryPercent().round()}',
+                                  _dailyData!.recoveryScore <= 0
+                              ? '0'
+                              : '${_recoveryPercent().round()}',
                           color: const Color(0xFF39D98A),
                         ),
                       ),
@@ -726,28 +684,24 @@ if (caloriesChanged ||
                           value: _effortPercent(),
                           label: 'Effort',
                           displayValue:
-                              _dailyData == null ||
-                                      _dailyData!.effortScore <= 0
-                                  ? '0'
-                                  : '${_effortPercent().round()}',
-                          color: const Color(0xFFFF8A3D),
+                              _dailyData == null || _dailyData!.effortScore <= 0
+                              ? '0'
+                              : '${_effortPercent().round()}',
+                          color: const Color(0xFFFFA45B),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 22),
+                const SizedBox(height: 28),
 
                 // =====================================================
                 // QUICK ACTIONS
                 // =====================================================
                 const Text(
                   'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -761,8 +715,7 @@ if (caloriesChanged ||
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  const User1HomeExerciseScreen(),
+                              builder: (_) => const User1HomeExerciseScreen(),
                             ),
                           );
                         },
@@ -812,43 +765,6 @@ if (caloriesChanged ||
                 ),
 
                 const SizedBox(height: 22),
-
-                // =====================================================
-                // BOTTOM NAVIGATION PREVIEW / INFO
-                // =====================================================
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.04),
-                    ),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.touch_app_outlined,
-                        size: 18,
-                        color: Colors.white38,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Tap any score ring to see its breakdown.',
-                          style: TextStyle(
-                            fontSize: 12,
-                           color: Color(0x73FFFFFF),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -865,17 +781,13 @@ if (caloriesChanged ||
             case 1:
               await Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const User1CalendarScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const User1CalendarScreen()),
               );
               break;
             case 2:
               await Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const SettingsScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
 
               // Refresh Home immediately after a Settings change.
@@ -930,10 +842,7 @@ if (caloriesChanged ||
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.white54,
-                  ),
+                  style: const TextStyle(fontSize: 11, color: Colors.white54),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -948,10 +857,7 @@ if (caloriesChanged ||
                   subtext,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.white38,
-                  ),
+                  style: const TextStyle(fontSize: 10, color: Colors.white38),
                 ),
               ],
             ),
@@ -1013,35 +919,39 @@ if (caloriesChanged ||
         child: Column(
           children: [
             SizedBox(
-              width: 108,
-              height: 108,
+              width: 96,
+              height: 96,
               child: CustomPaint(
-                painter: _RingPainter(
-                  progress: value / 100,
-                  color: color,
-                ),
+                painter: _RingPainter(progress: value / 100, color: color),
                 child: Center(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        displayValue,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
+  mainAxisAlignment: MainAxisAlignment.center,
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    Text(
+      displayValue,
+      style: const TextStyle(
+        fontSize: 21,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        height: 1.0,
+      ),
+    ),
+    const SizedBox(height: 3),
+    FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          color: Colors.white70,
+          fontWeight: FontWeight.w500,
+          height: 1.0,
+        ),
+      ),
+    ),
+  ],
+),
                 ),
               ),
             ),
@@ -1079,11 +989,11 @@ if (caloriesChanged ||
 
         description = target > 0
             ? 'Your Steps score is based on today’s steps compared '
-                'with your step target.\n\n'
-                'Today: $steps steps\n'
-                'Target: $target steps'
+                  'with your step target.\n\n'
+                  'Today: $steps steps\n'
+                  'Target: $target steps'
             : 'Your Steps score is based on today’s steps compared '
-                'with your step target.';
+                  'with your step target.';
 
         break;
 
@@ -1120,18 +1030,14 @@ if (caloriesChanged ||
           date: DateTime.now(),
         );
 
-        final recentWorkoutDays =
-            await _database.getRecentWorkoutDayCount(
+        final recentWorkoutDays = await _database.getRecentWorkoutDayCount(
           userId: 'user1',
           date: DateTime.now(),
         );
 
-        final todayLoad =
-            recentLoads.isNotEmpty ? recentLoads[0] : 0;
-        final yesterdayLoad =
-            recentLoads.length > 1 ? recentLoads[1] : 0;
-        final twoDaysAgoLoad =
-            recentLoads.length > 2 ? recentLoads[2] : 0;
+        final todayLoad = recentLoads.isNotEmpty ? recentLoads[0] : 0;
+        final yesterdayLoad = recentLoads.length > 1 ? recentLoads[1] : 0;
+        final twoDaysAgoLoad = recentLoads.length > 2 ? recentLoads[2] : 0;
 
         title = 'Recovery';
 
@@ -1160,9 +1066,7 @@ if (caloriesChanged ||
       context: context,
       backgroundColor: const Color(0xFF0A1730),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(22),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (context) {
         return SafeArea(
@@ -1243,17 +1147,11 @@ if (caloriesChanged ||
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.06),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: Colors.white70,
-              size: 23,
-            ),
+            Icon(icon, color: Colors.white70, size: 23),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1277,11 +1175,7 @@ if (caloriesChanged ||
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: Colors.white54,
-            ),
+            const Icon(Icons.chevron_right, size: 20, color: Colors.white54),
           ],
         ),
       ),
@@ -1291,7 +1185,6 @@ if (caloriesChanged ||
   // ============================================================
   // USER CARD
   // ============================================================
-
 }
 
 // ============================================================
@@ -1319,9 +1212,7 @@ class User1Screen extends StatelessWidget {
         elevation: 0,
         title: const Text(
           'User 1',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       body: Container(
@@ -1329,11 +1220,7 @@ class User1Screen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF08285C),
-              Color(0xFF061A3B),
-              Color(0xFF050B18),
-            ],
+            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
             stops: [0.0, 0.38, 1.0],
           ),
         ),
@@ -1345,18 +1232,12 @@ class User1Screen extends StatelessWidget {
               children: [
                 const Text(
                   'Full Tracking',
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
                 const Text(
                   'Manage your complete fitness data',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white60,
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.white60),
                 ),
                 const SizedBox(height: 28),
 
@@ -1385,15 +1266,12 @@ class User1Screen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const StatsScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const StatsScreen()),
                     );
                   },
                 ),
 
                 const SizedBox(height: 12),
-
               ],
             ),
           ),
@@ -1414,16 +1292,11 @@ class User1Screen extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 18,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.06),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Row(
           children: [
@@ -1434,11 +1307,7 @@ class User1Screen extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.07),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                color: Colors.white70,
-                size: 22,
-              ),
+              child: Icon(icon, color: Colors.white70, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1463,10 +1332,7 @@ class User1Screen extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.white54,
-            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
           ],
         ),
       ),
@@ -1482,19 +1348,13 @@ class _RingPainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  _RingPainter({
-    required this.progress,
-    required this.color,
-  });
+  _RingPainter({required this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(
-      size.width / 2,
-      size.height / 2,
-    );
+    final center = Offset(size.width / 2, size.height / 2);
 
-    final radius = size.width / 2 - 8;
+    final radius = size.width / 2 - 7;
 
     // --------------------------------------------------------
     // BACKGROUND ARC
@@ -1502,15 +1362,12 @@ class _RingPainter extends CustomPainter {
 
     final backgroundPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
+      ..strokeWidth = 6
       ..strokeCap = StrokeCap.round
       ..color = Colors.white.withValues(alpha: 0.10);
 
     canvas.drawArc(
-      Rect.fromCircle(
-        center: center,
-        radius: radius,
-      ),
+      Rect.fromCircle(center: center, radius: radius),
       -math.pi / 2,
       math.pi * 2,
       false,
@@ -1524,15 +1381,12 @@ class _RingPainter extends CustomPainter {
     if (progress > 0) {
       final progressPaint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 7
+        ..strokeWidth = 6
         ..strokeCap = StrokeCap.round
         ..color = color;
 
       canvas.drawArc(
-        Rect.fromCircle(
-          center: center,
-          radius: radius,
-        ),
+        Rect.fromCircle(center: center, radius: radius),
         -math.pi / 2,
         math.pi * 2 * progress.clamp(0.0, 1.0),
         false,
@@ -1548,11 +1402,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..color = const Color(0xFF07101E);
 
-    canvas.drawCircle(
-      center,
-      radius - 11,
-      innerPaint,
-    );
+    canvas.drawCircle(center, radius - 6, innerPaint);
 
     // --------------------------------------------------------
     // INNER BORDER
@@ -1563,16 +1413,11 @@ class _RingPainter extends CustomPainter {
       ..strokeWidth = 1
       ..color = Colors.white.withValues(alpha: 0.18);
 
-    canvas.drawCircle(
-      center,
-      radius - 11,
-      borderPaint,
-    );
+    canvas.drawCircle(center, radius - 6, borderPaint);
   }
 
   @override
   bool shouldRepaint(covariant _RingPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.color != color;
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }
