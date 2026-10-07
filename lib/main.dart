@@ -64,6 +64,15 @@ class _HomeScreenState extends State<HomeScreen>
   DailyDataData? _dailyData;
   Timer? _stepRefreshTimer;
   bool _healthSyncInProgress = false;
+  static const Map<int, double> _dailyCalorieTargets = {
+  DateTime.monday: 2675,
+  DateTime.tuesday: 2725,
+  DateTime.wednesday: 2660,
+  DateTime.thursday: 2760,
+  DateTime.friday: 2705,
+  DateTime.saturday: 2705,
+  DateTime.sunday: 2685,
+};
 
   @override
 void initState() {
@@ -214,45 +223,66 @@ void initState() {
         return;
       }
 
-      // Calories come from the current Diet data.
-      final actualCalories = await _database.getActualCalories(
-        userId: 'user1',
-        date: now,
-      );
+   // ==========================================================
+// CALORIES — SAME TARGET AS DIET SCREEN
+// ==========================================================
 
-      // Step Target comes from Settings / DailyTargets. Do not rely only on
-      // the cached DailyData.stepTarget value because Settings can update the
-      // target while this HomeScreen remains alive underneath the route.
-      final targets = await _database.getDailyTargets(
-        userId: 'user1',
-      );
+final actualCalories = await _database.getActualCalories(
+  userId: 'user1',
+  date: now,
+);
 
-      final currentStepTarget =
-          targets?.stepTarget ?? data.stepTarget;
+final currentCalorieTarget =
+    _dailyCalorieTargets[now.weekday] ?? data.calorieTarget;
 
-      final refreshedData = data.copyWith(
-        calories: actualCalories,
-        stepTarget: currentStepTarget,
-      );
+// ==========================================================
+// STEP TARGET — ALWAYS SYNC WITH SETTINGS
+// ==========================================================
 
-      // Keep DailyData synchronized with the current Diet calories and the
-      // current Step Target so all Home calculations use the same values.
-      final caloriesChanged =
-          (data.calories - actualCalories).abs() > 0.001;
-      final stepTargetChanged = data.stepTarget != currentStepTarget;
+final targets = await _database.getDailyTargets(
+  userId: 'user1',
+);
 
-      if (caloriesChanged || stepTargetChanged) {
-        await _database.saveDailyData(
-          userId: 'user1',
-          date: now,
-          calories: actualCalories,
-          calorieTarget: data.calorieTarget,
-          steps: data.steps,
-          stepTarget: currentStepTarget,
-          recoveryScore: data.recoveryScore,
-          effortScore: data.effortScore,
-        );
-      }
+final currentStepTarget =
+    targets?.stepTarget ?? data.stepTarget;
+
+// ==========================================================
+// REFRESH HOME DATA
+// ==========================================================
+
+final refreshedData = data.copyWith(
+  calories: actualCalories,
+  calorieTarget: currentCalorieTarget,
+  stepTarget: currentStepTarget,
+);
+
+// ==========================================================
+// KEEP DAILY DATA CACHE IN SYNC
+// ==========================================================
+
+final caloriesChanged =
+    (data.calories - actualCalories).abs() > 0.001;
+
+final calorieTargetChanged =
+    (data.calorieTarget - currentCalorieTarget).abs() > 0.001;
+
+final stepTargetChanged =
+    data.stepTarget != currentStepTarget;
+
+if (caloriesChanged ||
+    calorieTargetChanged ||
+    stepTargetChanged) {
+  await _database.saveDailyData(
+    userId: 'user1',
+    date: now,
+    calories: actualCalories,
+    calorieTarget: currentCalorieTarget,
+    steps: data.steps,
+    stepTarget: currentStepTarget,
+    recoveryScore: data.recoveryScore,
+    effortScore: data.effortScore,
+  );
+}
 
       if (!mounted) return;
 
