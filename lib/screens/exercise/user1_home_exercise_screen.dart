@@ -2465,7 +2465,7 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
                       CalendarFormat.month: 'Month',
                     },
 
-                    calendarStyle: const CalendarStyle(
+                    calendarStyle: CalendarStyle(
                       defaultTextStyle: TextStyle(color: Colors.white),
 
                       weekendTextStyle: TextStyle(color: Colors.white70),

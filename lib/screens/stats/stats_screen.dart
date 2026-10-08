@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../services/fitness_calculation_service.dart';
 
@@ -10,6 +11,8 @@ class StatsScreen extends StatefulWidget {
 }
 
 class _StatsScreenState extends State<StatsScreen> {
+  static const Color _premiumAccent = Color(0xFF6F8CFF);
+
   final AppDatabase _database = AppDatabase();
 
   int _selectedDays = 7;
@@ -122,22 +125,26 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF071A33),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text(
           'Stats',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+          ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.background,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _premiumAccent))
           : RefreshIndicator(
               onRefresh: _loadStats,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: [
                   _buildPeriodSelector(),
                   const SizedBox(height: 18),
@@ -149,7 +156,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     'Daily History',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 19,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -168,8 +175,9 @@ class _StatsScreenState extends State<StatsScreen> {
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [
@@ -195,7 +203,7 @@ class _StatsScreenState extends State<StatsScreen> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF2374E1) : Colors.transparent,
+            color: selected ? _premiumAccent : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -215,11 +223,16 @@ class _StatsScreenState extends State<StatsScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF123E70), Color(0xFF0B2B50)],
-        ),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +284,7 @@ class _StatsScreenState extends State<StatsScreen> {
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white,
+            color: _premiumAccent,
             fontSize: 19,
             fontWeight: FontWeight.w700,
           ),
@@ -317,7 +330,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.07),
+        color: AppTheme.surfaceElevated,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
@@ -350,8 +363,9 @@ class _StatsScreenState extends State<StatsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(17),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,7 +458,8 @@ class _StatsScreenState extends State<StatsScreen> {
           child: LinearProgressIndicator(
             value: safeValue / 100,
             minHeight: 6,
-            backgroundColor: Colors.white.withValues(alpha: 0.10),
+            valueColor: const AlwaysStoppedAnimation(_premiumAccent),
+            backgroundColor: Colors.white.withValues(alpha: 0.08),
           ),
         ),
       ],
@@ -455,8 +470,9 @@ class _StatsScreenState extends State<StatsScreen> {
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: const Column(
         children: [

@@ -5,8 +5,8 @@ class AppTheme {
   static const Color surface = Color(0xFF101724);
   static const Color surfaceElevated = Color(0xFF151E30);
 
-  static const Color primary = Color(0xFF7C5CFF);
-  static const Color primaryLight = Color(0xFFA78BFA);
+  static const Color primary = Color(0xFF3D8BFF);
+static const Color primaryLight = Color(0xFF8CC8FF);
 
   static const Color success = Color(0xFF39D98A);
   static const Color warning = Color(0xFFFF9F43);
@@ -77,7 +77,7 @@ class AppTheme {
 
       navigationBarTheme: const NavigationBarThemeData(
         backgroundColor: Color(0xFF091120),
-        indicatorColor: Color(0x527C5CFF),
+       indicatorColor: Color(0x523D8BFF),
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(
             fontSize: 12,

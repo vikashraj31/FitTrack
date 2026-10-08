@@ -1,17 +1,42 @@
-# fittrack
+# FitTrack
 
-A new Flutter project.
+FitTrack is a personal fitness and workout tracking app built with Flutter.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- User 1 and User 2 workout tracking
+- Exercise routines and workout history
+- Set, reps and weight tracking
+- Copy previous workouts
+- Workout calendar and history
+- Diet and calorie tracking
+- Daily calorie targets
+- Step tracking
+- Sleep and recovery tracking
+- Training effort tracking
+- Weight tracking
+- Statistics and progress tracking
+- Local Drift database
+- Backup and restore
+- User-specific data isolation
+- Dark premium UI
 
-A few resources to get you started if this is your first Flutter project:
+## Tech Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter
+- Dart
+- Drift / SQLite
+- Android
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Data
+
+FitTrack stores fitness data locally on the device using Drift/SQLite.
+
+Backup and restore functionality is provided so the user's data can be preserved and restored when required.
+
+## Development
+
+Install dependencies:
+
+```bash
+flutter pub get

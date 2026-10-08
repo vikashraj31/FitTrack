@@ -1,9 +1,9 @@
-import 'dart:async';
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../services/database_service.dart';
+import '../../theme/app_theme.dart';
 import '../exercise/exercise_screen.dart';
 
 class User1CalendarScreen extends StatefulWidget {
@@ -13,27 +13,23 @@ class User1CalendarScreen extends StatefulWidget {
   State<User1CalendarScreen> createState() => _User1CalendarScreenState();
 }
 
-class _User1CalendarScreenState extends State<User1CalendarScreen>
-    with WidgetsBindingObserver {
+class _User1CalendarScreenState extends State<User1CalendarScreen> {
   final AppDatabase _database = AppDatabase();
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
   Set<String> _workoutDates = {};
-  Set<String> _routineDates = {};
   List<WorkoutSet> _selectedDaySets = [];
-  List<WorkoutRoutine> _selectedDayRoutines = [];
-  Map<int, List<RoutineSet>> _routineSets = {};
   DailyDataData? _dailyData;
   double _actualCalories = 0;
 
   bool _loading = true;
   bool _loadingDay = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _selectedDay = _dateOnly(DateTime.now());
     _loadCalendar();
   }
@@ -54,15 +50,11 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
     try {
       final dates = await _database.getWorkoutDates('user1');
-      final routines = await _database.getWorkoutRoutines(userId: 'user1');
 
       if (!mounted) return;
 
       setState(() {
         _workoutDates = dates.map(_dateKey).toSet();
-        _routineDates = routines
-            .map((routine) => _dateKey(routine.date))
-            .toSet();
         _loading = false;
       });
 
@@ -86,25 +78,15 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     }
 
     try {
-      final sets = await _database.getSetsByDate(userId: 'user1', date: day);
+      final sets = await _database.getSetsByDate(
+        userId: 'user1',
+        date: day,
+      );
 
       final dailyData = await _database.getDailyData(
         userId: 'user1',
         date: day,
       );
-
-      final routines = await _database.getWorkoutRoutinesByDate(
-        userId: 'user1',
-        date: day,
-      );
-
-      final routineSets = <int, List<RoutineSet>>{};
-      for (final routine in routines) {
-        routineSets[routine.id] = await _database.getRoutineSets(
-  routineId: routine.id,
-  userId: 'user1',
-);
-      }
 
       final calories = await _database.getActualCalories(
         userId: 'user1',
@@ -115,8 +97,6 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
       setState(() {
         _selectedDaySets = sets;
-        _selectedDayRoutines = routines;
-        _routineSets = routineSets;
         _dailyData = dailyData;
         _actualCalories = calories;
         _loadingDay = false;
@@ -128,8 +108,6 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
       setState(() {
         _selectedDaySets = [];
-        _selectedDayRoutines = [];
-        _routineSets = {};
         _dailyData = null;
         _actualCalories = 0;
         _loadingDay = false;
@@ -142,11 +120,8 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
     if (!mounted) return;
 
-    final routines = await _database.getWorkoutRoutines(userId: 'user1');
-
     setState(() {
       _workoutDates = dates.map(_dateKey).toSet();
-      _routineDates = routines.map((routine) => _dateKey(routine.date)).toSet();
     });
 
     await _loadSelectedDay();
@@ -154,10 +129,6 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
   bool _hasWorkout(DateTime day) {
     return _workoutDates.contains(_dateKey(day));
-  }
-
-  bool _hasRoutine(DateTime day) {
-    return _routineDates.contains(_dateKey(day));
   }
 
   Map<String, List<WorkoutSet>> _groupSets() {
@@ -168,150 +139,6 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     }
 
     return grouped;
-  }
-
-  Future<void> _editSelectedWorkout() async {
-    if (_selectedDaySets.isEmpty || _selectedDay == null) {
-      return;
-    }
-
-    final exercises = _selectedDaySets
-        .map((set) => set.exerciseName)
-        .toSet()
-        .toList();
-
-    final selectedExercise = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF101C32),
-      isScrollControlled: true,
-      builder: (ctx) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.65,
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'EDIT WORKOUT',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: exercises.length,
-                    itemBuilder: (_, index) {
-                      final exercise = exercises[index];
-
-                      return ListTile(
-                        title: Text(
-                          exercise,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        trailing: const Icon(
-                          Icons.edit_outlined,
-                          color: Colors.white54,
-                        ),
-                        onTap: () {
-                          Navigator.pop(ctx, exercise);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    if (selectedExercise == null || !mounted) {
-      return;
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => User1ExerciseDetailScreen(
-          exerciseName: selectedExercise,
-          database: _database,
-        ),
-      ),
-    );
-
-    await _refresh();
-  }
-
-  Future<void> _deleteSelectedWorkout() async {
-    if (_selectedDaySets.isEmpty || _selectedDay == null) {
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
-          title: const Text(
-            'Delete Workout?',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Text(
-            'This will delete the complete User 1 workout for ${_formatDate(_selectedDay!)}.',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCEL'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('DELETE'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    try {
-      await _database.deleteAllSetsByDate(userId: 'user1', date: _selectedDay!);
-
-      await _refresh();
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Workout deleted.')));
-    } catch (e) {
-      debugPrint('Error deleting User 1 workout: $e');
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('Could not delete workout.')),
-        );
-    }
   }
 
   Future<void> _openHistory(String exerciseName) async {
@@ -355,28 +182,45 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     return value.toStringAsFixed(1);
   }
 
-  Widget _metric(String label, String value, IconData icon) {
+  Widget _metric(
+    String label,
+    String value,
+    IconData icon,
+  ) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 12,
+        ),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 19, color: Colors.cyanAccent),
+            Icon(
+              icon,
+              size: 19,
+              color: AppTheme.primaryLight,
+            ),
             const SizedBox(height: 7),
             Text(
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 3),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.white54),
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white54,
+              ),
             ),
           ],
         ),
@@ -393,7 +237,9 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
       decoration: BoxDecoration(
         color: const Color(0xFF101C32),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.055),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,6 +270,11 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                 Icons.directions_walk_outlined,
               ),
               const SizedBox(width: 8),
+              _metric(
+                'Sleep',
+                '—',
+                Icons.bedtime_outlined,
+              ),
             ],
           ),
           if (data != null) ...[
@@ -455,7 +306,10 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     );
   }
 
-  Widget _exerciseCard(String exerciseName, List<WorkoutSet> sets) {
+  Widget _exerciseCard(
+    String exerciseName,
+    List<WorkoutSet> sets,
+  ) {
     final totalLoad = sets.fold<double>(
       0,
       (sum, set) => sum + (set.weight * set.reps),
@@ -466,138 +320,38 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
       decoration: BoxDecoration(
         color: const Color(0xFF101C32),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.055),
+        ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 5,
+        ),
         title: Text(
           exerciseName,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Text(
             '${sets.length} sets  •  ${_formatNumber(totalLoad)} kg total load',
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+            ),
           ),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: Colors.white54,
+        ),
         onTap: () => _openHistory(exerciseName),
       ),
-    );
-  }
-
-  Widget _routineCard(WorkoutRoutine routine) {
-    final sets = _routineSets[routine.id] ?? [];
-    final grouped = <String, List<RoutineSet>>{};
-
-    for (final set in sets) {
-      grouped.putIfAbsent(set.exerciseName, () => []).add(set);
-    }
-
-    // A routine is planned for this calendar date.
-    // If workout sets also exist for this date, the routine has been performed.
-    final recorded = _selectedDaySets.isNotEmpty;
-    final statusText = recorded ? 'RECORDED' : 'PLANNED';
-    final statusColor = recorded ? Colors.cyanAccent : Colors.orangeAccent;
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101C32),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.event_note_outlined,
-                color: Colors.orangeAccent,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  routine.routineName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                statusText,
-                style: TextStyle(
-                  color: statusColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${grouped.length} exercises • ${sets.length} sets',
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          if (grouped.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            ...grouped.entries.map(
-              (entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  '${entry.key}  •  ${entry.value.length} set${entry.value.length == 1 ? '' : 's'}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _plannedRoutinesSection() {
-    if (_selectedDayRoutines.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'PLANNED ROUTINE',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.7,
-                ),
-              ),
-            ),
-            Text(
-              '${_selectedDayRoutines.length}',
-              style: const TextStyle(
-                color: Colors.orangeAccent,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        ..._selectedDayRoutines.map(_routineCard),
-        const SizedBox(height: 8),
-      ],
     );
   }
 
@@ -605,7 +359,9 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     if (_loadingDay) {
       return const Padding(
         padding: EdgeInsets.all(30),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
@@ -615,7 +371,6 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _plannedRoutinesSection(),
         _dailySummary(),
         Row(
           children: [
@@ -630,31 +385,15 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                 ),
               ),
             ),
-            if (exercises.isNotEmpty) ...[
+            if (exercises.isNotEmpty)
               Text(
                 '${_selectedDaySets.length} sets',
-                style: const TextStyle(color: Colors.white38, fontSize: 11),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _editSelectedWorkout,
-                icon: const Icon(
-                  Icons.edit_outlined,
-                  color: Colors.white70,
-                  size: 20,
+                style: const TextStyle(
+                  color: Colors.cyan,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
-                tooltip: 'Edit workout',
               ),
-              IconButton(
-                onPressed: _deleteSelectedWorkout,
-                icon: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.redAccent,
-                  size: 20,
-                ),
-                tooltip: 'Delete workout',
-              ),
-            ],
           ],
         ),
         const SizedBox(height: 10),
@@ -666,7 +405,7 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
               color: Colors.white.withValues(alpha: 0.035),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Column(
+            child: Column(
               children: [
                 Icon(
                   Icons.event_busy_outlined,
@@ -676,19 +415,26 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                 SizedBox(height: 8),
                 Text(
                   'No workout recorded',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   'There is no User 1 exercise data for this date.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           )
         else
-          ...exercises.map((name) => _exerciseCard(name, grouped[name]!)),
+          ...exercises.map(
+            (name) => _exerciseCard(name, grouped[name]!),
+          ),
       ],
     );
   }
@@ -698,13 +444,15 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
     final selected = _selectedDay ?? DateTime.now();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.background,
         elevation: 0,
         title: const Text(
           'Calendar',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         actions: [
           IconButton(
@@ -715,28 +463,52 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
-            stops: [0.0, 0.38, 1.0],
-          ),
-        ),
+        color: AppTheme.background,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(),
+              )
             : SafeArea(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
+                  padding: const EdgeInsets.fromLTRB(
+                    14,
+                    10,
+                    14,
+                    24,
+                  ),
                   child: Column(
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF101C32),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: TableCalendar(
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: 18,
+                            sigmaY: 18,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  const Color(0xFF123A63).withValues(alpha: 0.52),
+                                  AppTheme.surface.withValues(alpha: 0.56),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.09),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF3D8BFF).withValues(alpha: 0.08),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: TableCalendar(
                           firstDay: DateTime(2025, 1, 1),
                           lastDay: DateTime(2035, 12, 31),
                           focusedDay: _focusedDay,
@@ -755,17 +527,17 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                           calendarStyle: CalendarStyle(
                             outsideDaysVisible: false,
                             defaultTextStyle: const TextStyle(
-                              color: Colors.white70,
+                              color: Color(0xFF8CC8FF),
                             ),
                             weekendTextStyle: const TextStyle(
-                              color: Colors.white70,
+                              color: Color(0xFF8CC8FF),
                             ),
                             todayDecoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.10),
                               shape: BoxShape.circle,
                             ),
-                            selectedDecoration: const BoxDecoration(
-                              color: Colors.cyan,
+                            selectedDecoration: BoxDecoration(
+                              color: AppTheme.primary,
                               shape: BoxShape.circle,
                             ),
                             selectedTextStyle: const TextStyle(
@@ -807,7 +579,7 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                           ),
                           calendarBuilders: CalendarBuilders(
                             markerBuilder: (context, day, events) {
-                              if (!_hasWorkout(day) && !_hasRoutine(day)) {
+                              if (!_hasWorkout(day)) {
                                 return null;
                               }
 
@@ -816,15 +588,15 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                                 child: Container(
                                   width: 5,
                                   height: 5,
-                                  decoration: BoxDecoration(
-                                    color: _hasWorkout(day)
-                                        ? Colors.cyanAccent
-                                        : Colors.orangeAccent,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.cyanAccent,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
                               );
                             },
+                          ),
+                            ),
                           ),
                         ),
                       ),
@@ -843,12 +615,8 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          _hasWorkout(selected) && _hasRoutine(selected)
-                              ? 'Workout recorded • Routine planned'
-                              : _hasWorkout(selected)
+                          _hasWorkout(selected)
                               ? 'Workout recorded'
-                              : _hasRoutine(selected)
-                              ? 'Routine planned'
                               : 'No workout recorded',
                           style: TextStyle(
                             color: _hasWorkout(selected)
@@ -871,7 +639,6 @@ class _User1CalendarScreenState extends State<User1CalendarScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _database.close();
     super.dispose();
   }

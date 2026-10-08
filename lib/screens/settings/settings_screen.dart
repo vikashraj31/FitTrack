@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
+
 import '../../services/backup_service.dart';
 import '../../services/database_service.dart';
 import '../record/check_your_record_screen.dart';
@@ -122,29 +124,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text(
           'Settings',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.background,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF08285C),
-              Color(0xFF061A3B),
-              Color(0xFF050B18),
-            ],
-            stops: [0.0, 0.38, 1.0],
-          ),
-        ),
+        color: AppTheme.background,
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 22, 18, 30),
@@ -252,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF071329),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -324,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _showWeightSheet() async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF071329),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -369,9 +360,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final child = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: const Color(0x14FFFFFF)),
       ),
       child: Row(
         children: [
@@ -379,7 +370,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.07),
+              color: AppTheme.surfaceElevated,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white70, size: 21),
@@ -442,7 +433,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       labelText: label,
       labelStyle: const TextStyle(color: Colors.white54),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.06),
+      fillColor: const Color(0x14FFFFFF),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -457,7 +448,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _showBackupOptions() async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF071329),
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -544,7 +535,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         title: const Text(
           'Import Backup?',
           style: TextStyle(color: Colors.white),
@@ -616,7 +607,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         title: const Text('FitTrack', style: TextStyle(color: Colors.white)),
         content: const Text(
           'FitTrack is a personal fitness tracking app built to keep workout history, daily activity and progress records organized in one place.\n\nWorkout and tracking records are stored locally on the device for quick access and long-term history.',
@@ -764,7 +755,7 @@ class _WeightSheetState extends State<_WeightSheet> {
                       labelText: 'Weight (kg)',
                       labelStyle: const TextStyle(color: Colors.white54),
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.06),
+                      fillColor: const Color(0x14FFFFFF),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -865,7 +856,7 @@ class _WeightSheetState extends State<_WeightSheet> {
           border: Border.all(
             color: selected
                 ? Colors.white.withValues(alpha: 0.30)
-                : Colors.white.withValues(alpha: 0.06),
+                : const Color(0x14FFFFFF),
           ),
         ),
         child: Center(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
+
 
 
 import '../../services/database_service.dart';
@@ -21,8 +23,12 @@ class DietScreen extends StatefulWidget {
 
 
 class _DietScreenState extends State<DietScreen> {
+  static const Color _premiumAccent = Color(0xFF6F8CFF);
+
 
   final AppDatabase _database = AppDatabase();
+
+
 
   final ScrollController _dietScrollController = ScrollController();
 
@@ -30,9 +36,15 @@ class _DietScreenState extends State<DietScreen> {
 
   DateTime _selectedDate = DateTime.now();
 
+
+
   List<DietEntry> _entries = [];
 
+
+
   List<ExtraCaloriesEntry> _extraCalories = [];
+
+
 
   bool _loading = true;
 
@@ -42,19 +54,35 @@ class _DietScreenState extends State<DietScreen> {
 
     'Breakfast',
 
+
+
     'Mid-morning',
+
+
 
     'Lunch',
 
+
+
     'Afternoon',
+
+
 
     'Post-workout',
 
+
+
     'Snack',
+
+
 
     'Evening',
 
+
+
     'Dinner',
+
+
 
     'Night',
 
@@ -64,31 +92,53 @@ class _DietScreenState extends State<DietScreen> {
 
   static const String _newPlanMarker = '__FITTRACK_FINAL_MUSCLE_DIET_V3__';
 
+
+
   static final DateTime _dietStartDate = DateTime(2026, 10, 3);
 
 
 
   // FINAL MUSCLE BUILDING DIET — starts 3 October 2026.
 
+
+
   // Item calories/quantities below follow the user's final diet exactly.
+
+
 
   // Daily targets are taken from the TOTAL lines in the final diet plan.
 
+
+
   // Individual food calories remain the exact values listed in the plan.
+
+
 
   static const Map<int, double> _dailyTargets = {
 
     DateTime.monday: 2675,
 
+
+
     DateTime.tuesday: 2725,
+
+
 
     DateTime.wednesday: 2660,
 
+
+
     DateTime.thursday: 2760,
+
+
 
     DateTime.friday: 2705,
 
+
+
     DateTime.saturday: 2705,
+
+
 
     DateTime.sunday: 2685,
 
@@ -102,229 +152,443 @@ class _DietScreenState extends State<DietScreen> {
 
       _NewDietItem('Breakfast', 'Cornflakes', 60, 'g', 220),
 
+
+
       _NewDietItem('Breakfast', 'Milk', 60, 'ml', 35),
+
+
 
       _NewDietItem('Breakfast', 'Banana', 2, 'bananas', 210),
 
+
+
       _NewDietItem('Breakfast', 'Tea', 1, 'serving', 50),
+
+
 
       _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
 
+
+
       _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
+
+
 
       _NewDietItem('Lunch', 'Rice', 200, 'g', 260),
 
+
+
       _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+
+
 
       _NewDietItem('Lunch', 'Mix dal tadka', 2, 'karchul', 180),
 
+
+
       _NewDietItem('Lunch', 'Masala aloo bhujia', 1, 'small serving', 100),
+
+
 
       _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
 
+
+
       _NewDietItem('Dinner', 'Rice', 150, 'g', 195),
+
+
 
       _NewDietItem('Dinner', 'Roti', 3, 'roti', 330),
 
+
+
       _NewDietItem('Dinner', 'Dal', 2, 'karchul', 180),
+
+
 
       _NewDietItem('Dinner', 'Manchurian', 1, 'small serving', 150),
 
     ],
 
+
+
     DateTime.tuesday: [
 
       _NewDietItem('Breakfast', 'Paratha', 2, 'paratha', 500),
 
+
+
       _NewDietItem('Breakfast', 'Bhujia', 1, 'small serving', 100),
+
+
 
       _NewDietItem('Breakfast', 'Coffee', 1, 'serving', 50),
 
+
+
       _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+
+
 
       _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
 
+
+
       _NewDietItem('Lunch', 'Rice', 150, 'g', 195),
+
+
 
       _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
 
+
+
       _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
+
+
 
       _NewDietItem('Lunch', 'Soybean-aloo curry', 1, 'bowl', 220),
 
+
+
       _NewDietItem('Snack', 'Corn chaat', 1, 'small serving', 150),
+
+
 
       _NewDietItem('Snack', 'Tea', 1, 'serving', 50),
 
+
+
       _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
 
+
+
       _NewDietItem('Dinner', 'Veg biryani', 200, 'g', 300),
+
+
 
       _NewDietItem('Dinner', 'Chole-paneer sabji', 1, 'serving', 220),
 
     ],
 
+
+
     DateTime.wednesday: [
 
       _NewDietItem('Breakfast', 'Bread', 3, 'slices', 210),
 
+
+
       _NewDietItem('Breakfast', 'Mess boiled eggs', 2, 'eggs', 140),
+
+
 
       _NewDietItem('Breakfast', 'Tea', 1, 'serving', 50),
 
+
+
       _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+
+
 
       _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
 
+
+
       _NewDietItem('Lunch', 'Rice', 200, 'g', 260),
+
+
 
       _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
 
+
+
       _NewDietItem('Lunch', 'Dal', 1, 'karchul', 90),
+
+
 
       _NewDietItem('Lunch', 'Fish curry', 2, 'pieces', 250),
 
+
+
       _NewDietItem('Lunch', 'Salad', 1, 'serving', 30),
+
+
 
       _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
 
+
+
       _NewDietItem('Dinner', 'Jeera rice', 200, 'g', 260),
+
+
 
       _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
 
+
+
       _NewDietItem('Dinner', 'Dal', 1, 'karchul', 90),
+
+
 
       _NewDietItem('Dinner', 'Chicken kasa', 4, 'pieces', 300),
 
     ],
 
+
+
     DateTime.thursday: [
 
       _NewDietItem('Breakfast', 'Puri', 2, 'puri', 260),
 
+
+
       _NewDietItem('Breakfast', 'Gugni', 1, 'small bowl', 180),
+
+
 
       _NewDietItem('Breakfast', 'Tea', 1, 'serving', 50),
 
+
+
       _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+
+
 
       _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
 
+
+
       _NewDietItem('Lunch', 'Rice', 100, 'g', 130),
+
+
 
       _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
 
+
+
       _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
+
+
 
       _NewDietItem('Lunch', 'Besan sabji', 1, 'serving', 180),
 
+
+
       _NewDietItem('Lunch', 'Dahi', 1, 'small bowl', 80),
+
+
 
       _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
 
+
+
       _NewDietItem('Dinner', 'Rice', 200, 'g', 260),
+
+
 
       _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
 
+
+
       _NewDietItem('Dinner', 'Dal fry', 2, 'karchul', 180),
 
+
+
       _NewDietItem('Dinner', 'Paneer bhurji', 1, 'small serving', 180),
+
+
 
       _NewDietItem('Dinner', 'Small ice-cream cone', 1, 'cone', 100),
 
     ],
 
+
+
     DateTime.friday: [
 
       _NewDietItem('Breakfast', 'Poha + Aloo-Tamatar Sabji', 200, 'g', 280),
 
+
+
       _NewDietItem('Breakfast', 'Mess boiled eggs', 2, 'eggs', 140),
+
+
 
       _NewDietItem('Breakfast', 'Coffee', 1, 'serving', 50),
 
+
+
       _NewDietItem('Breakfast', 'Whole eggs', 3, 'eggs', 210),
+
+
 
       _NewDietItem('Mid-morning', 'Whole eggs', 3, 'eggs', 210),
 
+
+
       _NewDietItem('Lunch', 'Rice', 200, 'g', 260),
+
+
 
       _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
 
+
+
       _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
+
+
 
       _NewDietItem('Lunch', 'Fish curry', 2, 'pieces', 250),
 
+
+
       _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+
+
 
       _NewDietItem('Dinner', 'Chicken biryani', 275, 'g (250–300 g)', 525),
 
+
+
       _NewDietItem('Dinner', 'Raita', 1, 'small serving', 60),
+
+
 
       _NewDietItem('Dinner', 'Gulab jamun', 1, 'piece', 100),
 
-      _NewDietItem('Snack', 'Small biscuit packet', 1, 'packet (optional)', 100),
+
+
+      _NewDietItem(
+
+        'Snack',
+
+        'Small biscuit packet',
+
+        1,
+
+        'packet (optional)',
+
+        100,
+
+      ),
 
     ],
+
+
 
     DateTime.saturday: [
 
       _NewDietItem('Lunch', 'Rice', 250, 'g', 325),
 
+
+
       _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+
+
 
       _NewDietItem('Lunch', 'Dal', 2, 'karchul', 180),
 
+
+
       _NewDietItem('Lunch', 'Dahi kadhi', 1, 'serving', 130),
+
+
 
       _NewDietItem('Lunch', 'Kala chana', 1, 'small bowl', 150),
 
+
+
       _NewDietItem('Afternoon', 'Whole eggs', 3, 'eggs', 210),
+
+
 
       _NewDietItem('Snack', 'Maggi', 1, 'small serving', 250),
 
+
+
       _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
+
+
 
       _NewDietItem('Dinner', 'Rice', 200, 'g', 260),
 
+
+
       _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
+
+
 
       _NewDietItem('Dinner', 'Dal fry', 2, 'karchul', 180),
 
+
+
       _NewDietItem('Dinner', 'Chicken Mughlai', 4, 'pieces', 350),
+
+
 
       _NewDietItem('Night', 'Whole eggs', 3, 'eggs', 210),
 
     ],
 
+
+
     DateTime.sunday: [
 
       _NewDietItem('Lunch', 'Green Pea Pulao', 300, 'g', 450),
 
+
+
       _NewDietItem('Lunch', 'Roti', 2, 'roti', 220),
+
+
 
       _NewDietItem('Lunch', 'Dal fry', 2, 'karchul', 180),
 
+
+
       _NewDietItem('Lunch', 'Egg curry', 2, 'mess eggs', 220),
+
+
 
       _NewDietItem('Lunch', 'Tomato chutney', 1, 'serving', 20),
 
+
+
       _NewDietItem('Afternoon', 'Whole eggs', 3, 'eggs', 210),
+
+
 
       _NewDietItem('Post-workout', 'Whey', 1, 'scoop', 120),
 
+
+
       _NewDietItem('Snack', 'Pakoda', 1, 'small serving', 200),
+
+
 
       _NewDietItem('Snack', 'Ginger milk tea', 1, 'serving', 60),
 
+
+
       _NewDietItem('Snack', 'Tomato sauce', 1, 'serving', 20),
+
+
 
       _NewDietItem('Dinner', 'Rice', 250, 'g', 325),
 
+
+
       _NewDietItem('Dinner', 'Roti', 2, 'roti', 220),
+
+
 
       _NewDietItem('Dinner', 'Dal', 2, 'karchul', 180),
 
+
+
       _NewDietItem('Dinner', 'Chicken chilli/curry', 4, 'pieces', 300),
+
+
 
       _NewDietItem('Night', 'Whole eggs', 3, 'eggs', 210),
 
@@ -340,6 +604,8 @@ class _DietScreenState extends State<DietScreen> {
 
     super.initState();
 
+
+
     _loadData();
 
   }
@@ -352,15 +618,27 @@ class _DietScreenState extends State<DietScreen> {
 
       'Monday',
 
+
+
       'Tuesday',
+
+
 
       'Wednesday',
 
+
+
       'Thursday',
+
+
 
       'Friday',
 
+
+
       'Saturday',
+
+
 
       'Sunday',
 
@@ -404,6 +682,8 @@ class _DietScreenState extends State<DietScreen> {
 
       userId: 'user1',
 
+
+
       date: _selectedDate,
 
     );
@@ -413,6 +693,8 @@ class _DietScreenState extends State<DietScreen> {
     final extra = await _database.getExtraCalories(
 
       userId: 'user1',
+
+
 
       date: _selectedDate,
 
@@ -440,7 +722,11 @@ class _DietScreenState extends State<DietScreen> {
 
       _entries = visibleEntries;
 
+
+
       _extraCalories = extra;
+
+
 
       _loading = false;
 
@@ -486,6 +772,8 @@ class _DietScreenState extends State<DietScreen> {
 
       final aMeal = mealOrder[a.meal] ?? 999;
 
+
+
       final bMeal = mealOrder[b.meal] ?? 999;
 
 
@@ -496,13 +784,19 @@ class _DietScreenState extends State<DietScreen> {
 
       final aPlan = planOrder[_planKey(a.meal, a.foodName)];
 
+
+
       final bPlan = planOrder[_planKey(b.meal, b.foodName)];
 
 
 
       if (aPlan != null && bPlan != null) return aPlan.compareTo(bPlan);
 
+
+
       if (aPlan != null) return -1;
+
+
 
       if (bPlan != null) return 1;
 
@@ -518,73 +812,139 @@ class _DietScreenState extends State<DietScreen> {
 
   Future<void> _ensureNewPlanForSelectedDate() async {
 
-  if (_selectedDate.isBefore(_dietStartDate)) return;
+    if (_selectedDate.isBefore(_dietStartDate)) return;
 
 
 
-  final plan = _currentPlan;
+    final plan = _currentPlan;
 
 
 
-  final existing = await _database.getDietEntries(
+    final existing = await _database.getDietEntries(
 
-    userId: 'user1',
-
-    date: _selectedDate,
-
-  );
+      userId: 'user1',
 
 
 
-  final hasRealEntries = existing.any(
+      date: _selectedDate,
 
-    (entry) =>
-
-        entry.meal != '__META__' &&
-
-        entry.foodName != _newPlanMarker,
-
-  );
+    );
 
 
 
-  final alreadyApplied = existing.any(
+    final hasRealEntries = existing.any(
 
-    (entry) => entry.foodName == _newPlanMarker,
+      (entry) => entry.meal != '__META__' && entry.foodName != _newPlanMarker,
 
-  );
-
-
-
-  // Never overwrite or delete an existing user's diet data.
-
-  // A new plan is seeded only when the date is completely empty.
-
-  if (hasRealEntries || alreadyApplied) return;
+    );
 
 
 
-  for (final item in plan) {
+    final alreadyApplied = existing.any(
+
+      (entry) => entry.foodName == _newPlanMarker,
+
+    );
+
+
+
+    // Never overwrite or delete an existing user's diet data.
+
+
+
+    // A new plan is seeded only when the date is completely empty.
+
+
+
+    if (hasRealEntries || alreadyApplied) return;
+
+
+
+    for (final item in plan) {
+
+      await _database.saveDietEntry(
+
+        userId: 'user1',
+
+
+
+        date: _selectedDate,
+
+
+
+        meal: item.meal,
+
+
+
+        foodName: item.foodName,
+
+
+
+        plannedQuantity: item.quantity,
+
+
+
+        quantityUnit: item.unit,
+
+
+
+        plannedCalories: item.calories,
+
+
+
+        actualQuantity: 0,
+
+
+
+        actualCalories: 0,
+
+
+
+        eaten: false,
+
+      );
+
+    }
+
+
 
     await _database.saveDietEntry(
 
       userId: 'user1',
 
+
+
       date: _selectedDate,
 
-      meal: item.meal,
 
-      foodName: item.foodName,
 
-      plannedQuantity: item.quantity,
+      meal: '__META__',
 
-      quantityUnit: item.unit,
 
-      plannedCalories: item.calories,
+
+      foodName: _newPlanMarker,
+
+
+
+      plannedQuantity: 0,
+
+
+
+      quantityUnit: '',
+
+
+
+      plannedCalories: 0,
+
+
 
       actualQuantity: 0,
 
+
+
       actualCalories: 0,
+
+
 
       eaten: false,
 
@@ -594,45 +954,25 @@ class _DietScreenState extends State<DietScreen> {
 
 
 
-  await _database.saveDietEntry(
-
-    userId: 'user1',
-
-    date: _selectedDate,
-
-    meal: '__META__',
-
-    foodName: _newPlanMarker,
-
-    plannedQuantity: 0,
-
-    quantityUnit: '',
-
-    plannedCalories: 0,
-
-    actualQuantity: 0,
-
-    actualCalories: 0,
-
-    eaten: false,
-
-  );
-
-}
-
-
-
   Future<void> _selectDate() async {
 
     final picked = await showDatePicker(
 
       context: context,
 
+
+
       initialDate: _selectedDate,
+
+
 
       firstDate: DateTime(2025, 1, 1),
 
+
+
       lastDate: DateTime(2035, 12, 31),
+
+
 
       builder: (context, child) {
 
@@ -642,13 +982,17 @@ class _DietScreenState extends State<DietScreen> {
 
             colorScheme: const ColorScheme.dark(
 
-              primary: Colors.cyan,
+              primary: AppTheme.primary,
 
-              surface: Color(0xFF1A1D24),
+
+
+              surface: AppTheme.surface,
 
             ),
 
           ),
+
+
 
           child: child!,
 
@@ -685,11 +1029,18 @@ class _DietScreenState extends State<DietScreen> {
       await _database.updateDietEntry(
 
         id: entry.id,
+
         userId: 'user1',
+
+
 
         actualQuantity: entry.plannedQuantity,
 
+
+
         actualCalories: entry.plannedCalories,
+
+
 
         eaten: true,
 
@@ -700,11 +1051,18 @@ class _DietScreenState extends State<DietScreen> {
       await _database.updateDietEntry(
 
         id: entry.id,
+
         userId: 'user1',
+
+
 
         actualQuantity: 0,
 
+
+
         actualCalories: 0,
+
+
 
         eaten: false,
 
@@ -726,13 +1084,19 @@ class _DietScreenState extends State<DietScreen> {
 
       context: context,
 
-      backgroundColor: const Color(0xFF1A1D24),
+
+
+      backgroundColor: AppTheme.surface,
+
+
 
       shape: const RoundedRectangleBorder(
 
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
 
       ),
+
+
 
       builder: (sheetContext) {
 
@@ -742,11 +1106,17 @@ class _DietScreenState extends State<DietScreen> {
 
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
 
+
+
             child: Column(
 
               mainAxisSize: MainAxisSize.min,
 
+
+
               crossAxisAlignment: CrossAxisAlignment.start,
+
+
 
               children: [
 
@@ -756,11 +1126,17 @@ class _DietScreenState extends State<DietScreen> {
 
                     width: 42,
 
+
+
                     height: 4,
+
+
 
                     decoration: BoxDecoration(
 
                       color: Colors.white24,
+
+
 
                       borderRadius: BorderRadius.circular(10),
 
@@ -770,15 +1146,23 @@ class _DietScreenState extends State<DietScreen> {
 
                 ),
 
+
+
                 const SizedBox(height: 18),
+
+
 
                 Text(
 
                   entry.foodName,
 
+
+
                   style: const TextStyle(
 
                     fontSize: 18,
+
+
 
                     fontWeight: FontWeight.bold,
 
@@ -786,21 +1170,33 @@ class _DietScreenState extends State<DietScreen> {
 
                 ),
 
+
+
                 const SizedBox(height: 14),
+
+
 
                 ListTile(
 
                   contentPadding: EdgeInsets.zero,
 
+
+
                   leading: const CircleAvatar(
 
                     backgroundColor: Colors.white10,
+
+
 
                     child: Icon(Icons.today, color: Colors.cyan),
 
                   ),
 
+
+
                   title: const Text('Edit for Today'),
+
+
 
                   subtitle: const Text(
 
@@ -808,29 +1204,43 @@ class _DietScreenState extends State<DietScreen> {
 
                   ),
 
+
+
                   onTap: () => Navigator.pop(sheetContext, 'today'),
 
                 ),
+
+
 
                 ListTile(
 
                   contentPadding: EdgeInsets.zero,
 
+
+
                   leading: const CircleAvatar(
 
                     backgroundColor: Colors.white10,
+
+
 
                     child: Icon(Icons.calendar_month, color: Colors.cyan),
 
                   ),
 
+
+
                   title: const Text('Edit for Diet'),
+
+
 
                   subtitle: const Text(
 
                     'Change the planned quantity and calories for the diet',
 
                   ),
+
+
 
                   onTap: () => Navigator.pop(sheetContext, 'diet'),
 
@@ -864,13 +1274,9 @@ class _DietScreenState extends State<DietScreen> {
 
         context: context,
 
-        builder: (_) => EditDietTodayDialog(
 
-          entry: entry,
 
-          database: _database,
-
-        ),
+        builder: (_) => EditDietTodayDialog(entry: entry, database: _database),
 
       );
 
@@ -880,11 +1286,17 @@ class _DietScreenState extends State<DietScreen> {
 
         context: context,
 
+
+
         builder: (_) => EditDietPlanDialog(
 
           entry: entry,
 
+
+
           database: _database,
+
+
 
           dayOfWeek: _selectedDate.weekday,
 
@@ -908,61 +1320,69 @@ class _DietScreenState extends State<DietScreen> {
 
   Future<void> _deleteDietEntry(DietEntry entry) async {
 
-  final confirmed = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
 
-    context: context,
-
-    builder: (context) => AlertDialog(
-
-      backgroundColor: const Color(0xFF1A1D24),
-
-      title: const Text('Delete food?'),
-
-      content: Text('Delete ${entry.foodName} from ${entry.meal}?'),
-
-      actions: [
-
-        TextButton(
-
-          onPressed: () => Navigator.pop(context, false),
-
-          child: const Text('Cancel'),
-
-        ),
-
-        FilledButton(
-
-          onPressed: () => Navigator.pop(context, true),
-
-          child: const Text('Delete'),
-
-        ),
-
-      ],
-
-    ),
-
-  );
+      context: context,
 
 
 
-  if (confirmed != true) return;
+      builder: (context) => AlertDialog(
+
+        backgroundColor: AppTheme.surface,
 
 
 
-  await _database.deleteDietEntry(
-
-    id: entry.id,
-
-    userId: 'user1',
-
-  );
+        title: const Text('Delete food?'),
 
 
 
-  await _loadData();
+        content: Text('Delete ${entry.foodName} from ${entry.meal}?'),
 
-}
+
+
+        actions: [
+
+          TextButton(
+
+            onPressed: () => Navigator.pop(context, false),
+
+
+
+            child: const Text('Cancel'),
+
+          ),
+
+
+
+          FilledButton(
+
+            onPressed: () => Navigator.pop(context, true),
+
+
+
+            child: const Text('Delete'),
+
+          ),
+
+        ],
+
+      ),
+
+    );
+
+
+
+    if (confirmed != true) return;
+
+
+
+    await _database.deleteDietEntry(id: entry.id, userId: 'user1');
+
+
+
+    await _loadData();
+
+  }
 
 
 
@@ -972,15 +1392,11 @@ class _DietScreenState extends State<DietScreen> {
 
       context: context,
 
-      builder: (_) => AddDietDialog(
 
-        meal: meal,
 
-        database: _database,
+      builder: (_) =>
 
-        date: _selectedDate,
-
-      ),
+          AddDietDialog(meal: meal, database: _database, date: _selectedDate),
 
     );
 
@@ -1002,13 +1418,11 @@ class _DietScreenState extends State<DietScreen> {
 
       context: context,
 
-      builder: (_) => AddExtraCaloriesDialog(
 
-        database: _database,
 
-        date: _selectedDate,
+      builder: (_) =>
 
-      ),
+          AddExtraCaloriesDialog(database: _database, date: _selectedDate),
 
     );
 
@@ -1024,21 +1438,23 @@ class _DietScreenState extends State<DietScreen> {
 
 
 
-  Future<void> _deleteExtraCalories(
-
-    ExtraCaloriesEntry entry,
-
-  ) async {
+  Future<void> _deleteExtraCalories(ExtraCaloriesEntry entry) async {
 
     final confirmed = await showDialog<bool>(
 
       context: context,
 
+
+
       builder: (context) => AlertDialog(
 
-        backgroundColor: const Color(0xFF1A1D24),
+        backgroundColor: AppTheme.surface,
+
+
 
         title: const Text('Delete extra calories?'),
+
+
 
         content: Text(
 
@@ -1046,19 +1462,27 @@ class _DietScreenState extends State<DietScreen> {
 
         ),
 
+
+
         actions: [
 
           TextButton(
 
             onPressed: () => Navigator.pop(context, false),
 
+
+
             child: const Text('Cancel'),
 
           ),
 
+
+
           FilledButton(
 
             onPressed: () => Navigator.pop(context, true),
+
+
 
             child: const Text('Delete'),
 
@@ -1076,10 +1500,9 @@ class _DietScreenState extends State<DietScreen> {
 
 
 
-    await _database.deleteExtraCalories(
-  id: entry.id,
-  userId: 'user1',
-);
+    await _database.deleteExtraCalories(id: entry.id, userId: 'user1');
+
+
 
     await _refreshData();
 
@@ -1121,11 +1544,7 @@ class _DietScreenState extends State<DietScreen> {
 
   Widget _buildMealSection(String meal) {
 
-    final entries = _entries
-
-        .where((entry) => entry.meal == meal)
-
-        .toList();
+    final entries = _entries.where((entry) => entry.meal == meal).toList();
 
 
 
@@ -1133,11 +1552,29 @@ class _DietScreenState extends State<DietScreen> {
 
       margin: const EdgeInsets.only(bottom: 16),
 
+
+
       decoration: BoxDecoration(
 
-        color: const Color(0xFF1A1D24),
+        color: AppTheme.surface,
 
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
+
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+
+        boxShadow: [
+
+          BoxShadow(
+
+            color: Colors.black.withValues(alpha: 0.18),
+
+            blurRadius: 18,
+
+            offset: const Offset(0, 8),
+
+          ),
+
+        ],
 
       ),
 
@@ -1145,9 +1582,13 @@ class _DietScreenState extends State<DietScreen> {
 
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
 
+
+
         child: Column(
 
           crossAxisAlignment: CrossAxisAlignment.start,
+
+
 
           children: [
 
@@ -1161,9 +1602,13 @@ class _DietScreenState extends State<DietScreen> {
 
                     meal,
 
+
+
                     style: const TextStyle(
 
                       fontSize: 18,
+
+
 
                       fontWeight: FontWeight.bold,
 
@@ -1173,11 +1618,17 @@ class _DietScreenState extends State<DietScreen> {
 
                 ),
 
+
+
                 IconButton(
 
                   onPressed: () => _addCustomFood(meal),
 
+
+
                   icon: const Icon(Icons.add_circle_outline),
+
+
 
                   tooltip: 'Add food',
 
@@ -1187,21 +1638,29 @@ class _DietScreenState extends State<DietScreen> {
 
             ),
 
+
+
             if (entries.isEmpty)
 
               const Padding(
 
                 padding: EdgeInsets.fromLTRB(4, 8, 4, 8),
 
+
+
                 child: Text(
 
                   'No food added',
+
+
 
                   style: TextStyle(color: Colors.white38),
 
                 ),
 
               ),
+
+
 
             ...entries.map(_buildFoodItem),
 
@@ -1223,19 +1682,29 @@ class _DietScreenState extends State<DietScreen> {
 
       margin: const EdgeInsets.only(bottom: 10),
 
+
+
       padding: const EdgeInsets.all(12),
+
+
 
       decoration: BoxDecoration(
 
-        color: const Color(0xFF22252D),
+        color: AppTheme.surfaceElevated,
+
+
 
         borderRadius: BorderRadius.circular(12),
 
       ),
 
+
+
       child: Row(
 
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
 
         children: [
 
@@ -1243,139 +1712,189 @@ class _DietScreenState extends State<DietScreen> {
 
             value: entry.eaten,
 
-            activeColor: Colors.cyan,
+
+
+            activeColor: _premiumAccent,
+
+
 
             onChanged: (_) => _toggleEaten(entry),
 
           ),
 
+
+
           const SizedBox(width: 4),
+
+
 
           Expanded(
 
             child: Padding(
 
-                padding: const EdgeInsets.symmetric(vertical: 3),
+              padding: const EdgeInsets.symmetric(vertical: 3),
 
-                child: Column(
 
-                  crossAxisAlignment: CrossAxisAlignment.start,
 
-                  children: [
+              child: Column(
+
+                crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+                children: [
+
+                  Text(
+
+                    entry.foodName,
+
+
+
+                    style: const TextStyle(
+
+                      fontWeight: FontWeight.w600,
+
+
+
+                      fontSize: 15,
+
+                    ),
+
+                  ),
+
+
+
+                  const SizedBox(height: 4),
+
+
+
+                  if (!entry.eaten)
 
                     Text(
 
-                      entry.foodName,
+                      'Planned: ${_formatQuantity(entry.plannedQuantity)} '
+
+                      '${entry.quantityUnit} • '
+
+                      '${entry.plannedCalories.toStringAsFixed(0)} kcal',
+
+
 
                       style: const TextStyle(
 
-                        fontWeight: FontWeight.w600,
+                        color: Colors.white54,
 
-                        fontSize: 15,
+
+
+                        fontSize: 12,
 
                       ),
 
                     ),
 
-                    const SizedBox(height: 4),
 
-                    if (!entry.eaten)
+
+                  if (entry.eaten) ...[
+
+                    const SizedBox(height: 3),
+
+
+
+                    Text(
+
+                      'Actual: ${_formatQuantity(entry.actualQuantity)} '
+
+                      '${entry.quantityUnit}',
+
+
+
+                      style: const TextStyle(color: _premiumAccent, fontSize: 12),
+
+                    ),
+
+
+
+                    if (entry.actualCalories > 0)
 
                       Text(
 
-                        'Planned: ${_formatQuantity(entry.plannedQuantity)} '
+                        '${entry.actualCalories.toStringAsFixed(0)} kcal logged',
 
-                        '${entry.quantityUnit} • '
 
-                        '${entry.plannedCalories.toStringAsFixed(0)} kcal',
 
                         style: const TextStyle(
 
-                          color: Colors.white54,
+                          color: _premiumAccent,
+
+
 
                           fontSize: 12,
 
                         ),
 
                       ),
-
-                    if (entry.eaten) ...[
-
-                      const SizedBox(height: 3),
-
-                      Text(
-
-                        'Actual: ${_formatQuantity(entry.actualQuantity)} '
-
-                        '${entry.quantityUnit}',
-
-                        style: const TextStyle(
-
-                          color: Colors.cyan,
-
-                          fontSize: 12,
-
-                        ),
-
-                      ),
-
-                      if (entry.actualCalories > 0)
-
-                        Text(
-
-                          '${entry.actualCalories.toStringAsFixed(0)} kcal logged',
-
-                          style: const TextStyle(
-
-                            color: Colors.cyan,
-
-                            fontSize: 12,
-
-                          ),
-
-                        ),
-
-                    ],
 
                   ],
 
-                ),
+                ],
 
               ),
 
+            ),
+
           ),
+
+
 
           IconButton(
 
             onPressed: () => _editDietEntry(entry),
 
+
+
             icon: const Icon(
 
               Icons.edit_outlined,
 
+
+
               size: 18,
+
+
 
               color: Colors.white38,
 
             ),
+
+
 
             tooltip: 'Edit',
 
           ),
 
+
+
           IconButton(
 
             onPressed: () => _deleteDietEntry(entry),
+
+
 
             icon: const Icon(
 
               Icons.delete_outline,
 
+
+
               size: 18,
+
+
 
               color: Colors.white38,
 
             ),
+
+
 
             tooltip: 'Delete',
 
@@ -1397,6 +1916,8 @@ class _DietScreenState extends State<DietScreen> {
 
       0,
 
+
+
       (sum, item) => sum + item.calories,
 
     );
@@ -1407,17 +1928,25 @@ class _DietScreenState extends State<DietScreen> {
 
       padding: const EdgeInsets.all(16),
 
+
+
       decoration: BoxDecoration(
 
         color: const Color(0xFF1A1D24),
+
+
 
         borderRadius: BorderRadius.circular(18),
 
       ),
 
+
+
       child: Column(
 
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
 
         children: [
 
@@ -1431,21 +1960,21 @@ class _DietScreenState extends State<DietScreen> {
 
                   'Extra Calories',
 
-                  style: TextStyle(
 
-                    fontSize: 18,
 
-                    fontWeight: FontWeight.bold,
-
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
 
                 ),
 
               ),
 
+
+
               IconButton(
 
                 onPressed: _addExtraCalories,
+
+
 
                 icon: const Icon(Icons.add_circle_outline),
 
@@ -1455,15 +1984,21 @@ class _DietScreenState extends State<DietScreen> {
 
           ),
 
+
+
           if (_extraCalories.isEmpty)
 
             const Padding(
 
               padding: EdgeInsets.only(top: 6, bottom: 4),
 
+
+
               child: Text(
 
                 'No extra calories',
+
+
 
                 style: TextStyle(color: Colors.white38),
 
@@ -1471,11 +2006,15 @@ class _DietScreenState extends State<DietScreen> {
 
             ),
 
+
+
           ..._extraCalories.map(
 
             (entry) => ListTile(
 
               contentPadding: EdgeInsets.zero,
+
+
 
               title: Text(
 
@@ -1487,23 +2026,19 @@ class _DietScreenState extends State<DietScreen> {
 
               ),
 
-              subtitle: Text(
 
-                '${entry.calories.toStringAsFixed(0)} kcal',
 
-              ),
+              subtitle: Text('${entry.calories.toStringAsFixed(0)} kcal'),
+
+
 
               trailing: IconButton(
 
                 onPressed: () => _deleteExtraCalories(entry),
 
-                icon: const Icon(
 
-                  Icons.delete_outline,
 
-                  color: Colors.white54,
-
-                ),
+                icon: const Icon(Icons.delete_outline, color: Colors.white54),
 
               ),
 
@@ -1511,13 +2046,19 @@ class _DietScreenState extends State<DietScreen> {
 
           ),
 
+
+
           if (_extraCalories.isNotEmpty) ...[
 
             const Divider(color: Colors.white12),
 
+
+
             Row(
 
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+
 
               children: [
 
@@ -1525,19 +2066,21 @@ class _DietScreenState extends State<DietScreen> {
 
                   'Extra Total',
 
+
+
                   style: TextStyle(color: Colors.white70),
 
                 ),
+
+
 
                 Text(
 
                   '${totalExtra.toStringAsFixed(0)} kcal',
 
-                  style: const TextStyle(
 
-                    fontWeight: FontWeight.bold,
 
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
 
                 ),
 
@@ -1569,6 +2112,8 @@ class _DietScreenState extends State<DietScreen> {
 
     if (_plannedCalories <= 0) return 0;
 
+
+
     return (_actualCalories / _plannedCalories) * 100;
 
   }
@@ -1576,152 +2121,97 @@ class _DietScreenState extends State<DietScreen> {
 
 
   Widget _buildCaloriesSummary() {
-
     final planned = _plannedCalories;
-
     final actual = _actualCalories;
-
     final percentage = _caloriePercentage;
 
-
-
     return Container(
-
       padding: const EdgeInsets.all(20),
-
       decoration: BoxDecoration(
-
-        color: const Color(0xFF1A1D24),
-
-        borderRadius: BorderRadius.circular(20),
-
-      ),
-
-      child: Column(
-
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-
-          const Text(
-
-            'Calories',
-
-            style: TextStyle(
-
-              fontSize: 16,
-
-              color: Colors.white70,
-
-            ),
-
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.07),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.20),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-
-          const SizedBox(height: 12),
-
-          Row(
-
-            crossAxisAlignment: CrossAxisAlignment.end,
-
-            children: [
-
-              Text(
-
-                planned.toStringAsFixed(0),
-
-                style: const TextStyle(
-
-                  fontSize: 30,
-
-                  fontWeight: FontWeight.bold,
-
-                ),
-
-              ),
-
-              const SizedBox(width: 6),
-
-              const Padding(
-
-                padding: EdgeInsets.only(bottom: 4),
-
-                child: Text(
-
-                  'kcal target',
-
-                  style: TextStyle(color: Colors.white54),
-
-                ),
-
-              ),
-
-              const Spacer(),
-
-              Text(
-
-                '${percentage.toStringAsFixed(0)}%',
-
-                style: const TextStyle(
-
-                  fontSize: 20,
-
-                  fontWeight: FontWeight.bold,
-
-                  color: Colors.cyan,
-
-                ),
-
-              ),
-
-            ],
-
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-
-            'Eaten: ${actual.toStringAsFixed(0)} kcal',
-
-            style: const TextStyle(
-
-              color: Colors.white70,
-
-              fontSize: 13,
-
-            ),
-
-          ),
-
-          const SizedBox(height: 12),
-
-          ClipRRect(
-
-            borderRadius: BorderRadius.circular(10),
-
-            child: LinearProgressIndicator(
-
-              value: (percentage / 100).clamp(0.0, 1.0),
-
-              minHeight: 8,
-
-              backgroundColor: Colors.white12,
-
-              valueColor: const AlwaysStoppedAnimation(Colors.cyan),
-
-            ),
-
-          ),
-
         ],
-
       ),
-
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Calories',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${percentage.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                actual.toStringAsFixed(0),
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'kcal eaten',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Target: ${planned.toStringAsFixed(0)} kcal',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: (percentage / 100).clamp(0.0, 1.0),
+              minHeight: 7,
+              backgroundColor: Colors.white12,
+              valueColor: const AlwaysStoppedAnimation(
+                AppTheme.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-
   }
-
-
 
   Widget _buildDateCard() {
 
@@ -1729,33 +2219,44 @@ class _DietScreenState extends State<DietScreen> {
 
       onTap: _selectDate,
 
+
+
       borderRadius: BorderRadius.circular(18),
+
+
 
       child: Container(
 
         padding: const EdgeInsets.all(18),
 
+
+
         decoration: BoxDecoration(
 
           color: const Color(0xFF1A1D24),
 
+
+
           borderRadius: BorderRadius.circular(18),
 
         ),
+
+
 
         child: Row(
 
           children: [
 
             const Icon(
-
-              Icons.calendar_today,
-
-              color: Colors.cyan,
-
+              Icons.calendar_today_outlined,
+              color: _premiumAccent,
             ),
 
+
+
             const SizedBox(width: 14),
+
+
 
             Expanded(
 
@@ -1763,31 +2264,37 @@ class _DietScreenState extends State<DietScreen> {
 
                 crossAxisAlignment: CrossAxisAlignment.start,
 
+
+
                 children: [
 
                   const Text(
 
                     'Selected Date',
 
-                    style: TextStyle(
 
-                      color: Colors.white54,
 
-                      fontSize: 12,
-
-                    ),
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
 
                   ),
 
+
+
                   const SizedBox(height: 4),
+
+
 
                   Text(
 
                     '$_dayName • ${_formatDate(_selectedDate)}',
 
+
+
                     style: const TextStyle(
 
                       fontSize: 16,
+
+
 
                       fontWeight: FontWeight.bold,
 
@@ -1801,13 +2308,9 @@ class _DietScreenState extends State<DietScreen> {
 
             ),
 
-            const Icon(
 
-              Icons.chevron_right,
 
-              color: Colors.white54,
-
-            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
 
           ],
 
@@ -1825,7 +2328,11 @@ class _DietScreenState extends State<DietScreen> {
 
     final planned = _plannedCalories;
 
+
+
     final actual = _actualCalories;
+
+
 
     final remaining = planned - actual;
 
@@ -1835,17 +2342,25 @@ class _DietScreenState extends State<DietScreen> {
 
       padding: const EdgeInsets.all(20),
 
+
+
       decoration: BoxDecoration(
 
         borderRadius: BorderRadius.circular(20),
 
-        border: Border.all(color: Colors.white12),
+
+
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
 
       ),
+
+
 
       child: Column(
 
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
 
         children: [
 
@@ -1853,17 +2368,17 @@ class _DietScreenState extends State<DietScreen> {
 
             'Daily Total',
 
-            style: TextStyle(
 
-              fontSize: 18,
 
-              fontWeight: FontWeight.bold,
-
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
 
           ),
 
+
+
           const SizedBox(height: 12),
+
+
 
           Row(
 
@@ -1875,17 +2390,23 @@ class _DietScreenState extends State<DietScreen> {
 
                   'Target',
 
+
+
                   '${planned.toStringAsFixed(0)} kcal',
 
                 ),
 
               ),
 
+
+
               Expanded(
 
                 child: _totalValue(
 
                   'Eaten',
+
+
 
                   '${actual.toStringAsFixed(0)} kcal',
 
@@ -1897,7 +2418,11 @@ class _DietScreenState extends State<DietScreen> {
 
           ),
 
+
+
           const SizedBox(height: 10),
+
+
 
           Text(
 
@@ -1907,9 +2432,13 @@ class _DietScreenState extends State<DietScreen> {
 
                 : '${remaining.abs().toStringAsFixed(0)} kcal over target',
 
+
+
             style: TextStyle(
 
               color: remaining >= 0 ? Colors.white54 : Colors.orange,
+
+
 
               fontSize: 12,
 
@@ -1933,21 +2462,31 @@ class _DietScreenState extends State<DietScreen> {
 
       crossAxisAlignment: CrossAxisAlignment.start,
 
+
+
       children: [
 
         Text(
 
           title,
 
+
+
           style: const TextStyle(color: Colors.white54, fontSize: 12),
 
         ),
 
+
+
         const SizedBox(height: 4),
+
+
 
         Text(
 
           value,
+
+
 
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
 
@@ -1983,25 +2522,47 @@ class _DietScreenState extends State<DietScreen> {
 
       'January',
 
+
+
       'February',
+
+
 
       'March',
 
+
+
       'April',
+
+
 
       'May',
 
+
+
       'June',
+
+
 
       'July',
 
+
+
       'August',
+
+
 
       'September',
 
+
+
       'October',
 
+
+
       'November',
+
+
 
       'December',
 
@@ -2021,21 +2582,35 @@ class _DietScreenState extends State<DietScreen> {
 
     return Scaffold(
 
-      backgroundColor: const Color(0xFF0F1115),
+      backgroundColor: AppTheme.background,
+
+
 
       appBar: AppBar(
 
-        backgroundColor: const Color(0xFF0F1115),
+        backgroundColor: AppTheme.background,
+
+
 
         elevation: 0,
+
+
 
         title: const Text(
 
           'Diet',
 
-          style: TextStyle(fontWeight: FontWeight.bold),
+
+
+          style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+            ),
 
         ),
+
+
 
         actions: [
 
@@ -2043,7 +2618,12 @@ class _DietScreenState extends State<DietScreen> {
 
             onPressed: _selectDate,
 
-            icon: const Icon(Icons.calendar_month),
+
+
+            icon: const Icon(
+                Icons.calendar_month_outlined,
+                size: 22,
+              ),
 
           ),
 
@@ -2051,51 +2631,61 @@ class _DietScreenState extends State<DietScreen> {
 
       ),
 
+
+
       body: _loading
 
-          ? const Center(
-
-              child: CircularProgressIndicator(),
-
-            )
+          ? const Center(child: CircularProgressIndicator())
 
           : RefreshIndicator(
 
               onRefresh: _refreshData,
 
+
+
               child: ListView(
 
                 controller: _dietScrollController,
 
-                padding: const EdgeInsets.fromLTRB(
 
-                  16,
 
-                  8,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
 
-                  16,
 
-                  30,
-
-                ),
 
                 children: [
 
                   _buildDateCard(),
 
+
+
                   const SizedBox(height: 16),
+
+
 
                   _buildCaloriesSummary(),
 
+
+
                   const SizedBox(height: 24),
+
+
 
                   ..._meals.map(_buildMealSection),
 
+
+
                   const SizedBox(height: 4),
+
+
 
                   _buildExtraCalories(),
 
+
+
                   const SizedBox(height: 20),
+
+
 
                   _buildFinalTotal(),
 
@@ -2117,7 +2707,11 @@ class _DietScreenState extends State<DietScreen> {
 
     _dietScrollController.dispose();
 
+
+
     _database.close();
+
+
 
     super.dispose();
 
@@ -2129,7 +2723,11 @@ class _DietScreenState extends State<DietScreen> {
 
 // ================================================================
 
+
+
 // NEW DIET PLAN MODEL
+
+
 
 // ================================================================
 
@@ -2139,11 +2737,19 @@ class _NewDietItem {
 
   final String meal;
 
+
+
   final String foodName;
+
+
 
   final double quantity;
 
+
+
   final String unit;
+
+
 
   final double calories;
 
@@ -2153,11 +2759,19 @@ class _NewDietItem {
 
     this.meal,
 
+
+
     this.foodName,
+
+
 
     this.quantity,
 
+
+
     this.unit,
+
+
 
     this.calories,
 
@@ -2169,7 +2783,11 @@ class _NewDietItem {
 
 // ================================================================
 
+
+
 // ADD DIET DIALOG
+
+
 
 // ================================================================
 
@@ -2179,7 +2797,11 @@ class AddDietDialog extends StatefulWidget {
 
   final String meal;
 
+
+
   final AppDatabase database;
+
+
 
   final DateTime date;
 
@@ -2189,9 +2811,15 @@ class AddDietDialog extends StatefulWidget {
 
     super.key,
 
+
+
     required this.meal,
 
+
+
     required this.database,
+
+
 
     required this.date,
 
@@ -2211,15 +2839,23 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
   final _foodController = TextEditingController();
 
+
+
   final _quantityController = TextEditingController();
 
+
+
   final _unitController = TextEditingController();
+
+
 
   final _caloriesController = TextEditingController();
 
 
 
   bool _eaten = false;
+
+
 
   bool _saving = false;
 
@@ -2231,11 +2867,19 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
     _foodController.dispose();
 
+
+
     _quantityController.dispose();
+
+
 
     _unitController.dispose();
 
+
+
     _caloriesController.dispose();
+
+
 
     super.dispose();
 
@@ -2249,11 +2893,7 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
 
 
-    final quantity = double.tryParse(
-
-      _quantityController.text.trim(),
-
-    );
+    final quantity = double.tryParse(_quantityController.text.trim());
 
 
 
@@ -2261,31 +2901,19 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
 
 
-    final calories = double.tryParse(
-
-      _caloriesController.text.trim(),
-
-    );
+    final calories = double.tryParse(_caloriesController.text.trim());
 
 
 
-    if (food.isEmpty ||
-
-        quantity == null ||
-
-        quantity <= 0 ||
-
-        unit.isEmpty) {
+    if (food.isEmpty || quantity == null || quantity <= 0 || unit.isEmpty) {
 
       ScaffoldMessenger.of(context).showSnackBar(
 
-        const SnackBar(
-
-          content: Text('Enter food, quantity and unit'),
-
-        ),
+        const SnackBar(content: Text('Enter food, quantity and unit')),
 
       );
+
+
 
       return;
 
@@ -2309,21 +2937,39 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
       userId: 'user1',
 
+
+
       date: widget.date,
+
+
 
       meal: widget.meal,
 
+
+
       foodName: food,
+
+
 
       plannedQuantity: quantity,
 
+
+
       quantityUnit: unit,
+
+
 
       plannedCalories: plannedCalories,
 
+
+
       actualQuantity: _eaten ? quantity : 0,
 
+
+
       actualCalories: _eaten ? plannedCalories : 0,
+
+
 
       eaten: _eaten,
 
@@ -2347,9 +2993,13 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
     return AlertDialog(
 
-      backgroundColor: const Color(0xFF1A1D24),
+      backgroundColor: AppTheme.surface,
+
+
 
       title: Text('Add ${widget.meal} Food'),
+
+
 
       content: SingleChildScrollView(
 
@@ -2357,15 +3007,21 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
           mainAxisSize: MainAxisSize.min,
 
+
+
           children: [
 
             TextField(
 
               controller: _foodController,
 
+
+
               decoration: const InputDecoration(
 
                 labelText: 'Food name',
+
+
 
                 hintText: 'Example: Eggs',
 
@@ -2373,11 +3029,17 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
             ),
 
+
+
             const SizedBox(height: 12),
+
+
 
             TextField(
 
               controller: _quantityController,
+
+
 
               keyboardType: const TextInputType.numberWithOptions(
 
@@ -2385,9 +3047,13 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
               ),
 
+
+
               decoration: const InputDecoration(
 
                 labelText: 'Planned quantity',
+
+
 
                 hintText: 'Example: 6',
 
@@ -2395,15 +3061,23 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
             ),
 
+
+
             const SizedBox(height: 12),
+
+
 
             TextField(
 
               controller: _unitController,
 
+
+
               decoration: const InputDecoration(
 
                 labelText: 'Quantity / serving',
+
+
 
                 hintText: 'Example: eggs / slices / g / serving',
 
@@ -2411,11 +3085,17 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
             ),
 
+
+
             const SizedBox(height: 12),
+
+
 
             TextField(
 
               controller: _caloriesController,
+
+
 
               keyboardType: const TextInputType.numberWithOptions(
 
@@ -2423,9 +3103,13 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
               ),
 
+
+
               decoration: const InputDecoration(
 
                 labelText: 'Planned calories (optional)',
+
+
 
                 hintText: 'Leave blank if unknown',
 
@@ -2433,15 +3117,25 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
             ),
 
+
+
             const SizedBox(height: 8),
+
+
 
             CheckboxListTile(
 
               contentPadding: EdgeInsets.zero,
 
+
+
               title: const Text('Already eaten'),
 
+
+
               value: _eaten,
+
+
 
               onChanged: (value) {
 
@@ -2461,23 +3155,27 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
       ),
 
+
+
       actions: [
 
         TextButton(
 
-          onPressed: _saving
+          onPressed: _saving ? null : () => Navigator.pop(context),
 
-              ? null
 
-              : () => Navigator.pop(context),
 
           child: const Text('Cancel'),
 
         ),
 
+
+
         FilledButton(
 
           onPressed: _saving ? null : _save,
+
+
 
           child: _saving
 
@@ -2485,13 +3183,13 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
                   width: 18,
 
+
+
                   height: 18,
 
-                  child: CircularProgressIndicator(
 
-                    strokeWidth: 2,
 
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2),
 
                 )
 
@@ -2511,7 +3209,11 @@ class _AddDietDialogState extends State<AddDietDialog> {
 
 // ================================================================
 
+
+
 // EDIT FOR TODAY DIALOG
+
+
 
 // ================================================================
 
@@ -2521,6 +3223,8 @@ class EditDietTodayDialog extends StatefulWidget {
 
   final DietEntry entry;
 
+
+
   final AppDatabase database;
 
 
@@ -2529,7 +3233,11 @@ class EditDietTodayDialog extends StatefulWidget {
 
     super.key,
 
+
+
     required this.entry,
+
+
 
     required this.database,
 
@@ -2549,7 +3257,11 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
   late final TextEditingController _quantityController;
 
+
+
   late final TextEditingController _caloriesController;
+
+
 
   bool _saving = false;
 
@@ -2561,11 +3273,15 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
     super.initState();
 
+
+
     _quantityController = TextEditingController(
 
       text: widget.entry.actualQuantity.toString(),
 
     );
+
+
 
     _caloriesController = TextEditingController(
 
@@ -2583,7 +3299,11 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
     _quantityController.dispose();
 
+
+
     _caloriesController.dispose();
+
+
 
     super.dispose();
 
@@ -2594,6 +3314,8 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
   Future<void> _save() async {
 
     final quantity = double.tryParse(_quantityController.text.trim());
+
+
 
     final calories = double.tryParse(_caloriesController.text.trim());
 
@@ -2606,6 +3328,8 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
         const SnackBar(content: Text('Enter valid quantity and calories')),
 
       );
+
+
 
       return;
 
@@ -2620,11 +3344,18 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
     await widget.database.updateDietEntry(
 
       id: widget.entry.id,
+
       userId: 'user1',
+
+
 
       actualQuantity: quantity,
 
+
+
       actualCalories: calories,
+
+
 
       eaten: widget.entry.eaten,
 
@@ -2633,6 +3364,8 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
 
     if (!mounted) return;
+
+
 
     Navigator.pop(context, true);
 
@@ -2646,9 +3379,13 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
     return AlertDialog(
 
-      backgroundColor: const Color(0xFF1A1D24),
+      backgroundColor: AppTheme.surface,
+
+
 
       title: Text('Edit for Today — ${widget.entry.foodName}'),
+
+
 
       content: SingleChildScrollView(
 
@@ -2656,11 +3393,15 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
           mainAxisSize: MainAxisSize.min,
 
+
+
           children: [
 
             Align(
 
               alignment: Alignment.centerLeft,
+
+
 
               child: Text(
 
@@ -2668,19 +3409,33 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
                 '${widget.entry.plannedCalories.toStringAsFixed(0)} kcal',
 
+
+
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
 
               ),
 
             ),
 
+
+
             const SizedBox(height: 16),
+
+
 
             TextField(
 
               controller: _quantityController,
 
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+
+
+              keyboardType: const TextInputType.numberWithOptions(
+
+                decimal: true,
+
+              ),
+
+
 
               decoration: InputDecoration(
 
@@ -2690,17 +3445,31 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
             ),
 
+
+
             const SizedBox(height: 12),
+
+
 
             TextField(
 
               controller: _caloriesController,
 
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+
+
+              keyboardType: const TextInputType.numberWithOptions(
+
+                decimal: true,
+
+              ),
+
+
 
               decoration: const InputDecoration(
 
                 labelText: 'Actual calories',
+
+
 
                 suffixText: 'kcal',
 
@@ -2708,15 +3477,23 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
             ),
 
+
+
             const SizedBox(height: 10),
+
+
 
             const Align(
 
               alignment: Alignment.centerLeft,
 
+
+
               child: Text(
 
                 'The checkbox still controls whether this food counts as eaten today.',
+
+
 
                 style: TextStyle(color: Colors.white38, fontSize: 11),
 
@@ -2730,19 +3507,27 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
       ),
 
+
+
       actions: [
 
         TextButton(
 
           onPressed: _saving ? null : () => Navigator.pop(context, false),
 
+
+
           child: const Text('Cancel'),
 
         ),
 
+
+
         FilledButton(
 
           onPressed: _saving ? null : _save,
+
+
 
           child: _saving
 
@@ -2750,7 +3535,11 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
                   width: 18,
 
+
+
                   height: 18,
+
+
 
                   child: CircularProgressIndicator(strokeWidth: 2),
 
@@ -2772,7 +3561,11 @@ class _EditDietTodayDialogState extends State<EditDietTodayDialog> {
 
 // ================================================================
 
+
+
 // EDIT FOR DIET DIALOG
+
+
 
 // ================================================================
 
@@ -2782,7 +3575,11 @@ class EditDietPlanDialog extends StatefulWidget {
 
   final DietEntry entry;
 
+
+
   final AppDatabase database;
+
+
 
   final int dayOfWeek;
 
@@ -2792,9 +3589,15 @@ class EditDietPlanDialog extends StatefulWidget {
 
     super.key,
 
+
+
     required this.entry,
 
+
+
     required this.database,
+
+
 
     required this.dayOfWeek,
 
@@ -2814,9 +3617,15 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
   late final TextEditingController _quantityController;
 
+
+
   late final TextEditingController _unitController;
 
+
+
   late final TextEditingController _caloriesController;
+
+
 
   bool _saving = false;
 
@@ -2828,17 +3637,19 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
     super.initState();
 
+
+
     _quantityController = TextEditingController(
 
       text: widget.entry.plannedQuantity.toString(),
 
     );
 
-    _unitController = TextEditingController(
 
-      text: widget.entry.quantityUnit,
 
-    );
+    _unitController = TextEditingController(text: widget.entry.quantityUnit);
+
+
 
     _caloriesController = TextEditingController(
 
@@ -2856,9 +3667,15 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
     _quantityController.dispose();
 
+
+
     _unitController.dispose();
 
+
+
     _caloriesController.dispose();
+
+
 
     super.dispose();
 
@@ -2870,21 +3687,33 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
     final quantity = double.tryParse(_quantityController.text.trim());
 
+
+
     final unit = _unitController.text.trim();
+
+
 
     final calories = double.tryParse(_caloriesController.text.trim());
 
 
 
-    if (quantity == null || quantity <= 0 || unit.isEmpty ||
+    if (quantity == null ||
 
-        calories == null || calories < 0) {
+        quantity <= 0 ||
+
+        unit.isEmpty ||
+
+        calories == null ||
+
+        calories < 0) {
 
       ScaffoldMessenger.of(context).showSnackBar(
 
         const SnackBar(content: Text('Enter valid planned values')),
 
       );
+
+
 
       return;
 
@@ -2898,19 +3727,33 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
     // Update every already-saved daily entry for this meal/food, while
 
+
+
     // keeping each day's actual/eaten values untouched.
+
+
 
     await widget.database.updateDietPlanForFood(
 
       userId: 'user1',
 
+
+
       meal: widget.entry.meal,
+
+
 
       foodName: widget.entry.foodName,
 
+
+
       plannedQuantity: quantity,
 
+
+
       quantityUnit: unit,
+
+
 
       plannedCalories: calories,
 
@@ -2920,19 +3763,33 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
     // Also update the weekly plan item when a weekly plan exists.
 
+
+
     await widget.database.updateWeeklyDietItemForDay(
 
       userId: 'user1',
 
+
+
       dayOfWeek: widget.dayOfWeek,
+
+
 
       meal: widget.entry.meal,
 
+
+
       foodName: widget.entry.foodName,
+
+
 
       quantity: quantity,
 
+
+
       quantityUnit: unit,
+
+
 
       calories: calories,
 
@@ -2941,6 +3798,8 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
 
     if (!mounted) return;
+
+
 
     Navigator.pop(context, true);
 
@@ -2954,9 +3813,13 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
     return AlertDialog(
 
-      backgroundColor: const Color(0xFF1A1D24),
+      backgroundColor: AppTheme.surface,
+
+
 
       title: Text('Edit for Diet — ${widget.entry.foodName}'),
+
+
 
       content: SingleChildScrollView(
 
@@ -2964,15 +3827,21 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
           mainAxisSize: MainAxisSize.min,
 
+
+
           children: [
 
             const Align(
 
               alignment: Alignment.centerLeft,
 
+
+
               child: Text(
 
                 'This changes the planned value, not today\'s eaten record.',
+
+
 
                 style: TextStyle(color: Colors.white54, fontSize: 12),
 
@@ -2980,39 +3849,71 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
             ),
 
+
+
             const SizedBox(height: 16),
+
+
 
             TextField(
 
               controller: _quantityController,
 
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+
+
+              keyboardType: const TextInputType.numberWithOptions(
+
+                decimal: true,
+
+              ),
+
+
 
               decoration: const InputDecoration(labelText: 'Planned quantity'),
 
             ),
 
+
+
             const SizedBox(height: 12),
+
+
 
             TextField(
 
               controller: _unitController,
 
+
+
               decoration: const InputDecoration(labelText: 'Unit / serving'),
 
             ),
 
+
+
             const SizedBox(height: 12),
+
+
 
             TextField(
 
               controller: _caloriesController,
 
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+
+
+              keyboardType: const TextInputType.numberWithOptions(
+
+                decimal: true,
+
+              ),
+
+
 
               decoration: const InputDecoration(
 
                 labelText: 'Planned calories',
+
+
 
                 suffixText: 'kcal',
 
@@ -3026,19 +3927,27 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
       ),
 
+
+
       actions: [
 
         TextButton(
 
           onPressed: _saving ? null : () => Navigator.pop(context, false),
 
+
+
           child: const Text('Cancel'),
 
         ),
 
+
+
         FilledButton(
 
           onPressed: _saving ? null : _save,
+
+
 
           child: _saving
 
@@ -3046,7 +3955,11 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
                   width: 18,
 
+
+
                   height: 18,
+
+
 
                   child: CircularProgressIndicator(strokeWidth: 2),
 
@@ -3068,7 +3981,11 @@ class _EditDietPlanDialogState extends State<EditDietPlanDialog> {
 
 // ================================================================
 
+
+
 // EXTRA CALORIES DIALOG
+
+
 
 // ================================================================
 
@@ -3078,6 +3995,8 @@ class AddExtraCaloriesDialog extends StatefulWidget {
 
   final AppDatabase database;
 
+
+
   final DateTime date;
 
 
@@ -3086,7 +4005,11 @@ class AddExtraCaloriesDialog extends StatefulWidget {
 
     super.key,
 
+
+
     required this.database,
+
+
 
     required this.date,
 
@@ -3096,19 +4019,17 @@ class AddExtraCaloriesDialog extends StatefulWidget {
 
   @override
 
-  State<AddExtraCaloriesDialog> createState() =>
-
-      _AddExtraCaloriesDialogState();
+  State<AddExtraCaloriesDialog> createState() => _AddExtraCaloriesDialogState();
 
 }
 
 
 
-class _AddExtraCaloriesDialogState
-
-    extends State<AddExtraCaloriesDialog> {
+class _AddExtraCaloriesDialogState extends State<AddExtraCaloriesDialog> {
 
   final _caloriesController = TextEditingController();
+
+
 
   final _descriptionController = TextEditingController();
 
@@ -3124,7 +4045,11 @@ class _AddExtraCaloriesDialogState
 
     _caloriesController.dispose();
 
+
+
     _descriptionController.dispose();
+
+
 
     super.dispose();
 
@@ -3134,25 +4059,19 @@ class _AddExtraCaloriesDialogState
 
   Future<void> _save() async {
 
-    final calories = double.tryParse(
-
-      _caloriesController.text.trim(),
-
-    );
+    final calories = double.tryParse(_caloriesController.text.trim());
 
 
 
     if (calories == null || calories <= 0) {
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(
 
-        const SnackBar(
+        context,
 
-          content: Text('Enter valid calories'),
+      ).showSnackBar(const SnackBar(content: Text('Enter valid calories')));
 
-        ),
 
-      );
 
       return;
 
@@ -3172,9 +4091,15 @@ class _AddExtraCaloriesDialogState
 
       userId: 'user1',
 
+
+
       date: widget.date,
 
+
+
       calories: calories,
+
+
 
       description: _descriptionController.text.trim(),
 
@@ -3198,13 +4123,19 @@ class _AddExtraCaloriesDialogState
 
     return AlertDialog(
 
-      backgroundColor: const Color(0xFF1A1D24),
+      backgroundColor: AppTheme.surface,
+
+
 
       title: const Text('Add Extra Calories'),
+
+
 
       content: Column(
 
         mainAxisSize: MainAxisSize.min,
+
+
 
         children: [
 
@@ -3212,15 +4143,17 @@ class _AddExtraCaloriesDialogState
 
             controller: _caloriesController,
 
-            keyboardType: const TextInputType.numberWithOptions(
 
-              decimal: true,
 
-            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+
+
 
             decoration: const InputDecoration(
 
               labelText: 'Calories',
+
+
 
               hintText: 'Example: 200',
 
@@ -3228,15 +4161,23 @@ class _AddExtraCaloriesDialogState
 
           ),
 
+
+
           const SizedBox(height: 12),
+
+
 
           TextField(
 
             controller: _descriptionController,
 
+
+
             decoration: const InputDecoration(
 
               labelText: 'Description',
+
+
 
               hintText: 'Example: Chocolate',
 
@@ -3248,23 +4189,27 @@ class _AddExtraCaloriesDialogState
 
       ),
 
+
+
       actions: [
 
         TextButton(
 
-          onPressed: _saving
+          onPressed: _saving ? null : () => Navigator.pop(context),
 
-              ? null
 
-              : () => Navigator.pop(context),
 
           child: const Text('Cancel'),
 
         ),
 
+
+
         FilledButton(
 
           onPressed: _saving ? null : _save,
+
+
 
           child: _saving
 
@@ -3272,13 +4217,13 @@ class _AddExtraCaloriesDialogState
 
                   width: 18,
 
+
+
                   height: 18,
 
-                  child: CircularProgressIndicator(
 
-                    strokeWidth: 2,
 
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2),
 
                 )
 

@@ -1,6 +1,7 @@
+import 'dart:ui';
 import 'dart:async';
 import 'dart:math' as math;
-import 'theme/app_theme.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,6 +14,7 @@ import 'services/health_sync_service.dart';
 import 'screens/stats/stats_screen.dart';
 import 'screens/exercise/user1_home_exercise_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +34,11 @@ class FitTrackApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'FitTrack',
-      theme: AppTheme.darkTheme,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        useMaterial3: true,
+        scaffoldBackgroundColor: AppTheme.background,
+      ),
       home: const HomeScreen(),
     );
   }
@@ -53,12 +59,11 @@ class HomeScreen extends StatefulWidget {
 // HOME STATE
 // ============================================================
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   final AppDatabase _database = AppDatabase();
 
-  DailyDataData? _dailyData;
-  Timer? _stepRefreshTimer;
-  bool _healthSyncInProgress = false;
+  // Keep Home's calorie target identical to DietScreen's weekly plan.
   static const Map<int, double> _dailyCalorieTargets = {
     DateTime.monday: 2675,
     DateTime.tuesday: 2725,
@@ -69,25 +74,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     DateTime.sunday: 2685,
   };
 
+  DailyDataData? _dailyData;
+  Timer? _stepRefreshTimer;
+  bool _healthSyncInProgress = false;
+
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    WidgetsBinding.instance.addObserver(this);
+  WidgetsBinding.instance.addObserver(this);
 
-    // Let the Home screen render first.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+  // Let the Home screen render first.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
 
-      _syncHealthAndLoadData();
+    _syncHealthAndLoadData();
 
-      // Refresh Health Connect data periodically without blocking startup.
-      _stepRefreshTimer = Timer.periodic(
-        const Duration(minutes: 1),
-        (_) => _syncStepsAndLoadData(),
-      );
-    });
-  }
+    // Refresh Health Connect data periodically without blocking startup.
+    _stepRefreshTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _syncStepsAndLoadData(),
+    );
+  });
+}
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -116,20 +125,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           date: DateTime.now(),
         );
 
-        final targets = await _database.getDailyTargets(userId: 'user1');
+        final targets = await _database.getDailyTargets(
+          userId: 'user1',
+        );
 
         final steps = (healthData['steps'] as num?)?.toInt() ?? 0;
 
-        final plannedCalories = await _database.getPlannedCalories(
-          userId: 'user1',
-          date: DateTime.now(),
-        );
+        final calorieTarget =
+            _dailyCalorieTargets[DateTime.now().weekday] ??
+            existing?.calorieTarget ??
+            0;
 
-        final calorieTarget = plannedCalories > 0
-            ? plannedCalories
-            : (existing?.calorieTarget ?? 0);
-
-        final stepTarget = targets?.stepTarget ?? existing?.stepTarget ?? 10000;
+        final stepTarget =
+            targets?.stepTarget ?? existing?.stepTarget ?? 10000;
 
         await _database.saveDailyData(
           userId: 'user1',
@@ -170,7 +178,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         date: DateTime.now(),
       );
 
-      final targets = await _database.getDailyTargets(userId: 'user1');
+      final targets = await _database.getDailyTargets(
+        userId: 'user1',
+      );
 
       await _database.saveDailyData(
         userId: 'user1',
@@ -199,7 +209,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       final now = DateTime.now();
 
-      final data = await _database.getDailyData(userId: 'user1', date: now);
+      final data = await _database.getDailyData(
+        userId: 'user1',
+        date: now,
+      );
 
       if (data == null) {
         if (!mounted) return;
@@ -210,29 +223,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return;
       }
 
-      // ==========================================================
-      // CALORIES — SAME TARGET AS DIET SCREEN
-      // ==========================================================
-
+      // Calories come from the current Diet data.
       final actualCalories = await _database.getActualCalories(
         userId: 'user1',
         date: now,
       );
 
+      // Step Target comes from Settings / DailyTargets. Do not rely only on
+      // the cached DailyData.stepTarget value because Settings can update the
+      // target while this HomeScreen remains alive underneath the route.
+      final targets = await _database.getDailyTargets(
+        userId: 'user1',
+      );
+
+      final currentStepTarget =
+          targets?.stepTarget ?? data.stepTarget;
+
       final currentCalorieTarget =
-          _dailyCalorieTargets[now.weekday] ?? data.calorieTarget;
-
-      // ==========================================================
-      // STEP TARGET — ALWAYS SYNC WITH SETTINGS
-      // ==========================================================
-
-      final targets = await _database.getDailyTargets(userId: 'user1');
-
-      final currentStepTarget = targets?.stepTarget ?? data.stepTarget;
-
-      // ==========================================================
-      // REFRESH HOME DATA
-      // ==========================================================
+          _dailyCalorieTargets[now.weekday] ??
+          data.calorieTarget;
 
       final refreshedData = data.copyWith(
         calories: actualCalories,
@@ -240,15 +249,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         stepTarget: currentStepTarget,
       );
 
-      // ==========================================================
-      // KEEP DAILY DATA CACHE IN SYNC
-      // ==========================================================
-
-      final caloriesChanged = (data.calories - actualCalories).abs() > 0.001;
-
+      // Keep Home synchronized with the exact weekly Diet target and actual
+      // eaten calories. This prevents Home from using getPlannedCalories(),
+      // which can differ from the Diet screen's weekly target.
+      final caloriesChanged =
+          (data.calories - actualCalories).abs() > 0.001;
       final calorieTargetChanged =
           (data.calorieTarget - currentCalorieTarget).abs() > 0.001;
-
       final stepTargetChanged = data.stepTarget != currentStepTarget;
 
       if (caloriesChanged || calorieTargetChanged || stepTargetChanged) {
@@ -287,7 +294,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _openUser2() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const User2Screen()),
+      MaterialPageRoute(
+        builder: (_) => const User2Screen(),
+      ),
     );
   }
 
@@ -298,7 +307,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _openDiet() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const DietScreen()),
+      MaterialPageRoute(
+        builder: (_) => const DietScreen(),
+      ),
     );
 
     await _loadDailyData();
@@ -319,7 +330,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return 0;
     }
 
-    return _clamp((_dailyData!.steps / target) * 100);
+    return _clamp(
+      (_dailyData!.steps / target) * 100,
+    );
   }
 
   // ==========================================================
@@ -405,7 +418,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       backgroundColor: const Color(0xFF0A1730),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(22),
+        ),
       ),
       builder: (context) {
         return SafeArea(
@@ -452,14 +467,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(height: 16),
                   Text(
                     'Today',
-                    style: TextStyle(fontSize: 12, color: Color(0x73FFFFFF)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0x73FFFFFF),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '$steps steps'
                     '${stepTarget > 0 ? '  •  Target $stepTarget' : ''}'
                     '  •  Recovery ${recovery.round()}%',
-                    style: const TextStyle(fontSize: 12, color: Colors.white60),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white60,
+                    ),
                   ),
                 ],
               ],
@@ -492,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Color(0xFF050B18),
+        systemNavigationBarColor: AppTheme.background,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
@@ -503,14 +524,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final calorieTarget = _dailyData?.calorieTarget ?? 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0C1424), Color(0xFF090F1C), Color(0xFF070B14)],
-            stops: [0.0, 0.42, 1.0],
+            colors: [
+              Color(0xFF101A2C),
+              Color(0xFF0A1020),
+              AppTheme.background,
+            ],
+            stops: [0.0, 0.34, 1.0],
           ),
         ),
         child: SafeArea(
@@ -533,8 +558,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           const Text(
                             'FitTrack',
                             style: TextStyle(
-                              fontSize: 26,
-fontWeight: FontWeight.w700,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.1,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -575,18 +601,18 @@ fontWeight: FontWeight.w700,
                 // =====================================================
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(18, 17, 18, 19),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF101724),
-                    borderRadius: BorderRadius.circular(22),
+                    color: Colors.white.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.06),
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
+                        color: Colors.black.withValues(alpha: 0.14),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
@@ -642,17 +668,20 @@ fontWeight: FontWeight.w700,
                 // =====================================================
                 const Text(
                   'Daily Score',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(6, 16, 6, 14),
+                  padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D1421),
-                    borderRadius: BorderRadius.circular(22),
+                    color: Colors.black.withValues(alpha: 0.11),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.055),
+                      color: Colors.white.withValues(alpha: 0.05),
                     ),
                   ),
                   child: Row(
@@ -664,7 +693,7 @@ fontWeight: FontWeight.w700,
                           displayValue: _dailyData == null
                               ? '0'
                               : '${_stepsPercent().round()}',
-                          color: const Color(0xFF8B6CFF),
+                          color: const Color(0xFF5FAAFF),
                         ),
                       ),
                       Expanded(
@@ -673,9 +702,9 @@ fontWeight: FontWeight.w700,
                           label: 'Recovery',
                           displayValue:
                               _dailyData == null ||
-                                  _dailyData!.recoveryScore <= 0
-                              ? '0'
-                              : '${_recoveryPercent().round()}',
+                                      _dailyData!.recoveryScore <= 0
+                                  ? '0'
+                                  : '${_recoveryPercent().round()}',
                           color: const Color(0xFF39D98A),
                         ),
                       ),
@@ -684,24 +713,28 @@ fontWeight: FontWeight.w700,
                           value: _effortPercent(),
                           label: 'Effort',
                           displayValue:
-                              _dailyData == null || _dailyData!.effortScore <= 0
-                              ? '0'
-                              : '${_effortPercent().round()}',
-                          color: const Color(0xFFFFA45B),
+                              _dailyData == null ||
+                                      _dailyData!.effortScore <= 0
+                                  ? '0'
+                                  : '${_effortPercent().round()}',
+                          color: const Color(0xFFFF8A3D),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 22),
 
                 // =====================================================
                 // QUICK ACTIONS
                 // =====================================================
                 const Text(
                   'Quick Actions',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -715,7 +748,8 @@ fontWeight: FontWeight.w700,
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const User1HomeExerciseScreen(),
+                              builder: (_) =>
+                                  const User1HomeExerciseScreen(),
                             ),
                           );
                         },
@@ -765,53 +799,71 @@ fontWeight: FontWeight.w700,
                 ),
 
                 const SizedBox(height: 22),
+
               ],
             ),
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFF071329),
-        indicatorColor: const Color(0xFF8F5CFF).withValues(alpha: 0.30),
-        selectedIndex: 0,
-        onDestinationSelected: (index) async {
-          switch (index) {
-            case 0:
-              break;
-            case 1:
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const User1CalendarScreen()),
-              );
-              break;
-            case 2:
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 18,
+            sigmaY: 18,
+          ),
+          child: NavigationBar(
+            backgroundColor: const Color(0xB80D1422),
+            elevation: 0,
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: const Color(0xFF3D8BFF).withValues(alpha: 0.20),
+            selectedIndex: 0,
+            onDestinationSelected: (index) async {
+              switch (index) {
+                case 0:
+                  break;
+                case 1:
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const User1CalendarScreen(),
+                    ),
+                  );
+                  break;
+                case 2:
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SettingsScreen(),
+                    ),
+                  );
 
-              // Refresh Home immediately after a Settings change.
-              await _loadDailyData();
-              break;
-          }
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+                  // Refresh Home immediately after a Settings change.
+                  await _loadDailyData();
+                  break;
+              }
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_month_outlined),
+                selectedIcon: Icon(Icons.calendar_month),
+                label: 'Calendar',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: 'Settings',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'Calendar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -842,7 +894,10 @@ fontWeight: FontWeight.w700,
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.white54,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -857,7 +912,10 @@ fontWeight: FontWeight.w700,
                   subtext,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, color: Colors.white38),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white38,
+                  ),
                 ),
               ],
             ),
@@ -922,36 +980,32 @@ fontWeight: FontWeight.w700,
               width: 96,
               height: 96,
               child: CustomPaint(
-                painter: _RingPainter(progress: value / 100, color: color),
+                painter: _RingPainter(
+                  progress: value / 100,
+                  color: color,
+                ),
                 child: Center(
                   child: Column(
-  mainAxisAlignment: MainAxisAlignment.center,
-  mainAxisSize: MainAxisSize.min,
-  children: [
-    Text(
-      displayValue,
-      style: const TextStyle(
-        fontSize: 21,
-        fontWeight: FontWeight.w600,
-        color: Colors.white,
-        height: 1.0,
-      ),
-    ),
-    const SizedBox(height: 3),
-    FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          color: Colors.white70,
-          fontWeight: FontWeight.w500,
-          height: 1.0,
-        ),
-      ),
-    ),
-  ],
-),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        displayValue,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: Colors.white60,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -989,11 +1043,11 @@ fontWeight: FontWeight.w700,
 
         description = target > 0
             ? 'Your Steps score is based on today’s steps compared '
-                  'with your step target.\n\n'
-                  'Today: $steps steps\n'
-                  'Target: $target steps'
+                'with your step target.\n\n'
+                'Today: $steps steps\n'
+                'Target: $target steps'
             : 'Your Steps score is based on today’s steps compared '
-                  'with your step target.';
+                'with your step target.';
 
         break;
 
@@ -1030,14 +1084,18 @@ fontWeight: FontWeight.w700,
           date: DateTime.now(),
         );
 
-        final recentWorkoutDays = await _database.getRecentWorkoutDayCount(
+        final recentWorkoutDays =
+            await _database.getRecentWorkoutDayCount(
           userId: 'user1',
           date: DateTime.now(),
         );
 
-        final todayLoad = recentLoads.isNotEmpty ? recentLoads[0] : 0;
-        final yesterdayLoad = recentLoads.length > 1 ? recentLoads[1] : 0;
-        final twoDaysAgoLoad = recentLoads.length > 2 ? recentLoads[2] : 0;
+        final todayLoad =
+            recentLoads.isNotEmpty ? recentLoads[0] : 0;
+        final yesterdayLoad =
+            recentLoads.length > 1 ? recentLoads[1] : 0;
+        final twoDaysAgoLoad =
+            recentLoads.length > 2 ? recentLoads[2] : 0;
 
         title = 'Recovery';
 
@@ -1066,7 +1124,9 @@ fontWeight: FontWeight.w700,
       context: context,
       backgroundColor: const Color(0xFF0A1730),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(22),
+        ),
       ),
       builder: (context) {
         return SafeArea(
@@ -1147,11 +1207,17 @@ fontWeight: FontWeight.w700,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white70, size: 23),
+            Icon(
+              icon,
+              color: Colors.white70,
+              size: 23,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1175,7 +1241,11 @@ fontWeight: FontWeight.w700,
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: Colors.white54),
+            const Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: Colors.white54,
+            ),
           ],
         ),
       ),
@@ -1185,6 +1255,7 @@ fontWeight: FontWeight.w700,
   // ============================================================
   // USER CARD
   // ============================================================
+
 }
 
 // ============================================================
@@ -1200,7 +1271,7 @@ class User1Screen extends StatelessWidget {
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Color(0xFF050B18),
+        systemNavigationBarColor: AppTheme.background,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
@@ -1208,11 +1279,13 @@ class User1Screen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF050B18),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
         title: const Text(
           'User 1',
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       body: Container(
@@ -1220,7 +1293,11 @@ class User1Screen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF08285C), Color(0xFF061A3B), Color(0xFF050B18)],
+            colors: [
+              Color(0xFF123B66),
+              Color(0xFF0A1B30),
+              Color(0xFF050B18),
+            ],
             stops: [0.0, 0.38, 1.0],
           ),
         ),
@@ -1232,12 +1309,18 @@ class User1Screen extends StatelessWidget {
               children: [
                 const Text(
                   'Full Tracking',
-                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
                   'Manage your complete fitness data',
-                  style: TextStyle(fontSize: 13, color: Colors.white60),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white60,
+                  ),
                 ),
                 const SizedBox(height: 28),
 
@@ -1266,12 +1349,15 @@ class User1Screen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const StatsScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const StatsScreen(),
+                      ),
                     );
                   },
                 ),
 
                 const SizedBox(height: 12),
+
               ],
             ),
           ),
@@ -1292,11 +1378,16 @@ class User1Screen extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 18,
+        ),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.055),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
         child: Row(
           children: [
@@ -1307,7 +1398,11 @@ class User1Screen extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.07),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.white70, size: 22),
+              child: Icon(
+                icon,
+                color: Colors.white70,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1332,7 +1427,10 @@ class User1Screen extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white54),
+            const Icon(
+              Icons.chevron_right,
+              color: Colors.white54,
+            ),
           ],
         ),
       ),
@@ -1348,11 +1446,17 @@ class _RingPainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  _RingPainter({required this.progress, required this.color});
+  _RingPainter({
+    required this.progress,
+    required this.color,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
+    final center = Offset(
+      size.width / 2,
+      size.height / 2,
+    );
 
     final radius = size.width / 2 - 7;
 
@@ -1367,7 +1471,10 @@ class _RingPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.10);
 
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
+      Rect.fromCircle(
+        center: center,
+        radius: radius,
+      ),
       -math.pi / 2,
       math.pi * 2,
       false,
@@ -1386,7 +1493,10 @@ class _RingPainter extends CustomPainter {
         ..color = color;
 
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
+        Rect.fromCircle(
+          center: center,
+          radius: radius,
+        ),
         -math.pi / 2,
         math.pi * 2 * progress.clamp(0.0, 1.0),
         false,
@@ -1402,7 +1512,11 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..color = const Color(0xFF07101E);
 
-    canvas.drawCircle(center, radius - 6, innerPaint);
+    canvas.drawCircle(
+      center,
+      radius - 9,
+      innerPaint,
+    );
 
     // --------------------------------------------------------
     // INNER BORDER
@@ -1413,11 +1527,16 @@ class _RingPainter extends CustomPainter {
       ..strokeWidth = 1
       ..color = Colors.white.withValues(alpha: 0.18);
 
-    canvas.drawCircle(center, radius - 6, borderPaint);
+    canvas.drawCircle(
+      center,
+      radius - 9,
+      borderPaint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _RingPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.color != color;
+    return oldDelegate.progress != progress ||
+        oldDelegate.color != color;
   }
 }

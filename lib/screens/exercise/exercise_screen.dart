@@ -1,9 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../calendar/user1_calendar_screen.dart';
 import '../../utils/exercise_catalog.dart';
 import '../../services/database_service.dart';
+import '../../theme/app_theme.dart';
 
 class ExerciseScreen extends StatefulWidget {
   final String userId;
@@ -98,7 +100,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF101C32),
+        backgroundColor: AppTheme.surface,
         title: const Text(
           'Create New Exercise',
           style: TextStyle(color: Colors.white),
@@ -114,7 +116,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             labelStyle: const TextStyle(color: Colors.white54),
             hintStyle: const TextStyle(color: Colors.white30),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.06),
+            fillColor: AppTheme.surfaceElevated,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
           onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
@@ -198,7 +200,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
     final selectedExercise = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF101C32),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       builder: (sheetContext) {
         return SafeArea(
@@ -233,7 +235,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 ListTile(
                   leading: const Icon(
                     Icons.add_circle_outline,
-                    color: Colors.cyanAccent,
+                    color: AppTheme.primaryLight,
                   ),
                   title: const Text(
                     'CREATE NEW EXERCISE',
@@ -340,7 +342,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
+          backgroundColor: AppTheme.surface,
           title: const Text('Delete Exercise?'),
           content: Text(
             'Delete $exerciseName and its '
@@ -387,7 +389,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
+          backgroundColor: AppTheme.surface,
           title: const Text("Delete Today's Workout?"),
           content: const Text(
             "This will delete all exercises and sets recorded for User 1 today. "
@@ -466,13 +468,17 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     final exercises = _todayExercises();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
         title: const Text(
           'Exercise',
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+          ),
         ),
       ),
       body: Container(
@@ -485,7 +491,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           ),
         ),
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
             : RefreshIndicator(
                 onRefresh: _loadTodayWorkout,
                 child: ListView(
@@ -571,12 +577,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.cyanAccent.withValues(alpha: 0.10),
+                color: AppTheme.primaryLight.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.fitness_center_outlined,
-                color: Colors.cyanAccent,
+                color: AppTheme.primaryLight,
                 size: 20,
               ),
             ),
@@ -630,7 +636,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   Widget _addExerciseCard() {
     return _actionCard(
       icon: Icons.add_circle_outline,
-      iconColor: Colors.cyanAccent,
+      iconColor: AppTheme.primaryLight,
       title: 'ADD EXERCISE',
       onTap: _showExercisePicker,
     );
@@ -639,7 +645,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   Widget _calendarCard() {
     return _actionCard(
       icon: Icons.calendar_month_outlined,
-      iconColor: Colors.cyanAccent,
+      iconColor: AppTheme.primaryLight,
       title: 'CALENDAR',
       onTap: () async {
         await Navigator.push(
@@ -684,7 +690,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   Widget _myRoutinesCard() {
     return _actionCard(
       icon: Icons.calendar_month_outlined,
-      iconColor: Colors.cyanAccent,
+      iconColor: AppTheme.primaryLight,
       title: 'MY ROUTINES',
       onTap: () async {
         await Navigator.push(
@@ -910,7 +916,7 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
 
     final selected = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF101C32),
+      backgroundColor: AppTheme.surface,
       builder: (ctx) => SafeArea(
         child: ListView(
           shrinkWrap: true,
@@ -1127,14 +1133,21 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: Text(widget.routine == null ? 'Create Routine' : 'Edit Routine'),
+        title: Text(
+          widget.routine == null ? 'Create Routine' : 'Edit Routine',
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -1179,7 +1192,7 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
                     ),
                     leading: const Icon(
                       Icons.calendar_today_outlined,
-                      color: Colors.cyanAccent,
+                      color: AppTheme.primaryLight,
                     ),
                     title: const Text('Workout date'),
                     subtitle: Text(
@@ -1233,6 +1246,14 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
                       onPressed: _saving ? null : _saveRoutine,
                       child: _saving
                           ? const SizedBox(
@@ -1408,7 +1429,7 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF101C32),
+        backgroundColor: AppTheme.surface,
         title: const Text('Delete Routine?'),
         content: Text(
           'Delete ${routine.routineName} for ${_formatDate(routine.date)}?',
@@ -1439,7 +1460,7 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF101C32),
+        backgroundColor: AppTheme.surface,
         title: const Text('Delete All Routines?'),
         content: const Text(
           'This will remove all your planned workout routines.\n\n'
@@ -1490,14 +1511,21 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: const Text('My Routines'),
+        title: const Text(
+          'My Routines',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -1517,8 +1545,18 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
                         Container(
                           padding: const EdgeInsets.all(22),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.055),
+                            color: AppTheme.surface,
                             borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.14),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
                           ),
                           child: const Column(
                             children: [
@@ -1664,7 +1702,7 @@ class _MyRoutinesScreenState extends State<MyRoutinesScreen> {
                       },
                       icon: const Icon(
                         Icons.edit_outlined,
-                        color: Colors.cyanAccent,
+                        color: AppTheme.primaryLight,
                         size: 20,
                       ),
                     ),
@@ -1971,14 +2009,21 @@ class _StartRoutineWorkoutScreenState extends State<StartRoutineWorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: const Text('Start Workout'),
+        title: const Text(
+          'Start Workout',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -2146,11 +2191,18 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: const Text('Add Exercise'),
+        title: const Text(
+          'Add Exercise',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -2211,7 +2263,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                   labelText: 'Exercise name',
                   hintText: 'e.g. Incline Dumbbell Press',
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.06),
+                  fillColor: AppTheme.surfaceElevated,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -2249,7 +2301,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                   padding: EdgeInsets.symmetric(vertical: 14),
                   child: Row(
                     children: [
-                      Icon(Icons.add_circle_outline, color: Colors.cyanAccent),
+                      Icon(Icons.add_circle_outline, color: AppTheme.primaryLight),
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -2538,7 +2590,7 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
+          backgroundColor: AppTheme.surface,
           title: const Text('Edit Set'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2611,7 +2663,7 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
+          backgroundColor: AppTheme.surface,
           title: const Text('Delete Set?'),
           content: Text(
             '${_formatNumber(set.weight)} kg × '
@@ -2682,7 +2734,7 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
           ),
           child: const Row(
             children: [
-              Icon(Icons.person_outline, color: Colors.cyanAccent),
+              Icon(Icons.person_outline, color: AppTheme.primaryLight),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -2741,14 +2793,23 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: Text(widget.exerciseName),
+        title: Text(
+          widget.exerciseName,
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.cyanAccent,
+          indicatorColor: AppTheme.primaryLight,
+          indicatorSize: TabBarIndicatorSize.label,
+          dividerColor: Colors.transparent,
           tabs: const [
             Tab(text: 'TRACK'),
             Tab(text: 'HISTORY'),
@@ -2757,7 +2818,7 @@ class _User1ExerciseDetailScreenState extends State<User1ExerciseDetailScreen>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -3146,7 +3207,7 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF101C32),
+        backgroundColor: AppTheme.surface,
         title: const Text('Prepare Workout?'),
         content: Text(
           "Prepare $selectedExerciseCount exercise"
@@ -3210,14 +3271,21 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: Text(widget.title),
+        title: Text(
+          widget.title,
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Column(
               children: [
                 Expanded(
@@ -3225,8 +3293,37 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       children: [
-                        TableCalendar<dynamic>(
-                          firstDay: DateTime(2025, 1, 1),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(22),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(
+                              sigmaX: 18,
+                              sigmaY: 18,
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    const Color(0xFF0A315C).withValues(alpha: 0.58),
+                                    AppTheme.surface.withValues(alpha: 0.48),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF3D8BFF).withValues(alpha: 0.08),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: TableCalendar<dynamic>(
+                                firstDay: DateTime(2025, 1, 1),
                           lastDay: DateTime(2035, 12, 31),
                           focusedDay: _focusedDay,
                           selectedDayPredicate: (d) =>
@@ -3246,15 +3343,15 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
                               color: Colors.white,
                             ),
                             selectedDecoration: const BoxDecoration(
-                              color: Color(0xFF1688C4),
+                              color: AppTheme.primary,
                               shape: BoxShape.circle,
                             ),
                             todayDecoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.10),
+                              color: const Color(0xFF3D8BFF).withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
                             markerDecoration: const BoxDecoration(
-                              color: Color(0xFF39D98A),
+                              color: AppTheme.success,
                               shape: BoxShape.circle,
                             ),
                             markerSize: 7,
@@ -3267,7 +3364,10 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
+                              ),
+                            ),
                           ),
+                        ),
                         ),
                         const SizedBox(height: 18),
                         if (_loadingSets)
@@ -3327,8 +3427,18 @@ class _CopyPreviousWorkoutScreenState extends State<CopyPreviousWorkoutScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3647,11 +3757,18 @@ class _CopiedWorkoutDraftScreenState extends State<_CopiedWorkoutDraftScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: const Text('Prepared Workout'),
+        title: const Text(
+          'Prepared Workout',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -3726,8 +3843,18 @@ class _CopiedWorkoutDraftScreenState extends State<_CopiedWorkoutDraftScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.055),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3880,11 +4007,18 @@ class _ExerciseHistoryScreenState extends State<ExerciseHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B18),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071329),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
-        title: Text(widget.exerciseName),
+        title: Text(
+          widget.exerciseName,
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.15,
+          ),
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -3896,7 +4030,7 @@ class _ExerciseHistoryScreenState extends State<ExerciseHistoryScreen> {
           ),
         ),
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
             : _history.isEmpty
             ? const Center(
                 child: Text(

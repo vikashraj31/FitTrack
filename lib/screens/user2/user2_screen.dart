@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../services/database_service.dart';
 import '../../services/prepared_workout_storage.dart';
 import '../../utils/exercise_catalog.dart';
+import '../../theme/app_theme.dart';
 
 class PreparedWorkoutSet {
   final double weight;
@@ -276,7 +277,9 @@ class _User2ScreenState extends State<User2Screen> {
       margin: const EdgeInsets.only(top: 10),
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: AppTheme.surfaceElevated,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
@@ -285,7 +288,7 @@ class _User2ScreenState extends State<User2Screen> {
         leading: const Icon(
           Icons.add_circle_outline,
           size: 20,
-          color: Colors.cyanAccent,
+          color: AppTheme.primaryLight,
         ),
         title: const Text(
           'ADD EXERCISE',
@@ -315,7 +318,7 @@ class _User2ScreenState extends State<User2Screen> {
 
     final selected = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF101C32),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       builder: (ctx) {
         return SafeArea(
@@ -413,7 +416,7 @@ class _User2ScreenState extends State<User2Screen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
+          backgroundColor: AppTheme.surface,
           title: const Text(
             "Delete Today's Workout?",
             style: TextStyle(color: Colors.white),
@@ -431,7 +434,7 @@ class _User2ScreenState extends State<User2Screen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
+                backgroundColor: AppTheme.danger,
               ),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('DELETE'),
@@ -546,8 +549,8 @@ class _User2ScreenState extends State<User2Screen> {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: isPrepared
-            ? const Color(0xFF18253D)
-            : const Color(0xFF111D34),
+            ? AppTheme.surfaceElevated
+            : AppTheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isPrepared
@@ -586,7 +589,7 @@ class _User2ScreenState extends State<User2Screen> {
             if (hasActualSets)
               const Icon(
                 Icons.check_circle,
-                color: Colors.greenAccent,
+                color: AppTheme.success,
                 size: 19,
               ),
             if (isPrepared)
@@ -617,9 +620,16 @@ class _User2ScreenState extends State<User2Screen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: BoxDecoration(
-        color: const Color(0xFF111D34),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 14,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
       ),
       child: const Column(
         children: [
@@ -650,7 +660,9 @@ class _User2ScreenState extends State<User2Screen> {
       margin: const EdgeInsets.only(top: 10),
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: AppTheme.surfaceElevated,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
@@ -697,12 +709,12 @@ class _User2ScreenState extends State<User2Screen> {
         leading: const Icon(
           Icons.delete_outline,
           size: 20,
-          color: Colors.redAccent,
+          color: AppTheme.danger,
         ),
         title: const Text(
           "DELETE TODAY'S WORKOUT",
           style: TextStyle(
-            color: Colors.redAccent,
+            color: AppTheme.danger,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -722,13 +734,18 @@ class _User2ScreenState extends State<User2Screen> {
     final todayExercises = _todayExercises();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF07111F),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF07111F),
+        backgroundColor: AppTheme.background,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text(
           'User 2',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         actions: [
           IconButton(
@@ -738,7 +755,7 @@ class _User2ScreenState extends State<User2Screen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryLight))
           : RefreshIndicator(
               onRefresh: _loadTodayWorkout,
               child: ListView(
@@ -1116,8 +1133,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: const Color(0xFF111D34),
+              color: AppTheme.surface,
               borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
             ),
             child: Row(
               children: [
@@ -1144,7 +1163,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
                       labelText: 'Weight (kg)',
                       labelStyle: const TextStyle(color: Colors.white54),
                       filled: true,
-                      fillColor: const Color(0xFF0B1628),
+                      fillColor: AppTheme.surfaceElevated,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -1162,7 +1181,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
                       labelText: 'Reps',
                       labelStyle: const TextStyle(color: Colors.white54),
                       filled: true,
-                      fillColor: const Color(0xFF0B1628),
+                      fillColor: AppTheme.surfaceElevated,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -1246,8 +1265,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
             margin: const EdgeInsets.only(bottom: 14),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF111D34),
+              color: AppTheme.surface,
               borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1283,7 +1304,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
                           icon: const Icon(
                             Icons.delete_outline,
                             size: 19,
-                            color: Colors.redAccent,
+                            color: AppTheme.danger,
                           ),
                         ),
                       ],
@@ -1301,19 +1322,26 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF07111F),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF07111F),
+        backgroundColor: AppTheme.background,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           widget.exerciseName,
           style: const TextStyle(
-            color: Colors.white,
+            color: AppTheme.textPrimary,
+            fontSize: 21,
             fontWeight: FontWeight.w700,
           ),
         ),
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: AppTheme.primaryLight,
+          indicatorSize: TabBarIndicatorSize.label,
+          dividerColor: Colors.transparent,
+          labelColor: AppTheme.textPrimary,
+          unselectedLabelColor: AppTheme.textSecondary,
           tabs: const [
             Tab(text: 'TRACK'),
             Tab(text: 'HISTORY'),
@@ -1321,7 +1349,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryLight))
           : TabBarView(
               controller: _tabController,
               children: [_trackTab(), _historyTab()],
@@ -1453,7 +1481,7 @@ class _User2CopyWorkoutScreenState extends State<User2CopyWorkoutScreen> {
 
     final selected = await showModalBottomSheet<Set<String>>(
       context: context,
-      backgroundColor: const Color(0xFF101C32),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       builder: (sheetContext) {
         return StatefulBuilder(
@@ -1495,7 +1523,7 @@ class _User2CopyWorkoutScreenState extends State<User2CopyWorkoutScreen> {
                     const SizedBox(height: 12),
                     CheckboxListTile(
                       value: allSelected,
-                      activeColor: Colors.blueAccent,
+                      activeColor: AppTheme.primaryLight,
                       checkColor: Colors.white,
                       title: const Text(
                         'SELECT ALL',
@@ -1527,7 +1555,7 @@ class _User2CopyWorkoutScreenState extends State<User2CopyWorkoutScreen> {
 
                           return CheckboxListTile(
                             value: isSelected,
-                            activeColor: Colors.blueAccent,
+                            activeColor: AppTheme.primaryLight,
                             checkColor: Colors.white,
                             title: Text(
                               exercise,
@@ -1627,17 +1655,22 @@ class _User2CopyWorkoutScreenState extends State<User2CopyWorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF07111F),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF07111F),
+        backgroundColor: AppTheme.background,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text(
           'Copy Previous Workout',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryLight))
           : ListView(
               padding: const EdgeInsets.all(18),
               children: [
@@ -1655,8 +1688,10 @@ class _User2CopyWorkoutScreenState extends State<User2CopyWorkoutScreen> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF111D34),
+                      color: AppTheme.surface,
                       borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
                     ),
                     child: const Text(
                       'No previous workouts available.',
@@ -1676,8 +1711,8 @@ class _User2CopyWorkoutScreenState extends State<User2CopyWorkoutScreen> {
                       margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
                         color: selected
-                            ? const Color(0xFF1D4ED8)
-                            : const Color(0xFF111D34),
+                            ? AppTheme.primary
+                            : AppTheme.surface,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: ListTile(
@@ -1701,8 +1736,10 @@ class _User2CopyWorkoutScreenState extends State<User2CopyWorkoutScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF111D34),
+                      color: AppTheme.surface,
                       borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1898,7 +1935,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
 
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF101C32),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       builder: (ctx) {
         return SafeArea(
@@ -1997,7 +2034,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
 
     final selectedExercise = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF101C32),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       builder: (ctx) {
         return SafeArea(
@@ -2099,7 +2136,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
 
     final selected = await showModalBottomSheet<Set<String>>(
       context: context,
-      backgroundColor: const Color(0xFF101C32),
+      backgroundColor: AppTheme.surface,
       isScrollControlled: true,
       builder: (sheetContext) {
         return StatefulBuilder(
@@ -2141,7 +2178,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
                     const SizedBox(height: 12),
                     CheckboxListTile(
                       value: allSelected,
-                      activeColor: Colors.blueAccent,
+                      activeColor: AppTheme.primaryLight,
                       checkColor: Colors.white,
                       title: const Text(
                         'SELECT ALL',
@@ -2173,7 +2210,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
 
                           return CheckboxListTile(
                             value: isSelected,
-                            activeColor: Colors.blueAccent,
+                            activeColor: AppTheme.primaryLight,
                             checkColor: Colors.white,
                             title: Text(
                               exercise,
@@ -2255,7 +2292,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
+          backgroundColor: AppTheme.surface,
 
           title: const Text(
             'Delete Workout?',
@@ -2277,7 +2314,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
 
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
+                backgroundColor: AppTheme.danger,
               ),
               onPressed: () {
                 Navigator.pop(ctx, true);
@@ -2325,12 +2362,12 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
       child: OutlinedButton.icon(
         onPressed: onPressed,
 
-        icon: Icon(icon, color: danger ? Colors.redAccent : Colors.white),
+        icon: Icon(icon, color: danger ? AppTheme.danger : Colors.white),
 
         label: Text(
           label,
           style: TextStyle(
-            color: danger ? Colors.redAccent : Colors.white,
+            color: danger ? AppTheme.danger : Colors.white,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2338,7 +2375,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
         style: OutlinedButton.styleFrom(
           side: BorderSide(
             color: danger
-                ? Colors.redAccent.withValues(alpha: 0.4)
+                ? AppTheme.danger.withValues(alpha: 0.4)
                 : Colors.white.withValues(alpha: 0.12),
           ),
           shape: RoundedRectangleBorder(
@@ -2358,27 +2395,34 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
     final hasWorkout = _selectedSets.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF07111F),
+      backgroundColor: AppTheme.background,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF07111F),
+        backgroundColor: AppTheme.background,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text(
           'User 2 Calendar',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
 
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryLight))
           : ListView(
               padding: const EdgeInsets.all(14),
 
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF111D34),
+                    color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
                   ),
 
                   child: TableCalendar(
@@ -2401,7 +2445,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
                       CalendarFormat.month: 'Month',
                     },
 
-                    calendarStyle: const CalendarStyle(
+                    calendarStyle: CalendarStyle(
                       defaultTextStyle: TextStyle(color: Colors.white),
 
                       weekendTextStyle: TextStyle(color: Colors.white70),
@@ -2461,7 +2505,7 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
                               width: 5,
                               height: 5,
                               decoration: const BoxDecoration(
-                                color: Colors.blueAccent,
+                                color: AppTheme.primaryLight,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -2554,8 +2598,10 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
                     padding: const EdgeInsets.all(22),
 
                     decoration: BoxDecoration(
-                      color: const Color(0xFF111D34),
+                      color: AppTheme.surface,
                       borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
                     ),
 
                     child: const Text(
@@ -2572,8 +2618,10 @@ class _User2CalendarScreenState extends State<User2CalendarScreen> {
                       padding: const EdgeInsets.all(15),
 
                       decoration: BoxDecoration(
-                        color: const Color(0xFF111D34),
+                        color: AppTheme.surface,
                         borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 6))],
                       ),
 
                       child: Column(

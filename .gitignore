@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+daily_metrics_backup.txt
+exercise_diff.txt
+flutter_01.png
