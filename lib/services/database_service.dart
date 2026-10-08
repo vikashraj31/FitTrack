@@ -783,11 +783,12 @@ class AppDatabase extends _$AppDatabase {
       return [];
     }
 
+    // Keep the exact order in which routine exercises/sets were created.
+    // Alphabetical sorting could move a later exercise above an earlier one.
     return (select(routineSets)
           ..where((tbl) => tbl.routineId.equals(routineId))
           ..orderBy([
-            (tbl) => OrderingTerm.asc(tbl.exerciseName),
-            (tbl) => OrderingTerm.asc(tbl.setNumber),
+            (tbl) => OrderingTerm.asc(tbl.id),
           ]))
         .get();
   }

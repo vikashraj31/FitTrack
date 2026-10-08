@@ -1,34 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Check whether Health Connect is installed -->
-    <uses-permission
-    android:name="android.permission.health.READ_STEPS" />
-
-<uses-permission
-    android:name="android.permission.health.READ_SLEEP" />
-
-<uses-permission
-    android:name="android.permission.ACTIVITY_RECOGNITION" />
-
-    <!-- Health Connect permissions -->
-    <uses-permission
-        android:name="android.permission.health.READ_STEPS" />
-
-    <uses-permission
-        android:name="android.permission.health.READ_SLEEP" />
-
-    <!-- Required for activity/step recognition -->
-    <uses-permission
-        android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <application
-        android:label="FitTrack"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:label="FitTrack"
+        android:icon="@mipmap/ic_fittrack"
+        android:roundIcon="@mipmap/ic_fittrack">
 
+        <!-- Main Flutter Activity -->
         <activity
             android:name=".MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
@@ -40,18 +25,27 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
-            <!-- Normal Flutter launcher -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
             <!-- Health Connect permissions rationale -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
 
         </activity>
+
+        <!-- FitTrack launcher -->
+        <activity-alias
+            android:name=".FitTrackLauncherV2Activity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_fittrack"
+            android:roundIcon="@mipmap/ic_fittrack">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity-alias>
 
         <!-- Health Connect permission usage -->
         <activity-alias
@@ -67,7 +61,6 @@
 
         </activity-alias>
 
-        <!-- Flutter embedding -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

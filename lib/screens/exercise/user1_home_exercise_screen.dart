@@ -73,19 +73,17 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
         for (final set in otherUserSets) set.exerciseName.toLowerCase(),
       };
 
-      final names = <String>[];
+      // Today's visible order comes from today's saved workout sets.
+      // This prevents a newly added exercise from jumping to its position in
+      // the global exercise catalog.
+      final ordered = <String>[];
       for (final set in sets) {
-        if (!names.any(
+        if (!ordered.any(
           (name) => name.toLowerCase() == set.exerciseName.toLowerCase(),
         )) {
-          names.add(set.exerciseName);
+          ordered.add(set.exerciseName);
         }
       }
-
-      final ordered = await _database.getExercisesInSavedOrder(
-        userId: 'user1',
-        exerciseNames: names,
-      );
 
       if (!mounted) return;
 
@@ -488,19 +486,44 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
 
   Future<void> _reorderTodayExercises(int oldIndex, int newIndex) async {
     final ordered = _todayExercises();
-    if (oldIndex < 0 || oldIndex >= ordered.length) return;
 
-    if (newIndex < 0) newIndex = 0;
-    if (newIndex >= ordered.length) newIndex = ordered.length - 1;
+    if (oldIndex < 0 || oldIndex >= ordered.length) return;
+    if (newIndex < 0 || newIndex >= ordered.length) return;
+    if (oldIndex == newIndex) return;
 
     final moved = ordered.removeAt(oldIndex);
     ordered.insert(newIndex, moved);
 
-    setState(() => _exerciseOrder = ordered);
+    // Keep prepared (not-yet-saved) exercises in exactly the same visible
+    // order. Their map is rewritten so the order survives reload/restart.
+    final reorderedPending = <String, List<PreparedWorkoutSet>>{};
+    for (final name in ordered) {
+      for (final entry in _pendingTodaySets.entries) {
+        if (entry.key.toLowerCase() == name.toLowerCase()) {
+          reorderedPending[name] = List<PreparedWorkoutSet>.from(entry.value);
+          break;
+        }
+      }
+    }
+
+    for (final entry in _pendingTodaySets.entries) {
+      if (!reorderedPending.keys.any(
+        (name) => name.toLowerCase() == entry.key.toLowerCase(),
+      )) {
+        reorderedPending[entry.key] = List<PreparedWorkoutSet>.from(entry.value);
+      }
+    }
+
+    setState(() {
+      _exerciseOrder = List<String>.from(ordered);
+      _pendingTodaySets = reorderedPending;
+    });
 
     try {
+      await _savePendingTodaySets();
       await _saveCurrentExerciseOrder(ordered);
 
+      // Persist the visible order for this specific day.
       final orders = <String, int>{
         for (int i = 0; i < ordered.length; i++) ordered[i]: i,
       };
@@ -513,7 +536,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
 
       await _loadTodayWorkout();
     } catch (e) {
-      debugPrint('Error saving User 1 exercise order: $e');
+      debugPrint('Error saving user1 exercise order: $e');
       _showMessage('Could not save exercise order.');
     }
   }
@@ -1116,24 +1139,36 @@ class _User1HomeExerciseDetailScreenState
         date: today,
       );
 
+      // The order for today's workout is independent from the global exercise
+      // catalog. Existing exercises keep their current position; a newly added
+      // exercise is appended after the exercises already recorded today.
+      final todayExerciseNames = <String>[];
+      var existingExerciseOrder = -1;
+
       for (final set in existingToday) {
-        if (set.exerciseName == widget.exerciseName) {
-          await _database.deleteSet(id: set.id, userId: 'user1');
+        final isSameExercise =
+            set.exerciseName.toLowerCase() == widget.exerciseName.toLowerCase();
+
+        if (isSameExercise && existingExerciseOrder < 0) {
+          existingExerciseOrder = todayExerciseNames.length;
+        }
+
+        if (!todayExerciseNames.any(
+          (name) => name.toLowerCase() == set.exerciseName.toLowerCase(),
+        )) {
+          todayExerciseNames.add(set.exerciseName);
         }
       }
 
-      // Read the permanent exercise order ONCE before saving.
-      // This keeps the exercise in its current position.
-      final orderList = await _database.getAllExerciseNames(
-        userId: widget.userId,
-        defaultExercises: ExerciseCatalog.defaultExercises,
-      );
+      final exerciseOrder = existingExerciseOrder >= 0
+          ? existingExerciseOrder
+          : todayExerciseNames.length;
 
-      final exerciseOrder = orderList.indexWhere(
-        (name) => name.toLowerCase() == widget.exerciseName.toLowerCase(),
-      );
-
-      final safeExerciseOrder = exerciseOrder < 0 ? 0 : exerciseOrder;
+      for (final set in existingToday) {
+        if (set.exerciseName.toLowerCase() == widget.exerciseName.toLowerCase()) {
+          await _database.deleteSet(id: set.id, userId: 'user1');
+        }
+      }
 
       for (int i = 0; i < _weightControllers.length; i++) {
         final weightText = _weightControllers[i].text.trim();
@@ -1158,29 +1193,25 @@ class _User1HomeExerciseDetailScreenState
           weight: weight,
           reps: reps,
           date: today,
-          exerciseOrder: safeExerciseOrder,
+          exerciseOrder: exerciseOrder,
         );
       }
 
-      // Re-apply the permanent order to all exercises recorded today.
+      // Re-compact today's per-day order from the rows that are actually
+      // stored for today. Do not re-sort through the global exercise catalog.
       final todayAfterSave = await _database.getSetsByDate(
         userId: widget.userId,
         date: today,
       );
 
-      final todayNames = <String>[];
+      final orderedToday = <String>[];
       for (final set in todayAfterSave) {
-        if (!todayNames.any(
+        if (!orderedToday.any(
           (name) => name.toLowerCase() == set.exerciseName.toLowerCase(),
         )) {
-          todayNames.add(set.exerciseName);
+          orderedToday.add(set.exerciseName);
         }
       }
-
-      final orderedToday = await _database.getExercisesInSavedOrder(
-        userId: widget.userId,
-        exerciseNames: todayNames,
-      );
 
       final todayOrders = <String, int>{
         for (int i = 0; i < orderedToday.length; i++) orderedToday[i]: i,
@@ -2465,7 +2496,7 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
                       CalendarFormat.month: 'Month',
                     },
 
-                    calendarStyle: CalendarStyle(
+                    calendarStyle: const CalendarStyle(
                       defaultTextStyle: TextStyle(color: Colors.white),
 
                       weekendTextStyle: TextStyle(color: Colors.white70),
