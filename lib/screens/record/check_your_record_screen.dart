@@ -65,6 +65,19 @@ class _CheckYourRecordScreenState extends State<CheckYourRecordScreen> {
 
       final today = _dateOnly(DateTime.now());
       final isFutureDay = day.isAfter(today);
+      final realDietEntries = dietEntries
+          .where(
+            (entry) =>
+                entry.meal != '__META__' &&
+                !entry.foodName.startsWith('__FITTRACK_'),
+          )
+          .toList();
+      final caloriesEaten = isFutureDay || realDietEntries.isEmpty
+          ? null
+          : realDietEntries
+              .where((entry) => entry.eaten)
+              .fold<double>(0, (total, entry) => total + entry.actualCalories)
+              .round();
 
       final gymWent = isFutureDay ? null : sets.isNotEmpty;
 
@@ -74,6 +87,7 @@ class _CheckYourRecordScreenState extends State<CheckYourRecordScreen> {
           steps: isFutureDay ? null : daily?.steps,
           effort: isFutureDay ? null : daily?.effortScore,
           dietFollow: isFutureDay ? null : dietPercent,
+          caloriesEaten: caloriesEaten,
           gymWent: gymWent,
         ),
       );
@@ -114,9 +128,9 @@ class _CheckYourRecordScreenState extends State<CheckYourRecordScreen> {
   String _percent(double? value) =>
       value == null ? '—' : '${value.toStringAsFixed(0)}%';
 
-  Widget _metricCell(String value) {
+  Widget _metricCell(String value, {double width = 54}) {
     return SizedBox(
-      width: 72,
+      width: width,
       child: Text(
         value,
         textAlign: TextAlign.center,
@@ -148,45 +162,64 @@ class _CheckYourRecordScreenState extends State<CheckYourRecordScreen> {
               ),
             ),
           ),
-          _metricCell('STEPS'),
-          _metricCell('EFFORT'),
-          _metricCell('DIET %'),
-          _metricCell('GYM'),
+          _metricCell('STEPS', width: 52),
+          _metricCell('EFFORT', width: 54),
+          _metricCell('DIET %', width: 52),
+          _metricCell('KCAL', width: 66),
+          _metricCell('GYM', width: 42),
         ],
       ),
     );
   }
 
   Widget _row(_RecordDay row, int index) {
+    final today = _dateOnly(DateTime.now());
+    final isToday = row.date.year == today.year &&
+        row.date.month == today.month &&
+        row.date.day == today.day;
     return Container(
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: index.isEven ? const Color(0xFF111D34) : const Color(0xFF0D182A),
+        color: isToday
+            ? const Color(0xFF16396C)
+            : index.isEven
+                ? const Color(0xFF111D34)
+                : const Color(0xFF0D182A),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.035)),
+        border: Border.all(
+          color: isToday
+              ? Colors.blueAccent.withValues(alpha: 0.80)
+              : Colors.white.withValues(alpha: 0.035),
+          width: isToday ? 1.2 : 1,
+        ),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               '${row.date.day.toString().padLeft(2, '0')}/${row.date.month.toString().padLeft(2, '0')}',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isToday ? Colors.lightBlueAccent : Colors.white,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
-          _metricCell(row.steps == null ? '—' : '${row.steps}'),
-          _metricCell(_percent(row.effort)),
-          _metricCell(_percent(row.dietFollow)),
+          _metricCell(row.steps == null ? '—' : '${row.steps}', width: 52),
+          _metricCell(_percent(row.effort), width: 54),
+          _metricCell(_percent(row.dietFollow), width: 52),
+          _metricCell(
+            row.caloriesEaten == null ? '—' : '${row.caloriesEaten}',
+            width: 66,
+          ),
           _metricCell(
             row.gymWent == null
                 ? '—'
                 : row.gymWent!
                 ? 'Yes'
                 : 'No',
+            width: 42,
           ),
         ],
       ),
@@ -200,6 +233,7 @@ class _CheckYourRecordScreenState extends State<CheckYourRecordScreen> {
               r.steps != null ||
               r.effort != null ||
               r.dietFollow != null ||
+              r.caloriesEaten != null ||
               r.gymWent != null,
         )
         .toList();
@@ -218,6 +252,11 @@ class _CheckYourRecordScreenState extends State<CheckYourRecordScreen> {
     );
     final avgDiet = average(
       available.where((r) => r.dietFollow != null).map((r) => r.dietFollow!),
+    );
+    final avgCalories = average(
+      available
+          .where((r) => r.caloriesEaten != null)
+          .map((r) => r.caloriesEaten!.toDouble()),
     );
 
     return Container(
@@ -243,6 +282,12 @@ class _CheckYourRecordScreenState extends State<CheckYourRecordScreen> {
           _summaryItem(
             'Diet Follow',
             available.isEmpty ? '—' : '${avgDiet.toStringAsFixed(0)}%',
+          ),
+          _summaryItem(
+            'Avg Calories',
+            available.where((r) => r.caloriesEaten != null).isEmpty
+                ? '—'
+                : '${avgCalories.toStringAsFixed(0)} kcal',
           ),
         ],
       ),
@@ -357,6 +402,7 @@ class _RecordDay {
   final int? steps;
   final double? effort;
   final double? dietFollow;
+  final int? caloriesEaten;
   final bool? gymWent;
 
   const _RecordDay({
@@ -364,6 +410,7 @@ class _RecordDay {
     required this.steps,
     required this.effort,
     required this.dietFollow,
+    required this.caloriesEaten,
     required this.gymWent,
   });
 }

@@ -20,6 +20,39 @@ class PreparedWorkoutStorage {
     );
   }
 
+  /// Returns the date of an old, non-empty prepared workout before [date].
+  /// Any remaining draft means at least one copied exercise was not saved.
+  /// The stale draft is still removed by [load].
+  static Future<DateTime?> expiredPreparedDate({
+    required String userId,
+    required DateTime date,
+  }) async {
+    try {
+      final file = await _fileForUser(userId);
+      if (!await file.exists()) return null;
+
+      final raw = jsonDecode(await file.readAsString());
+      if (raw is! Map) return null;
+
+      final savedDateText = raw['date'];
+      final savedDate =
+          savedDateText is String ? DateTime.tryParse(savedDateText) : null;
+      final rawSets = raw['sets'];
+      if (savedDate == null || rawSets is! Map || rawSets.isEmpty) return null;
+
+      final currentDay = _dateOnly(date);
+      final preparedDay = _dateOnly(savedDate);
+      if (!preparedDay.isBefore(currentDay)) return null;
+
+      final hasAnySet = rawSets.values.any(
+        (sets) => sets is List && sets.isNotEmpty,
+      );
+      return hasAnySet ? preparedDay : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<Map<String, List<Map<String, dynamic>>>> load({
     required String userId,
     required DateTime date,

@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../services/database_service.dart';
+import '../../services/copied_workout_history_storage.dart';
+import '../../services/exercise_preference_storage.dart';
 import '../../services/prepared_workout_storage.dart';
+import '../../services/workout_day_status_storage.dart';
 import '../../utils/exercise_catalog.dart';
 
 class PreparedWorkoutSet {
   final double weight;
   final int reps;
 
-  const PreparedWorkoutSet({
-    required this.weight,
-    required this.reps,
-  });
+  const PreparedWorkoutSet({required this.weight, required this.reps});
 }
 
 class User1HomeExerciseScreen extends StatefulWidget {
@@ -30,6 +30,8 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
   List<String> _exerciseOrder = [];
   Set<String> _otherUserTodayExerciseNames = {};
   Map<String, List<PreparedWorkoutSet>> _pendingTodaySets = {};
+  Map<String, CopiedExerciseHistoryEntry> _copiedTodayEntries = {};
+  Map<String, String> _exercisePreferences = {};
   bool _loading = true;
 
   @override
@@ -62,43 +64,156 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     try {
       final today = _dateOnly(DateTime.now());
 
+      // Persist missed-day highlighting from the durable per-exercise copied
+      // history. A day remains missed when even one copied exercise was not
+      // saved or explicitly marked as performed.
+      final copiedByDate = await CopiedWorkoutHistoryStorage.loadAllDays(
+        userId: 'user1',
+      );
+      for (final dayEntry in copiedByDate.entries) {
+        if (!dayEntry.key.isBefore(today)) continue;
+        final actualDaySets = await _database.getSetsByDate(
+          userId: 'user1',
+          date: dayEntry.key,
+        );
+        final actualNamesForDay = {
+          for (final set in actualDaySets) set.exerciseName.toLowerCase(),
+        };
+        for (final copiedEntry in dayEntry.value.entries) {
+          if (!copiedEntry.value.performed &&
+              actualNamesForDay.contains(copiedEntry.key.toLowerCase())) {
+            await CopiedWorkoutHistoryStorage.markPerformed(
+              userId: 'user1',
+              date: dayEntry.key,
+              exerciseName: copiedEntry.key,
+              sets: actualDaySets
+                  .where(
+                    (set) =>
+                        set.exerciseName.toLowerCase() ==
+                        copiedEntry.key.toLowerCase(),
+                  )
+                  .map(
+                    (set) => <String, dynamic>{
+                      'weight': set.weight,
+                      'reps': set.reps,
+                    },
+                  )
+                  .toList(),
+            );
+          }
+        }
+        final refreshedEntries = await CopiedWorkoutHistoryStorage.loadDay(
+          userId: 'user1',
+          date: dayEntry.key,
+        );
+        final hasUnperformed = refreshedEntries.values.any(
+          (entry) => !entry.performed,
+        );
+        if (hasUnperformed) {
+          await WorkoutDayStatusStorage.markMissed(
+            userId: 'user1',
+            date: dayEntry.key,
+          );
+        } else {
+          await WorkoutDayStatusStorage.clearMissed(
+            userId: 'user1',
+            date: dayEntry.key,
+          );
+        }
+      }
+
+      // Compatibility with prepared-workout drafts created before copied
+      // history was introduced. Do not mark a day missed when its durable
+      // copied-history rows show that every exercise was completed.
+      final expiredDate = await PreparedWorkoutStorage.expiredPreparedDate(
+        userId: 'user1',
+        date: today,
+      );
+      if (expiredDate != null && !copiedByDate.containsKey(expiredDate)) {
+        await WorkoutDayStatusStorage.markMissed(
+          userId: 'user1',
+          date: expiredDate,
+        );
+      }
+
       final sets = await _database.getSetsByDate(userId: 'user1', date: today);
+      final actualNames = {
+        for (final set in sets) set.exerciseName.toLowerCase(),
+      };
+
+      // Recover a performed flag if an actual saved workout row exists from a
+      // prior save path but the sidecar was not updated for some reason.
+      var copiedToday = await CopiedWorkoutHistoryStorage.loadDay(
+        userId: 'user1',
+        date: today,
+      );
+      for (final entry in copiedToday.entries) {
+        if (!entry.value.performed &&
+            actualNames.contains(entry.key.toLowerCase())) {
+          await CopiedWorkoutHistoryStorage.markPerformed(
+            userId: 'user1',
+            date: today,
+            exerciseName: entry.key,
+            sets: sets
+                .where(
+                  (set) =>
+                      set.exerciseName.toLowerCase() == entry.key.toLowerCase(),
+                )
+                .map(
+                  (set) => <String, dynamic>{
+                    'weight': set.weight,
+                    'reps': set.reps,
+                  },
+                )
+                .toList(),
+          );
+        }
+      }
+      copiedToday = await CopiedWorkoutHistoryStorage.loadDay(
+        userId: 'user1',
+        date: today,
+      );
 
       final otherUserSets = await _database.getSetsByDate(
         userId: 'user2',
         date: today,
       );
-
       final otherUserTodayNames = <String>{
         for (final set in otherUserSets) set.exerciseName.toLowerCase(),
-      };
-
-      // Today's visible order comes from today's saved workout sets.
-      // This prevents a newly added exercise from jumping to its position in
-      // the global exercise catalog.
-      final ordered = <String>[];
-      for (final set in sets) {
-        if (!ordered.any(
-          (name) => name.toLowerCase() == set.exerciseName.toLowerCase(),
-        )) {
-          ordered.add(set.exerciseName);
-        }
-      }
-
-      if (!mounted) return;
-
-      final actualNames = {
-        for (final set in sets) set.exerciseName.toLowerCase(),
       };
 
       final storedPending = await PreparedWorkoutStorage.load(
         userId: 'user1',
         date: today,
       );
-
       storedPending.removeWhere(
         (name, _) => actualNames.contains(name.toLowerCase()),
       );
+
+      // The sidecar is the permanent copied-history record; this map is only
+      // the editable draft for today's not-yet-performed exercises. If the
+      // draft file was lost, rebuild it from the saved copy snapshot.
+      for (final entry in copiedToday.entries) {
+        if (entry.value.performed ||
+            actualNames.contains(entry.key.toLowerCase())) {
+          continue;
+        }
+        if (storedPending.keys.any(
+          (name) => name.toLowerCase() == entry.key.toLowerCase(),
+        )) {
+          continue;
+        }
+        if (entry.value.sets.isNotEmpty) {
+          storedPending[entry.key] = entry.value.sets
+              .map(
+                (set) => <String, dynamic>{
+                  'weight': set.weight,
+                  'reps': set.reps,
+                },
+              )
+              .toList();
+        }
+      }
 
       await PreparedWorkoutStorage.save(
         userId: 'user1',
@@ -106,10 +221,49 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
         sets: storedPending,
       );
 
+      // The configured exercise order is stable regardless of the order in
+      // which exercises were opened, edited, or saved.
+      final savedExerciseNames = await _database.getAllExerciseNames(
+        userId: 'user1',
+        defaultExercises: ExerciseCatalog.defaultExercises,
+      );
+      final orderIndex = <String, int>{};
+      for (var i = 0; i < savedExerciseNames.length; i++) {
+        orderIndex[savedExerciseNames[i].toLowerCase()] = i;
+      }
+
+      final ordered = <String>[];
+      void addOrdered(String name) {
+        if (!ordered.any((item) => item.toLowerCase() == name.toLowerCase())) {
+          ordered.add(name);
+        }
+      }
+
+      for (final set in sets) {
+        addOrdered(set.exerciseName);
+      }
+      for (final name in storedPending.keys) {
+        addOrdered(name);
+      }
+      for (final name in copiedToday.keys) {
+        addOrdered(name);
+      }
+      ordered.sort((a, b) {
+        final aIndex = orderIndex[a.toLowerCase()] ?? 1 << 30;
+        final bIndex = orderIndex[b.toLowerCase()] ?? 1 << 30;
+        if (aIndex != bIndex) return aIndex.compareTo(bIndex);
+        return a.toLowerCase().compareTo(b.toLowerCase());
+      });
+
+      final preferences = await ExercisePreferenceStorage.load(userId: 'user1');
+
+      if (!mounted) return;
       setState(() {
         _todaySets = sets;
         _exerciseOrder = ordered;
         _otherUserTodayExerciseNames = otherUserTodayNames;
+        _exercisePreferences = preferences;
+        _copiedTodayEntries = copiedToday;
         _pendingTodaySets = storedPending.map(
           (name, sets) => MapEntry(
             name,
@@ -127,13 +281,8 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
       });
     } catch (e) {
       debugPrint('Error loading User 1 workout: $e');
-
       if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-
+      setState(() => _loading = false);
       _showMessage('Could not load today\'s workout.');
     }
   }
@@ -150,6 +299,13 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     }
 
     for (final name in _pendingTodaySets.keys) {
+      if (!currentNames.any(
+        (item) => item.toLowerCase() == name.toLowerCase(),
+      )) {
+        currentNames.add(name);
+      }
+    }
+    for (final name in _copiedTodayEntries.keys) {
       if (!currentNames.any(
         (item) => item.toLowerCase() == name.toLowerCase(),
       )) {
@@ -179,8 +335,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
   int _setCountForExercise(String exerciseName) {
     final actualCount = _todaySets
         .where(
-          (set) =>
-              set.exerciseName.toLowerCase() == exerciseName.toLowerCase(),
+          (set) => set.exerciseName.toLowerCase() == exerciseName.toLowerCase(),
         )
         .length;
 
@@ -188,7 +343,30 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
       return actualCount;
     }
 
-    return _pendingSetsForExercise(exerciseName).length;
+    final pendingCount = _pendingSetsForExercise(exerciseName).length;
+    if (pendingCount > 0) return pendingCount;
+
+    final copied = _copiedEntryForExercise(exerciseName);
+    return copied?.sets.length ?? 0;
+  }
+
+  CopiedExerciseHistoryEntry? _copiedEntryForExercise(String exerciseName) {
+    for (final entry in _copiedTodayEntries.entries) {
+      if (entry.key.toLowerCase() == exerciseName.toLowerCase()) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
+  List<PreparedWorkoutSet> _initialSetsForExercise(String exerciseName) {
+    final pending = _pendingSetsForExercise(exerciseName);
+    if (pending.isNotEmpty) return pending;
+    final copied = _copiedEntryForExercise(exerciseName);
+    if (copied == null) return const [];
+    return copied.sets
+        .map((set) => PreparedWorkoutSet(weight: set.weight, reps: set.reps))
+        .toList();
   }
 
   Future<void> _openExercise(String exerciseName) async {
@@ -199,7 +377,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
           userId: 'user1',
           exerciseName: exerciseName,
           target: 'Recorded workout',
-          initialSets: _pendingSetsForExercise(exerciseName),
+          initialSets: _initialSetsForExercise(exerciseName),
         ),
       ),
     );
@@ -231,10 +409,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     for (final entry in _pendingTodaySets.entries) {
       serialized[entry.key] = entry.value
           .map(
-            (set) => <String, dynamic>{
-              'weight': set.weight,
-              'reps': set.reps,
-            },
+            (set) => <String, dynamic>{'weight': set.weight, 'reps': set.reps},
           )
           .toList();
     }
@@ -402,66 +577,191 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
   }
 
   Future<void> _deleteTodayWorkout() async {
-    final hasActualWorkout = _todaySets.isNotEmpty;
-    final hasPreparedWorkout = _pendingTodaySets.isNotEmpty;
-
-    if (!hasActualWorkout && !hasPreparedWorkout) {
+    final exercises = _todayExercises();
+    if (exercises.isEmpty) {
       _showMessage('There is no workout to delete today.');
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final selectedExercises = <String>{};
+    final selected = await showModalBottomSheet<Set<String>>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
-          title: const Text(
-            "Delete Today's Workout?",
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Text(
-            "This will remove today's recorded workout and any prepared "
-            "workout that has not been saved yet. Previous workout dates "
-            "will not be affected.",
-            style: TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCEL'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
+      backgroundColor: const Color(0xFF101C32),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final allSelected = selectedExercises.length == exercises.length;
+            return SafeArea(
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.72,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'SELECT EXERCISES TO DELETE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Only the selected exercises will be removed.',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      value: allSelected,
+                      activeColor: Colors.redAccent,
+                      checkColor: Colors.white,
+                      title: const Text(
+                        'SELECT ALL',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setModalState(() {
+                          if (value == true) {
+                            selectedExercises
+                              ..clear()
+                              ..addAll(exercises);
+                          } else {
+                            selectedExercises.clear();
+                          }
+                        });
+                      },
+                    ),
+                    const Divider(color: Colors.white12, height: 1),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: exercises.length,
+                        itemBuilder: (_, index) {
+                          final exercise = exercises[index];
+                          final isSelected = selectedExercises.contains(
+                            exercise,
+                          );
+                          return CheckboxListTile(
+                            value: isSelected,
+                            activeColor: Colors.redAccent,
+                            checkColor: Colors.white,
+                            title: Text(
+                              exercise,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              '${_setCountForExercise(exercise)} sets',
+                              style: const TextStyle(color: Colors.white54),
+                            ),
+                            onChanged: (value) {
+                              setModalState(() {
+                                if (value == true) {
+                                  selectedExercises.add(exercise);
+                                } else {
+                                  selectedExercises.remove(exercise);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                          ),
+                          onPressed: selectedExercises.isEmpty
+                              ? null
+                              : () => Navigator.pop(sheetContext, {
+                                  ...selectedExercises,
+                                }),
+                          icon: const Icon(Icons.delete_outline),
+                          label: Text(
+                            'DELETE ${selectedExercises.length} EXERCISE${selectedExercises.length == 1 ? '' : 'S'}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('DELETE'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
 
+    if (selected == null || selected.isEmpty || !mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF101C32),
+        title: const Text(
+          'Confirm Delete',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Delete only these exercises?\n\n${selected.join('\n')}\n\nOther exercises will remain unchanged.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DELETE SELECTED'),
+          ),
+        ],
+      ),
+    );
     if (confirmed != true) return;
 
     try {
-      if (hasActualWorkout) {
-        await _database.deleteAllSetsByDate(
+      final selectedKeys = selected.map((name) => name.toLowerCase()).toSet();
+      for (final set in List<WorkoutSet>.from(_todaySets)) {
+        if (selectedKeys.contains(set.exerciseName.toLowerCase())) {
+          await _database.deleteSet(id: set.id, userId: 'user1');
+        }
+      }
+
+      _pendingTodaySets.removeWhere(
+        (name, _) => selectedKeys.contains(name.toLowerCase()),
+      );
+      for (final exercise in selected) {
+        await CopiedWorkoutHistoryStorage.removeExercise(
           userId: 'user1',
-          date: DateTime.now(),
+          date: _dateOnly(DateTime.now()),
+          exerciseName: exercise,
         );
       }
-
-      _pendingTodaySets.clear();
-      await PreparedWorkoutStorage.clear(userId: 'user1');
+      await _savePendingTodaySets();
       await _loadTodayWorkout();
-
-      if (mounted) {
-        _showMessage("Today's workout deleted.");
-      }
+      if (mounted) _showMessage('Selected exercises deleted.');
     } catch (e) {
-      debugPrint("Error deleting today's workout: $e");
-      _showMessage("Could not delete today's workout.");
+      debugPrint("Error deleting selected exercises: $e");
+      _showMessage('Could not delete selected exercises.');
     }
   }
 
@@ -510,7 +810,9 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
       if (!reorderedPending.keys.any(
         (name) => name.toLowerCase() == entry.key.toLowerCase(),
       )) {
-        reorderedPending[entry.key] = List<PreparedWorkoutSet>.from(entry.value);
+        reorderedPending[entry.key] = List<PreparedWorkoutSet>.from(
+          entry.value,
+        );
       }
     }
 
@@ -564,28 +866,38 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     final hasActualSets = _todaySets.any(
       (set) => set.exerciseName.toLowerCase() == exerciseName.toLowerCase(),
     );
-    final isPrepared = !hasActualSets &&
-        _pendingSetsForExercise(exerciseName).isNotEmpty;
+    final copiedEntry = _copiedEntryForExercise(exerciseName);
+    final isPrepared =
+        !hasActualSets &&
+        (_pendingSetsForExercise(exerciseName).isNotEmpty ||
+            (copiedEntry != null && !copiedEntry.performed));
+    final isCopiedButNotDone =
+        copiedEntry != null && !copiedEntry.performed && !hasActualSets;
     final isAlsoDoneByOtherUser = _otherUserTodayExerciseNames.contains(
       exerciseName.toLowerCase(),
     );
+
+    final preference =
+        _exercisePreferences[ExercisePreferenceStorage.exerciseKey(exerciseName)];
+    final targetText = preference?.isNotEmpty == true
+        ? preference!
+        : '$count ${count == 1 ? 'set' : 'sets'}';
+    final subtitle = isCopiedButNotDone
+        ? 'NO PERFORM YET • Copied history'
+        : isPrepared
+            ? '$targetText • Prepared, not saved'
+            : hasActualSets && isAlsoDoneByOtherUser
+                ? '$targetText • User 2 also did this today'
+                : targetText;
 
     return Container(
       key: key,
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isPrepared
-            ? const Color(0xFF18253D)
-            : isAlsoDoneByOtherUser
-                ? Colors.cyanAccent.withValues(alpha: 0.045)
-                : const Color(0xFF111D34),
+        color: const Color(0xFF1A2740),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isPrepared
-              ? Colors.white.withValues(alpha: 0.10)
-              : isAlsoDoneByOtherUser
-                  ? Colors.cyanAccent.withValues(alpha: 0.32)
-                  : Colors.white.withValues(alpha: 0.07),
+          color: Colors.white.withValues(alpha: 0.09),
         ),
       ),
       child: ListTile(
@@ -601,17 +913,9 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Text(
-            hasActualSets
-                ? (isAlsoDoneByOtherUser
-                    ? '$count ${count == 1 ? 'set' : 'sets'} • User 2 also did this today'
-                    : '$count ${count == 1 ? 'set' : 'sets'}')
-                : isPrepared
-                    ? '$count ${count == 1 ? 'set' : 'sets'} • Prepared, not saved'
-                    : '$count ${count == 1 ? 'set' : 'sets'}',
-            style: TextStyle(
-              color: hasActualSets && isAlsoDoneByOtherUser
-                  ? Colors.cyanAccent.withValues(alpha: 0.82)
-                  : Colors.white54,
+            subtitle,
+            style: const TextStyle(
+              color: Colors.white54,
               fontSize: 12,
             ),
           ),
@@ -621,11 +925,11 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
           children: [
             if (hasActualSets)
               const Icon(
-                Icons.check_circle,
-                color: Colors.greenAccent,
+                Icons.check_circle_outline,
+                color: Colors.white54,
                 size: 19,
-              ),
-            if (isPrepared)
+              )
+            else
               const Icon(
                 Icons.radio_button_unchecked,
                 color: Colors.white38,
@@ -715,8 +1019,219 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
     );
   }
 
+  Widget _exercisePreferencesCard() {
+    if (_todayExercises().isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.blueAccent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.20)),
+      ),
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+        leading: const Icon(
+          Icons.tune_rounded,
+          size: 20,
+          color: Colors.lightBlueAccent,
+        ),
+        title: const Text(
+          'SET EXERCISE PREFERENCES',
+          style: TextStyle(
+            color: Colors.lightBlueAccent,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          size: 20,
+          color: Colors.white54,
+        ),
+        onTap: _editExercisePreferences,
+      ),
+    );
+  }
+
+  Future<void> _editExercisePreferences() async {
+    final exercises = _todayExercises();
+    if (exercises.isEmpty) {
+      _showMessage('Add or copy exercises before setting preferences.');
+      return;
+    }
+
+    final controllers = <String, TextEditingController>{
+      for (final exercise in exercises)
+        exercise: TextEditingController(
+          text:
+              _exercisePreferences[ExercisePreferenceStorage.exerciseKey(
+                exercise,
+              )] ??
+              '',
+        ),
+    };
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF101C32),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(sheetContext).size.height * 0.78,
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'PREFERRED SETS & REPS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'Example: 3 × 8–10. Leave blank to show the saved set count.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      itemCount: exercises.length,
+                      itemBuilder: (_, index) {
+                        final exercise = exercises[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF17243A),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                exercise,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: controllers[exercise],
+                                textCapitalization: TextCapitalization.none,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  hintText: '3 × 8–10',
+                                  hintStyle: const TextStyle(
+                                    color: Colors.white30,
+                                  ),
+                                  labelText: 'Sets × rep range',
+                                  labelStyle: const TextStyle(
+                                    color: Colors.white54,
+                                  ),
+                                  filled: true,
+                                  fillColor: const Color(0xFF0B1628),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(sheetContext, false),
+                            child: const Text('CANCEL'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.pop(sheetContext, true),
+                            icon: const Icon(Icons.save_outlined),
+                            label: const Text('SAVE'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    try {
+      if (saved == true) {
+        final preferences = Map<String, String>.from(_exercisePreferences);
+        for (final exercise in exercises) {
+          final key = ExercisePreferenceStorage.exerciseKey(exercise);
+          final value = ExercisePreferenceStorage.normalizeLabel(
+            controllers[exercise]!.text,
+          );
+          if (value.isEmpty) {
+            preferences.remove(key);
+          } else {
+            preferences[key] = value;
+          }
+        }
+        await ExercisePreferenceStorage.saveAll(
+          userId: 'user1',
+          preferences: preferences,
+        );
+        if (mounted) {
+          setState(() => _exercisePreferences = preferences);
+          _showMessage('Exercise preferences saved.');
+        }
+      }
+    } finally {
+  await Future<void>.delayed(const Duration(milliseconds: 400));
+
+  for (final controller in controllers.values) {
+    controller.dispose();
+  }
+}
+  }
+
   Widget _deleteTodayCard() {
-    if (_todaySets.isEmpty && _pendingTodaySets.isEmpty) {
+    if (_todaySets.isEmpty &&
+        _pendingTodaySets.isEmpty &&
+        _copiedTodayEntries.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -805,6 +1320,7 @@ class _User1HomeExerciseScreenState extends State<User1HomeExerciseScreen> {
                     _todayExerciseList(todayExercises),
                   _addExerciseCard(),
                   _copyWorkoutCard(),
+                  _exercisePreferencesCard(),
                   _deleteTodayCard(),
                   const SizedBox(height: 30),
                 ],
@@ -925,15 +1441,64 @@ class _User1HomeExerciseDetailScreenState
         userId: otherUserId,
         exerciseName: widget.exerciseName,
       );
+      var copiedHistoryEntry = await CopiedWorkoutHistoryStorage.getEntry(
+        userId: widget.userId,
+        date: today,
+        exerciseName: widget.exerciseName,
+      );
+      if (sets.any(
+            (set) =>
+                set.exerciseName.toLowerCase() ==
+                widget.exerciseName.toLowerCase(),
+          ) &&
+          copiedHistoryEntry != null &&
+          !copiedHistoryEntry.performed) {
+        await CopiedWorkoutHistoryStorage.markPerformed(
+          userId: widget.userId,
+          date: today,
+          exerciseName: widget.exerciseName,
+          sets: sets
+              .where(
+                (set) =>
+                    set.exerciseName.toLowerCase() ==
+                    widget.exerciseName.toLowerCase(),
+              )
+              .map(
+                (set) => <String, dynamic>{
+                  'weight': set.weight,
+                  'reps': set.reps,
+                },
+              )
+              .toList(),
+        );
+        copiedHistoryEntry = await CopiedWorkoutHistoryStorage.getEntry(
+          userId: widget.userId,
+          date: today,
+          exerciseName: widget.exerciseName,
+        );
+      }
+    
 
       final todaySets = sets
-          .where((set) => set.exerciseName == widget.exerciseName)
+          .where(
+            (set) =>
+                set.exerciseName.toLowerCase() ==
+                widget.exerciseName.toLowerCase(),
+          )
           .toList();
 
       _clearControllers();
+      final initialSets = widget.initialSets.isNotEmpty
+          ? widget.initialSets
+          : (copiedHistoryEntry?.sets ?? const <CopiedExerciseSetSnapshot>[])
+                .map(
+                  (set) =>
+                      PreparedWorkoutSet(weight: set.weight, reps: set.reps),
+                )
+                .toList();
 
-      if (todaySets.isEmpty && widget.initialSets.isNotEmpty) {
-        for (final set in widget.initialSets) {
+      if (todaySets.isEmpty && initialSets.isNotEmpty) {
+        for (final set in initialSets) {
           _addSet(weight: set.weight, reps: set.reps);
         }
       } else if (todaySets.isEmpty) {
@@ -1113,16 +1678,24 @@ class _User1HomeExerciseDetailScreenState
   }
 
   void _removeSet(int index) {
-    if (_weightControllers.length <= 1) return;
+  if (_weightControllers.length <= 1) return;
+  if (index < 0 || index >= _weightControllers.length) return;
 
-    _weightControllers[index].dispose();
-    _repsControllers[index].dispose();
+  late final TextEditingController weightController;
+  late final TextEditingController repsController;
 
-    setState(() {
-      _weightControllers.removeAt(index);
-      _repsControllers.removeAt(index);
-    });
-  }
+  setState(() {
+    weightController = _weightControllers.removeAt(index);
+    repsController = _repsControllers.removeAt(index);
+  });
+
+  // Dispose controllers only after the removed TextFields
+  // have been rebuilt out of the widget tree.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    weightController.dispose();
+    repsController.dispose();
+  });
+}
 
   Future<void> _saveToday() async {
     if (_saving) return;
@@ -1133,77 +1706,76 @@ class _User1HomeExerciseDetailScreenState
 
     try {
       final today = _workoutDate;
+      final enteredSets = <Map<String, dynamic>>[];
+      for (var i = 0; i < _weightControllers.length; i++) {
+        final weightText = _weightControllers[i].text.trim();
+        final repsText = _repsControllers[i].text.trim();
+        if (weightText.isEmpty && repsText.isEmpty) continue;
+
+        final weight = double.tryParse(weightText) ?? 0;
+        final reps = int.tryParse(repsText) ?? 0;
+        if (weight <= 0 || reps <= 0) continue;
+        enteredSets.add({'weight': weight, 'reps': reps});
+      }
+
+      if (enteredSets.isEmpty) {
+        _showMessage('Enter at least one valid set before saving.');
+        return;
+      }
 
       final existingToday = await _database.getSetsByDate(
         userId: widget.userId,
         date: today,
       );
 
-      // The order for today's workout is independent from the global exercise
-      // catalog. Existing exercises keep their current position; a newly added
-      // exercise is appended after the exercises already recorded today.
-      final todayExerciseNames = <String>[];
-      var existingExerciseOrder = -1;
+      // Keep the configured order, not the order in which the user entered
+      // sets or opened exercise details.
+      final configuredOrder = await _database.getAllExerciseNames(
+        userId: widget.userId,
+        defaultExercises: ExerciseCatalog.defaultExercises,
+      );
+      final configuredIndex = <String, int>{
+        for (var i = 0; i < configuredOrder.length; i++)
+          configuredOrder[i].toLowerCase(): i,
+      };
+      final exerciseOrder =
+          configuredIndex[widget.exerciseName.toLowerCase()] ??
+          existingToday.length;
 
+      // Only replace today's rows after validating that at least one valid set
+      // is present. Merely opening and closing an exercise cannot erase data.
       for (final set in existingToday) {
-        final isSameExercise =
-            set.exerciseName.toLowerCase() == widget.exerciseName.toLowerCase();
-
-        if (isSameExercise && existingExerciseOrder < 0) {
-          existingExerciseOrder = todayExerciseNames.length;
-        }
-
-        if (!todayExerciseNames.any(
-          (name) => name.toLowerCase() == set.exerciseName.toLowerCase(),
-        )) {
-          todayExerciseNames.add(set.exerciseName);
+        if (set.exerciseName.toLowerCase() ==
+            widget.exerciseName.toLowerCase()) {
+          await _database.deleteSet(id: set.id, userId: widget.userId);
         }
       }
 
-      final exerciseOrder = existingExerciseOrder >= 0
-          ? existingExerciseOrder
-          : todayExerciseNames.length;
-
-      for (final set in existingToday) {
-        if (set.exerciseName.toLowerCase() == widget.exerciseName.toLowerCase()) {
-          await _database.deleteSet(id: set.id, userId: 'user1');
-        }
-      }
-
-      for (int i = 0; i < _weightControllers.length; i++) {
-        final weightText = _weightControllers[i].text.trim();
-
-        final repsText = _repsControllers[i].text.trim();
-
-        if (weightText.isEmpty && repsText.isEmpty) {
-          continue;
-        }
-
-        final weight = double.tryParse(weightText) ?? 0;
-
-        final reps = int.tryParse(repsText) ?? 0;
-
-        if (weight <= 0 || reps <= 0) {
-          continue;
-        }
-
+      for (final set in enteredSets) {
         await _database.saveSet(
           userId: widget.userId,
           exerciseName: widget.exerciseName,
-          weight: weight,
-          reps: reps,
+          weight: set['weight'] as double,
+          reps: set['reps'] as int,
           date: today,
           exerciseOrder: exerciseOrder,
         );
       }
 
-      // Re-compact today's per-day order from the rows that are actually
-      // stored for today. Do not re-sort through the global exercise catalog.
+      // Saving (including saving the copied values unchanged) means the
+      // exercise was performed today. A non-copied exercise simply has no
+      // sidecar row, so this operation is a safe no-op for it.
+      await CopiedWorkoutHistoryStorage.markPerformed(
+        userId: widget.userId,
+        date: today,
+        exerciseName: widget.exerciseName,
+        sets: enteredSets,
+      );
+
       final todayAfterSave = await _database.getSetsByDate(
         userId: widget.userId,
         date: today,
       );
-
       final orderedToday = <String>[];
       for (final set in todayAfterSave) {
         if (!orderedToday.any(
@@ -1212,33 +1784,41 @@ class _User1HomeExerciseDetailScreenState
           orderedToday.add(set.exerciseName);
         }
       }
-
       final todayOrders = <String, int>{
-        for (int i = 0; i < orderedToday.length; i++) orderedToday[i]: i,
+        for (var i = 0; i < orderedToday.length; i++) orderedToday[i]: i,
       };
-
       await _database.updateExerciseOrder(
         userId: widget.userId,
         date: today,
         exerciseOrders: todayOrders,
       );
 
+      final hasUnperformed =
+          await CopiedWorkoutHistoryStorage.hasUnperformedExercises(
+            userId: widget.userId,
+            date: today,
+          );
+      if (!hasUnperformed) {
+        await WorkoutDayStatusStorage.clearMissed(
+          userId: widget.userId,
+          date: today,
+        );
+      } else if (today.isBefore(_dateOnly(DateTime.now()))) {
+        await WorkoutDayStatusStorage.markMissed(
+          userId: widget.userId,
+          date: today,
+        );
+      }
+
       await _loadData();
 
       if (!mounted) return;
-
       _showMessage('Workout saved.');
-
       await Future<void>.delayed(const Duration(milliseconds: 250));
-
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       debugPrint('Error saving exercise: $e');
-
       if (!mounted) return;
-
       _showMessage('Could not save workout.');
     } finally {
       if (mounted) {
@@ -1251,7 +1831,7 @@ class _User1HomeExerciseDetailScreenState
 
   Future<void> _deleteHistorySet(WorkoutSet set) async {
     try {
-      await _database.deleteSet(id: set.id, userId: 'user1');
+      await _database.deleteSet(id: set.id, userId: widget.userId);
 
       await _loadData();
 
@@ -1391,7 +1971,19 @@ class _User1HomeExerciseDetailScreenState
   }
 
   Widget _historyTab() {
-    if (_history.isEmpty) {
+    // History contains only workouts that were actually saved to the database.
+    // Copied-but-unperformed exercises remain available as a source workout
+    // for future copying, but they do not create a history entry.
+    final actualByDate = <DateTime, List<WorkoutSet>>{};
+    for (final set in _history) {
+      final date = _dateOnly(set.date);
+      actualByDate.putIfAbsent(date, () => []).add(set);
+    }
+
+    final dates = actualByDate.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    if (dates.isEmpty) {
       return const Center(
         child: Text(
           'No history available.',
@@ -1400,77 +1992,61 @@ class _User1HomeExerciseDetailScreenState
       );
     }
 
-    final grouped = <DateTime, List<WorkoutSet>>{};
-
-    for (final set in _history) {
-      final date = _dateOnly(set.date);
-
-      grouped.putIfAbsent(date, () => []);
-
-      grouped[date]!.add(set);
-    }
-
-    final dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
-
     return ListView(
       padding: const EdgeInsets.all(18),
-      children: [
-        ...dates.map((date) {
-          final sets = grouped[date]!;
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111D34),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _formatDate(date),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+      children: dates.map((date) {
+        final sets = actualByDate[date]!;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111D34),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _formatDate(date),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 10),
-                ...List.generate(sets.length, (index) {
-                  final set = sets[index];
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 5),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Set ${index + 1}    '
-                            '${set.weight} kg × ${set.reps}',
-                            style: const TextStyle(
-                              color: Colors.white60,
-                              fontSize: 13,
-                            ),
+              ),
+              const SizedBox(height: 10),
+              ...List.generate(sets.length, (index) {
+                final set = sets[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Set ${index + 1}    ${set.weight} kg × ${set.reps}',
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 13,
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => _deleteHistorySet(set),
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            size: 19,
-                            color: Colors.redAccent,
-                          ),
+                      ),
+                      IconButton(
+                        onPressed: () => _deleteHistorySet(set),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 19,
+                          color: Colors.redAccent,
                         ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          );
-        }),
-      ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -1625,12 +2201,9 @@ class _User1HomeCopyWorkoutScreenState
     final drafts = <String, List<PreparedWorkoutSet>>{};
 
     for (final set in _selectedSets) {
-      drafts.putIfAbsent(set.exerciseName, () => []).add(
-        PreparedWorkoutSet(
-          weight: set.weight,
-          reps: set.reps,
-        ),
-      );
+      drafts
+          .putIfAbsent(set.exerciseName, () => [])
+          .add(PreparedWorkoutSet(weight: set.weight, reps: set.reps));
     }
 
     if (!mounted) return;
@@ -1813,6 +2386,8 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
 
   List<DateTime> _workoutDates = [];
   List<WorkoutSet> _selectedSets = [];
+  Map<String, CopiedExerciseHistoryEntry> _selectedCopiedEntries = {};
+  Set<String> _missedWorkoutDateKeys = {};
 
   bool _loading = true;
 
@@ -1838,46 +2413,109 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
   Future<void> _loadCalendar() async {
     try {
       final dates = await _database.getWorkoutDates('user1');
-
+      final copiedByDate = await CopiedWorkoutHistoryStorage.loadAllDays(
+        userId: 'user1',
+      );
+      final today = _dateOnly(DateTime.now());
+      for (final dayEntry in copiedByDate.entries) {
+        if (!dayEntry.key.isBefore(today)) continue;
+        final actualDaySets = await _database.getSetsByDate(
+          userId: 'user1',
+          date: dayEntry.key,
+        );
+        final actualNamesForDay = {
+          for (final set in actualDaySets) set.exerciseName.toLowerCase(),
+        };
+        for (final copiedEntry in dayEntry.value.entries) {
+          if (!copiedEntry.value.performed &&
+              actualNamesForDay.contains(copiedEntry.key.toLowerCase())) {
+            await CopiedWorkoutHistoryStorage.markPerformed(
+              userId: 'user1',
+              date: dayEntry.key,
+              exerciseName: copiedEntry.key,
+              sets: actualDaySets
+                  .where(
+                    (set) =>
+                        set.exerciseName.toLowerCase() ==
+                        copiedEntry.key.toLowerCase(),
+                  )
+                  .map(
+                    (set) => <String, dynamic>{
+                      'weight': set.weight,
+                      'reps': set.reps,
+                    },
+                  )
+                  .toList(),
+            );
+          }
+        }
+        final refreshedEntries = await CopiedWorkoutHistoryStorage.loadDay(
+          userId: 'user1',
+          date: dayEntry.key,
+        );
+        final hasUnperformed = refreshedEntries.values.any(
+          (entry) => !entry.performed,
+        );
+        if (hasUnperformed) {
+          await WorkoutDayStatusStorage.markMissed(
+            userId: 'user1',
+            date: dayEntry.key,
+          );
+        } else {
+          await WorkoutDayStatusStorage.clearMissed(
+            userId: 'user1',
+            date: dayEntry.key,
+          );
+        }
+      }
       final selectedDate = _selectedDay ?? _dateOnly(DateTime.now());
-
       final selectedSets = await _database.getSetsByDate(
         userId: 'user1',
         date: selectedDate,
       );
+      final missedKeys = await WorkoutDayStatusStorage.loadMissedDateKeys(
+        userId: 'user1',
+      );
+      final combinedDates = <DateTime>{
+        ...dates.map(_dateOnly),
+        ...copiedByDate.keys.map(_dateOnly),
+      }.toList()..sort((a, b) => b.compareTo(a));
 
       if (!mounted) return;
-
       setState(() {
-        _workoutDates = dates.map(_dateOnly).toList();
-
+        _workoutDates = combinedDates;
         _selectedSets = selectedSets;
-
+        _selectedCopiedEntries = copiedByDate[_dateOnly(selectedDate)] ?? {};
+        _missedWorkoutDateKeys = missedKeys;
         _loading = false;
       });
     } catch (e) {
       debugPrint('Error loading User 1 calendar: $e');
-
       if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
   Future<void> _refreshSelectedDate() async {
     final date = _selectedDay ?? _dateOnly(DateTime.now());
-
     final sets = await _database.getSetsByDate(userId: 'user1', date: date);
-
     final dates = await _database.getWorkoutDates('user1');
+    final copiedByDate = await CopiedWorkoutHistoryStorage.loadAllDays(
+      userId: 'user1',
+    );
+    final missedKeys = await WorkoutDayStatusStorage.loadMissedDateKeys(
+      userId: 'user1',
+    );
 
     if (!mounted) return;
-
     setState(() {
       _selectedSets = sets;
-      _workoutDates = dates.map(_dateOnly).toList();
+      _workoutDates = <DateTime>{
+        ...dates.map(_dateOnly),
+        ...copiedByDate.keys.map(_dateOnly),
+      }.toList()..sort((a, b) => b.compareTo(a));
+      _selectedCopiedEntries = copiedByDate[_dateOnly(date)] ?? {};
+      _missedWorkoutDateKeys = missedKeys;
     });
   }
 
@@ -1892,10 +2530,41 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
     );
   }
 
+  bool _hasMissedWorkout(DateTime day) {
+    // A red day can still contain some recorded exercises: it means at least
+    // one prepared exercise was not saved before the day ended.
+    return _missedWorkoutDateKeys.contains(
+      WorkoutDayStatusStorage.dateKey(day),
+    );
+  }
+
+  Widget? _missedDayCell(DateTime day) {
+    if (!_hasMissedWorkout(day)) return null;
+    return Container(
+      margin: const EdgeInsets.all(6),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withValues(alpha: 0.13),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.40)),
+      ),
+      child: Text(
+        '${day.day}',
+        style: const TextStyle(
+          color: Colors.redAccent,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   Future<void> _onDaySelected(DateTime selectedDay, DateTime focusedDay) async {
     final date = _dateOnly(selectedDay);
-
     final sets = await _database.getSetsByDate(userId: 'user1', date: date);
+    final copied = await CopiedWorkoutHistoryStorage.loadDay(
+      userId: 'user1',
+      date: date,
+    );
 
     if (!mounted) return;
 
@@ -1903,6 +2572,7 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
       _selectedDay = date;
       _focusedDay = focusedDay;
       _selectedSets = sets;
+      _selectedCopiedEntries = copied;
     });
   }
 
@@ -2028,16 +2698,40 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
     await _refreshSelectedDate();
   }
 
+  List<PreparedWorkoutSet> _initialSetsForSelectedDate(String exerciseName) {
+    for (final entry in _selectedCopiedEntries.entries) {
+      if (entry.key.toLowerCase() == exerciseName.toLowerCase()) {
+        return entry.value.sets
+            .map(
+              (set) => PreparedWorkoutSet(weight: set.weight, reps: set.reps),
+            )
+            .toList();
+      }
+    }
+    return const [];
+  }
+
   Future<void> _editWorkoutForSelectedDate() async {
-    if (_selectedSets.isEmpty) {
+    if (_selectedSets.isEmpty && _selectedCopiedEntries.isEmpty) {
       _showMessage('No workout on this date.');
       return;
     }
 
     final date = _selectedDay ?? _dateOnly(DateTime.now());
-
-    final exercises =
-        _selectedSets.map((set) => set.exerciseName).toSet().toList()..sort();
+    final exercises = <String>[];
+    for (final set in _selectedSets) {
+      if (!exercises.any(
+        (name) => name.toLowerCase() == set.exerciseName.toLowerCase(),
+      )) {
+        exercises.add(set.exerciseName);
+      }
+    }
+    for (final name in _selectedCopiedEntries.keys) {
+      if (!exercises.any((item) => item.toLowerCase() == name.toLowerCase())) {
+        exercises.add(name);
+      }
+    }
+    exercises.sort();
 
     final selectedExercise = await showModalBottomSheet<String>(
       context: context,
@@ -2114,6 +2808,7 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
           exerciseName: selectedExercise,
           target: 'Recorded workout',
           workoutDate: date,
+          initialSets: _initialSetsForSelectedDate(selectedExercise),
         ),
       ),
     );
@@ -2122,224 +2817,196 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
   }
 
   Future<void> _copySelectedWorkoutToToday() async {
-    if (_selectedSets.isEmpty) {
-      _showMessage('No workout on this date.');
+    if (_selectedSets.isEmpty && _selectedCopiedEntries.isEmpty) {
+      _showMessage('No workout history on this date.');
       return;
     }
 
     final sourceDate = _selectedDay ?? _dateOnly(DateTime.now());
-
     final today = _dateOnly(DateTime.now());
-
-    if (sourceDate == today) {
+    if (!sourceDate.isBefore(today)) {
       _showMessage('Select a previous workout date.');
       return;
     }
 
-    final exerciseNames = <String>[
-      ...{for (final set in _selectedSets) set.exerciseName},
-    ]..sort();
+    // Union actual workout rows with copied-only history rows. This preserves
+    // skipped exercises when a copied workout is copied again on a later day.
+    final exerciseNames = <String>[];
+    void addExerciseName(String name) {
+      if (!exerciseNames.any(
+        (item) => item.toLowerCase() == name.toLowerCase(),
+      )) {
+        exerciseNames.add(name);
+      }
+    }
 
-    final selectedExercises = <String>{};
+    for (final set in _selectedSets) {
+      addExerciseName(set.exerciseName);
+    }
+    for (final name in _selectedCopiedEntries.keys) {
+      addExerciseName(name);
+    }
 
-    final selected = await showModalBottomSheet<Set<String>>(
-      context: context,
-      backgroundColor: const Color(0xFF101C32),
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final allSelected =
-                selectedExercises.length == exerciseNames.length;
-
-            return SafeArea(
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.75,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-
-                    Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    const Text(
-                      'SELECT EXERCISES TO COPY',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      _formatDate(sourceDate),
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 13,
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    CheckboxListTile(
-                      value: allSelected,
-                      activeColor: Colors.blueAccent,
-                      checkColor: Colors.white,
-                      title: const Text(
-                        'SELECT ALL',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      onChanged: (value) {
-                        setModalState(() {
-                          if (value == true) {
-                            selectedExercises
-                              ..clear()
-                              ..addAll(exerciseNames);
-                          } else {
-                            selectedExercises.clear();
-                          }
-                        });
-                      },
-                    ),
-
-                    const Divider(color: Colors.white12, height: 1),
-
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: exerciseNames.length,
-                        itemBuilder: (_, index) {
-                          final exercise = exerciseNames[index];
-
-                          final isSelected = selectedExercises.contains(
-                            exercise,
-                          );
-
-                          return CheckboxListTile(
-                            value: isSelected,
-                            activeColor: Colors.blueAccent,
-                            checkColor: Colors.white,
-                            title: Text(
-                              exercise,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            onChanged: (value) {
-                              setModalState(() {
-                                if (value == true) {
-                                  selectedExercises.add(exercise);
-                                } else {
-                                  selectedExercises.remove(exercise);
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: selectedExercises.isEmpty
-                              ? null
-                              : () {
-                                  Navigator.pop(sheetContext, {
-                                    ...selectedExercises,
-                                  });
-                                },
-                          child: Text(
-                            'COPY ${selectedExercises.length} EXERCISE${selectedExercises.length == 1 ? '' : 'S'}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+    final configuredOrder = await _database.getAllExerciseNames(
+      userId: 'user1',
+      defaultExercises: ExerciseCatalog.defaultExercises,
     );
+    final orderIndex = <String, int>{
+      for (var i = 0; i < configuredOrder.length; i++)
+        configuredOrder[i].toLowerCase(): i,
+    };
+    exerciseNames.sort((a, b) {
+      final aIndex = orderIndex[a.toLowerCase()] ?? 1 << 30;
+      final bIndex = orderIndex[b.toLowerCase()] ?? 1 << 30;
+      if (aIndex != bIndex) return aIndex.compareTo(bIndex);
+      return a.toLowerCase().compareTo(b.toLowerCase());
+    });
 
-    if (!mounted || selected == null || selected.isEmpty) {
-      return;
-    }
-    final setsToCopy = _selectedSets
-        .where((set) => selected.contains(set.exerciseName))
-        .toList();
-
-    if (setsToCopy.isEmpty) {
-      _showMessage('No exercises selected.');
-      return;
-    }
-
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF101C32),
-          title: const Text(
-            'Prepare Workout?',
-            style: TextStyle(color: Colors.white),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF101C32),
+        title: const Text(
+          'Copy Complete Workout?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'All ${exerciseNames.length} exercises from ${_formatDate(sourceDate)} will be copied into today’s workout list.\n\n'
+          'Only exercises you save today will appear in today’s history. The full copied workout will remain available for copying again later.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
           ),
-          content: Text(
-            'Prepare ${selected.length} selected exercise${selected.length == 1 ? '' : 's'} '
-            'from ${_formatDate(sourceDate)} for today?\n\n'
-            '${setsToCopy.length} sets will be prepared. Nothing will be logged '
-            'until you open an exercise and press SAVE WORKOUT.',
-            style: const TextStyle(color: Colors.white70),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('COPY ALL'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCEL'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('PREPARE'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
-
     if (confirmed != true) return;
 
     final prepared = <String, List<PreparedWorkoutSet>>{};
-
-    for (final set in setsToCopy) {
-      prepared.putIfAbsent(set.exerciseName, () => []).add(
-        PreparedWorkoutSet(
-          weight: set.weight,
-          reps: set.reps,
-        ),
+    final copySnapshot = <String, List<Map<String, dynamic>>>{};
+    for (final exerciseName in exerciseNames) {
+      final history = await _database.getExerciseHistory(
+        userId: 'user1',
+        exerciseName: exerciseName,
       );
+      final previous =
+          history.where((set) => _dateOnly(set.date).isBefore(today)).toList()
+            ..sort((a, b) {
+              final dateCompare = _dateOnly(
+                b.date,
+              ).compareTo(_dateOnly(a.date));
+              if (dateCompare != 0) return dateCompare;
+              return a.createdAt.compareTo(b.createdAt);
+            });
+
+      final fallbackActual = _selectedSets
+          .where(
+            (set) =>
+                set.exerciseName.toLowerCase() == exerciseName.toLowerCase(),
+          )
+          .toList();
+      CopiedExerciseHistoryEntry? fallbackCopied;
+      for (final copiedEntry in _selectedCopiedEntries.entries) {
+        if (copiedEntry.key.toLowerCase() == exerciseName.toLowerCase()) {
+          fallbackCopied = copiedEntry.value;
+          break;
+        }
+      }
+      final latestDate = previous.isEmpty
+          ? sourceDate
+          : _dateOnly(previous.first.date);
+      final sourceSets = previous.isEmpty
+          ? fallbackActual
+          : previous.where((set) => _dateOnly(set.date) == latestDate).toList();
+
+      List<PreparedWorkoutSet> preparedSets;
+      if (sourceSets.isNotEmpty) {
+        preparedSets = sourceSets
+            .map(
+              (set) => PreparedWorkoutSet(weight: set.weight, reps: set.reps),
+            )
+            .toList();
+      } else if (fallbackCopied != null) {
+        preparedSets = fallbackCopied.sets
+            .map(
+              (set) => PreparedWorkoutSet(weight: set.weight, reps: set.reps),
+            )
+            .toList();
+      } else {
+        // Keep the exercise in copied history even if its past entry had no
+        // valid set values. It will clearly remain NO PERFORM YET until saved.
+        preparedSets = <PreparedWorkoutSet>[];
+      }
+
+      prepared[exerciseName] = preparedSets;
+      copySnapshot[exerciseName] = preparedSets
+          .map(
+            (set) => <String, dynamic>{'weight': set.weight, 'reps': set.reps},
+          )
+          .toList();
     }
 
     if (!mounted) return;
 
+    final actualToday = await _database.getSetsByDate(
+      userId: 'user1',
+      date: today,
+    );
+    final alreadyPerformedNames = <String>{
+      for (final set in actualToday) set.exerciseName,
+    };
+    await CopiedWorkoutHistoryStorage.saveCopiedWorkout(
+      userId: 'user1',
+      date: today,
+      exercises: copySnapshot,
+      performedExerciseNames: alreadyPerformedNames,
+    );
+
+    // The prepared draft is editable UI state for today; durable copied history
+    // above remains available in the History tab even if the date changes.
+    prepared.removeWhere(
+      (name, _) => alreadyPerformedNames.any(
+        (actualName) => actualName.toLowerCase() == name.toLowerCase(),
+      ),
+    );
+    if (prepared.isNotEmpty) {
+      await PreparedWorkoutStorage.save(
+        userId: 'user1',
+        date: today,
+        sets: prepared.map(
+          (name, sets) => MapEntry(
+            name,
+            sets
+                .map(
+                  (set) => <String, dynamic>{
+                    'weight': set.weight,
+                    'reps': set.reps,
+                  },
+                )
+                .toList(),
+          ),
+        ),
+      );
+    } else {
+      await PreparedWorkoutStorage.clear(userId: 'user1');
+    }
+
+    // If this date is being re-copied and existing entries remain unperformed,
+    // its red calendar state will be set when the day becomes historical.
+    if (!mounted) return;
     Navigator.pop(context, prepared);
   }
 
   Future<void> _deleteWorkoutForSelectedDate() async {
-    if (_selectedSets.isEmpty) {
+    if (_selectedSets.isEmpty && _selectedCopiedEntries.isEmpty) {
       _showMessage('No workout on this date.');
       return;
     }
@@ -2358,7 +3025,7 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
           ),
 
           content: Text(
-            'Delete the complete workout for ${_formatDate(date)}?',
+            'Delete all actual and copied exercise history for ${_formatDate(date)}?',
             style: const TextStyle(color: Colors.white70),
           ),
 
@@ -2388,6 +3055,18 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
 
     try {
       await _database.deleteAllSetsByDate(userId: 'user1', date: date);
+      final copiedForDate = await CopiedWorkoutHistoryStorage.loadDay(
+        userId: 'user1',
+        date: date,
+      );
+      for (final name in copiedForDate.keys) {
+        await CopiedWorkoutHistoryStorage.removeExercise(
+          userId: 'user1',
+          date: date,
+          exerciseName: name,
+        );
+      }
+      await WorkoutDayStatusStorage.clearMissed(userId: 'user1', date: date);
 
       await _refreshSelectedDate();
 
@@ -2450,7 +3129,8 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
 
     final selectedDate = _selectedDay ?? _dateOnly(DateTime.now());
 
-    final hasWorkout = _selectedSets.isNotEmpty;
+    final hasWorkout =
+        _selectedSets.isNotEmpty || _selectedCopiedEntries.isNotEmpty;
 
     return Scaffold(
       backgroundColor: const Color(0xFF07111F),
@@ -2544,19 +3224,55 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
                     ),
 
                     calendarBuilders: CalendarBuilders(
+                      defaultBuilder: (context, day, focusedDay) =>
+                          _missedDayCell(day),
+                      selectedBuilder: (context, day, focusedDay) =>
+                          _missedDayCell(day) ??
+                          Container(
+                            margin: const EdgeInsets.all(6),
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF2563EB),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${day.day}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      todayBuilder: (context, day, focusedDay) =>
+                          _missedDayCell(day) ??
+                          Container(
+                            margin: const EdgeInsets.all(6),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.blueAccent),
+                            ),
+                            child: Text(
+                              '${day.day}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                       markerBuilder: (context, day, events) {
-                        if (!_hasWorkout(day)) {
-                          return null;
-                        }
-
+                        final missed = _hasMissedWorkout(day);
+                        if (!missed && !_hasWorkout(day)) return null;
                         return Positioned(
                           bottom: 4,
                           child: IgnorePointer(
                             child: Container(
                               width: 5,
                               height: 5,
-                              decoration: const BoxDecoration(
-                                color: Colors.blueAccent,
+                              decoration: BoxDecoration(
+                                color: missed
+                                    ? Colors.redAccent
+                                    : Colors.blueAccent,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -2603,7 +3319,8 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
                       height: 50,
                       child: ElevatedButton.icon(
                         onPressed:
-                            _selectedSets.isNotEmpty &&
+                            (_selectedSets.isNotEmpty ||
+                                    _selectedCopiedEntries.isNotEmpty) &&
                                 !isSameDay(_selectedDay, DateTime.now())
                             ? _copySelectedWorkoutToToday
                             : null,
@@ -2663,17 +3380,13 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
                   ...grouped.entries.map((entry) {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
-
                       padding: const EdgeInsets.all(15),
-
                       decoration: BoxDecoration(
                         color: const Color(0xFF111D34),
                         borderRadius: BorderRadius.circular(16),
                       ),
-
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
                           Text(
                             entry.key,
@@ -2682,15 +3395,11 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           ...List.generate(entry.value.length, (index) {
                             final set = entry.value[index];
-
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 4),
-
                               child: Text(
                                 'Set ${index + 1}    ${set.weight} kg × ${set.reps}',
                                 style: const TextStyle(
@@ -2704,6 +3413,88 @@ class _User1HomeCalendarScreenState extends State<User1HomeCalendarScreen> {
                       ),
                     );
                   }),
+                ..._selectedCopiedEntries.entries
+                    .where(
+                      (copied) => !grouped.keys.any(
+                        (name) =>
+                            name.toLowerCase() == copied.key.toLowerCase(),
+                      ),
+                    )
+                    .map((copied) {
+                      final entry = copied.value;
+                      final notPerformed = !entry.performed;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: notPerformed
+                              ? Colors.redAccent.withValues(alpha: 0.07)
+                              : const Color(0xFF111D34),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: notPerformed
+                                ? Colors.redAccent.withValues(alpha: 0.32)
+                                : Colors.white.withValues(alpha: 0.06),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    copied.key,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  entry.performed
+                                      ? 'MARKED DONE'
+                                      : 'NO PERFORM YET',
+                                  style: TextStyle(
+                                    color: entry.performed
+                                        ? Colors.greenAccent
+                                        : Colors.redAccent,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            ...List.generate(entry.sets.length, (index) {
+                              final set = entry.sets[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  'Set ${index + 1}    ${set.weight} kg × ${set.reps}',
+                                  style: TextStyle(
+                                    color: notPerformed
+                                        ? Colors.redAccent.withValues(
+                                            alpha: 0.9,
+                                          )
+                                        : Colors.white60,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              );
+                            }),
+                            if (notPerformed)
+                              const Text(
+                                'Copied history only; this exercise does not count as completed.',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
               ],
             ),
     );

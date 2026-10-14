@@ -5,6 +5,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../calendar/user1_calendar_screen.dart';
 import '../../utils/exercise_catalog.dart';
 import '../../services/database_service.dart';
+import '../../services/exercise_preference_storage.dart';
 import '../../theme/app_theme.dart';
 
 class ExerciseScreen extends StatefulWidget {
@@ -775,16 +776,20 @@ class _RoutineSetDraft {
 class _RoutineExerciseDraft {
   final String exerciseName;
   final List<_RoutineSetDraft> sets;
+  final TextEditingController preferenceController;
 
   _RoutineExerciseDraft({
     required this.exerciseName,
     List<_RoutineSetDraft>? initialSets,
-  }) : sets = initialSets ?? [_RoutineSetDraft()];
+    String preference = '',
+  }) : sets = initialSets ?? [_RoutineSetDraft()],
+       preferenceController = TextEditingController(text: preference);
 
   void dispose() {
     for (final set in sets) {
       set.dispose();
     }
+    preferenceController.dispose();
   }
 }
 
@@ -808,6 +813,7 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
   final TextEditingController _nameController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   List<ExerciseLibraryData> _library = [];
+  Map<String, String> _savedExercisePreferences = {};
   final List<_RoutineExerciseDraft> _exercises = [];
   bool _loading = true;
   bool _saving = false;
@@ -822,6 +828,10 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
     final library = await widget.database.getExerciseLibrary(
       userId: widget.userId,
     );
+    final preferences = await ExercisePreferenceStorage.load(
+      userId: widget.userId,
+    );
+    _savedExercisePreferences = preferences;
 
     if (widget.routine != null) {
       final routine = widget.routine!;
@@ -850,6 +860,10 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
           _RoutineExerciseDraft(
             exerciseName: entry.key,
             initialSets: initialSets,
+            preference: preferences[
+                  ExercisePreferenceStorage.exerciseKey(entry.key)
+                ] ??
+                '',
           ),
         );
       }
@@ -893,7 +907,15 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
       return;
     }
     setState(() {
-      _exercises.add(_RoutineExerciseDraft(exerciseName: name));
+      _exercises.add(
+        _RoutineExerciseDraft(
+          exerciseName: name,
+          preference: _savedExercisePreferences[
+                ExercisePreferenceStorage.exerciseKey(name)
+              ] ??
+              '',
+        ),
+      );
     });
   }
 
@@ -1078,6 +1100,48 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
           const SnackBar(content: Text('Routine updated successfully.')),
         );
       }
+
+      // Save the per-exercise display targets separately from recorded sets.
+      final updatedPreferences = await ExercisePreferenceStorage.load(
+        userId: widget.userId,
+      );
+      for (final exercise in _exercises) {
+        final key = ExercisePreferenceStorage.exerciseKey(exercise.exerciseName);
+        final value = ExercisePreferenceStorage.normalizeLabel(
+          exercise.preferenceController.text,
+        );
+        if (value.isEmpty) {
+          updatedPreferences.remove(key);
+        } else {
+          updatedPreferences[key] = value;
+        }
+      }
+      await ExercisePreferenceStorage.saveAll(
+        userId: widget.userId,
+        preferences: updatedPreferences,
+      );
+      _savedExercisePreferences = updatedPreferences;
+
+      // Keep the order in which exercises were added to the routine as the
+      // preferred display order, even if the user performs them in another order.
+      final allExerciseNames = await widget.database.getAllExerciseNames(
+        userId: widget.userId,
+        defaultExercises: ExerciseCatalog.defaultExercises,
+      );
+      final preferredOrder = <String>[
+        for (final exercise in _exercises) exercise.exerciseName,
+      ];
+      for (final exerciseName in allExerciseNames) {
+        if (!preferredOrder.any(
+          (name) => name.toLowerCase() == exerciseName.toLowerCase(),
+        )) {
+          preferredOrder.add(exerciseName);
+        }
+      }
+      await widget.database.saveExerciseOrder(
+        userId: widget.userId,
+        orderedExerciseNames: preferredOrder,
+      );
 
       if (mounted) {
         Navigator.pop(context, true);
@@ -1306,6 +1370,25 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: exercise.preferenceController,
+            textCapitalization: TextCapitalization.none,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Preferred sets × reps',
+              hintText: 'e.g. 3 × 8–10',
+              hintStyle: const TextStyle(color: Colors.white30),
+              labelStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: const Color(0xFF0B1628),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           ...exercise.sets.asMap().entries.map(
             (entry) => Padding(
               padding: const EdgeInsets.only(bottom: 8),

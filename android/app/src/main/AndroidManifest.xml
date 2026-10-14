@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Activity and Health Connect permissions -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
@@ -13,7 +14,7 @@
         <!-- Main Flutter Activity -->
         <activity
             android:name=".MainActivity"
-            android:exported="false"
+            android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
@@ -25,29 +26,14 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
-            <!-- Health Connect permissions rationale -->
-            <intent-filter>
-                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-            </intent-filter>
-
-        </activity>
-
-        <!-- FitTrack launcher -->
-        <activity-alias
-            android:name=".FitTrackLauncherV2Activity"
-            android:exported="true"
-            android:targetActivity=".MainActivity"
-            android:icon="@mipmap/ic_fittrack"
-            android:roundIcon="@mipmap/ic_fittrack">
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-        </activity-alias>
+        </activity>
 
-        <!-- Health Connect permission usage -->
+        <!-- Health Connect permissions rationale -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
@@ -61,6 +47,7 @@
 
         </activity-alias>
 
+        <!-- Flutter embedding version -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
